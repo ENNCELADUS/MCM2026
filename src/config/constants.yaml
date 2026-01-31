@@ -8,7 +8,16 @@
 # -----------------------------------------------------------------------------
 time:
   delta_t: 2592000  # 1 month in seconds (30 * 24 * 3600)
-  T_max: 120        # Maximum time horizon (months, 10 years)
+  T_max: 600        # Maximum time horizon (months, 50 years, 2050-2100)
+  start_year: 2050  # Calendar year for t=0 (Phase I start)
+  steps_per_year: 12
+
+# -----------------------------------------------------------------------------
+# Unit Conversions
+# -----------------------------------------------------------------------------
+units:
+  ton_to_kg: 1000
+  seconds_per_day: 86400
 
 # -----------------------------------------------------------------------------
 # Network Nodes (N)
@@ -29,7 +38,8 @@ nodes:
 
 # -----------------------------------------------------------------------------
 # Logistics Arcs (A)
-# format: {from, to, id, type, lead_time_months, payload_kg, enabled_scenarios}
+# format: {from, to, id, type, lead_time, payload, enabled}
+# lead_time and payload are in months and kg, respectively.
 # -----------------------------------------------------------------------------
 arcs:
   # Elevator segments
@@ -37,34 +47,38 @@ arcs:
     from: "E_port"
     to: "Apex"
     type: "elevator"
-    lead_time: 1    # ~7 days transit, rounded to 1 month step
-    payload: 20000  # 20 tons per climber
+    lead_time_days: 7       # ~1 week to GEO
+    payload_t: 20           # 20t climber
+    cost_per_kg_2050: 20    # Target operational cost
     enabled: ["E-only", "Mix"]
-    
+
   - id: "Apex_to_Moon"
     from: "Apex"
     to: "Moon"
     type: "transfer"
-    lead_time: 1
-    payload: 20000
+    lead_time_days: 5       # Transfer + LOI + Landing
+    payload_t: 20           # Matches climber payload
+    cost_per_kg_2050: 40    # $60 total (20 lift + 40 transfer/landing)
     enabled: ["E-only", "Mix"]
-    
+
   # Rocket segments
   - id: "E_port_to_Moon_R"
     from: "E_port"
     to: "Moon"
     type: "rocket"
-    lead_time: 1    # ~3-5 days transit
-    payload: 15000  # Falcon Heavy TLI ~15-16t
+    lead_time_days: 5       # Direct TLI
+    payload_t: 100          # Starship class
+    cost_per_kg_2050: 100   # 2050 Target ($100/kg)
     enabled: ["R-only", "Mix"]
-    
+
   # Ground transport (Earth)
   - id: "E_agg_to_E_port"
     from: "E_agg"
     to: "E_port"
     type: "ground"
     lead_time: 1
-    payload: 1000000  # effectively unlimited
+    payload: 1000000
+    cost_per_kg_2050: 0
     enabled: ["E-only", "R-only", "Mix"]
 
 # -----------------------------------------------------------------------------
@@ -136,14 +150,10 @@ scenario_parameters:
       min: 15
       max: 16
     falcon_heavy_cost_usd: 150000000
-    falcon_family_reliability:
-      min: 0.98
-      max: 0.99
     starship_cost_per_kg_usd:
       upper: 100
       target: 20
     delta_v_leo_to_moon_kms: 5.9
-    black_carbon_emissions_tpy: 1000
 
 # -----------------------------------------------------------------------------
 # Cost Parameters ($)
@@ -170,12 +180,13 @@ costs:
 # -----------------------------------------------------------------------------
 initial_capacities:
   P_0: 0.0      # ISRU production (kg/s)
-  V_0: 0.0      # Construction/assembly (kg/s)
+  V_0: 0.0001   # Construction/assembly (kg/s) - epsilon > 0
   H_0: 0.001    # Handling/receiving (kg/s) - minimal initial
   Pop_0: 0      # Population capacity (persons)
+  Power_0: 0.0  # Power capacity (MW)
   
   # Transport capacity pools
-  C_R_0: 0.5    # Rocket capacity pool (kg/s) - ~1500t/month
+  C_R_0: 0.1617 # Rocket capacity pool (kg/s) - 5000 t/yr baseline
   C_E_0: 0.2    # Elevator capacity pool (kg/s) - ~500t/month
 
 # -----------------------------------------------------------------------------
@@ -213,28 +224,278 @@ task_defaults:
 # -----------------------------------------------------------------------------
 # Task / Environmental Parameters (from outline/parameters.md)
 # -----------------------------------------------------------------------------
-task_parameters:
-  water:
-    recovery_rate: 0.98
-    consumption_l_per_person_day: 20
-    agricultural_usage_note: "dominant"
-  environment:
-    rocket_black_carbon_tpy: 1000
-    warming_factor_relative_to_co2: 100000
-    alumina_emissions_t_per_launch: 70
-    co2_emissions_falcon_t_per_launch: 400
-    ozone_impact_percent: 4
-    elevator_operational_emissions_note: "near-zero"
-    debris_risk_note: "non-zero"
-  sensitivity:
-    tether_capacity_growth: "logistic"
-    reuse_cost_reduction_note: "diminishing_returns"
-    starship_cost_curve_usd_per_kg:
-      start: 90
-      target: 20
-    failure_rates:
-      rocket_fail: 0.02
-      elevator_downtime_note: "D_SE"
+# -----------------------------------------------------------------------------
+# Parameter Summary & Constraint Supplements (from outline/model.md §5)
+# -----------------------------------------------------------------------------
+parameter_summary:
+  bom:
+    total_demand_tons: 100000000
+    tiers:
+      - id: "tier_1"
+        name: "precision_seed"
+        class: 1
+        chi:
+          min: 0.99
+          max: 1.0
+        share_initial: 0.15
+        share_final_max: 0.01
+        source_policy: "earth_only"
+        resources: ["electronics"]
+        examples: ["chips", "sensors"]
+      - id: "tier_2"
+        name: "industrial_core"
+        class: 2
+        chi:
+          min: 0.3
+          max: 0.7
+        share_initial: 0.35
+        share_final: 0.04
+        source_policy: "mixed"
+        resources: ["equipment", "life_support"]
+        examples: ["motors", "tools"]
+      - id: "tier_3"
+        name: "basic_resources"
+        class: 3
+        chi:
+          min: 0.0
+          max: 0.1
+        share_initial: 0.5
+        share_final_min: 0.95
+        source_policy: "isru_only"
+        resources: ["structure", "water", "fuel"]
+        examples: ["structure", "oxygen", "water"]
+  logistics:
+    rocket_capacity:
+      growth_model: "logistic"
+      year_2050_single_launch_capacity_mt:
+        min: 100
+        max: 150
+      max_capacity_mt: 250
+    launch_cost_model: "wrights_law_plus_transcost"
+    year_2050_cost_usd_per_kg:
+      min: 100
+      max: 200
+    elevator_capacity_upper_tpy: 179000
+    environmental_constraint:
+      index: "WEI"
+      black_carbon_weight: 500
+  isru_bootstrapping:
+    equation: "P_dot = eta * phi * P + beta * T1"
+    eta:
+      min: 0.90
+      max: 0.98
+    phi:
+      initial:
+        min: 0.6
+        max: 0.8
+      mature: 0.1
+    alpha_per_year:
+      min: 0.2
+      max: 0.4
+    beta:
+      min: 10
+      max: 100
+    gamma:
+      note: "class2_to_class3"
+      magnitude: ">>1"
+  scenarios:
+    pivot_condition: "local_energy_cost < transport_cost"
+    timeline:
+      - phase: "Phase I"
+        years:
+          start: 2050
+          end: 2060
+        description: "seed stage (T1,T2 dependent)"
+      - phase: "Phase II"
+        years:
+          start: 2060
+          end: 2080
+        description: "expansion stage (P2,P3 exponential growth)"
+      - phase: "Phase III"
+        years:
+          start: 2080
+        description: "mature self-sufficiency (T -> 0)"
+
+# -----------------------------------------------------------------------------
+# Implementation Details (from outline/assumptions/implementation_details.md)
+# -----------------------------------------------------------------------------
+implementation_details:
+  wbs_tasks:
+    - id: "T01"
+      name: "Site_Survey_Prep"
+      predecessors: []
+      earth_mass_t: 5
+      regolith_mass_t: 500
+      duration_months: 3
+      unlocks:
+        power_mw: 0
+        handling_t_per_month: 0
+        production_t_per_year: 0
+        population: 0
+    - id: "T02"
+      name: "Power_Gen_Phase1"
+      predecessors: ["T01"]
+      earth_mass_t: 60
+      regolith_mass_t: 200
+      duration_months: 6
+      unlocks:
+        power_mw: 1
+        handling_t_per_month: 0
+        production_t_per_year: 0
+        population: 0
+    - id: "T03"
+      name: "Landing_Pad_V1"
+      predecessors: ["T01"]
+      earth_mass_t: 10
+      regolith_mass_t: 2000
+      duration_months: 4
+      unlocks:
+        power_mw: 0
+        handling_t_per_month: 50
+        production_t_per_year: 0
+        population: 0
+    - id: "T04"
+      name: "ISRU_Pilot_Plant"
+      predecessors: ["T02", "T03"]
+      earth_mass_t: 20
+      regolith_mass_t: 100
+      duration_months: 6
+      unlocks:
+        power_mw: 0
+        handling_t_per_month: 0
+        production_t_per_year: 100
+        population: 0
+    - id: "T05"
+      name: "Habitat_Module_A"
+      predecessors: ["T04"]
+      earth_mass_t: 25
+      regolith_mass_t: 5000
+      duration_months: 3
+      unlocks:
+        power_mw: 0
+        handling_t_per_month: 0
+        production_t_per_year: 0
+        population: 20
+    - id: "T06"
+      name: "ISRU_Industrial"
+      predecessors: ["T04"]
+      earth_mass_t: 150
+      regolith_mass_t: 1000
+      duration_months: 12
+      unlocks:
+        power_mw: 0
+        handling_t_per_month: 0
+        production_t_per_year: 5000
+        population: 0
+    - id: "T07"
+      name: "Power_Gen_Phase2"
+      predecessors: ["T06"]
+      earth_mass_t: 2000
+      regolith_mass_t: 5000
+      duration_months: 24
+      unlocks:
+        power_mw: 100
+        handling_t_per_month: 0
+        production_t_per_year: 0
+        population: 0
+    - id: "T08"
+      name: "City_Block_Beta"
+      predecessors: ["T06", "T07"]
+      earth_mass_t: 500
+      regolith_mass_t: 100000
+      duration_months: 0
+      unlocks:
+        power_mw: 0
+        handling_t_per_month: 0
+        production_t_per_year: 0
+        population: 1000
+
+  handling_capacity:
+    excavator_efficiency_t_per_hour_per_ton: 10
+    handling_t_per_month_per_ton_excavator: 6000
+
+  isru_yields:
+    regolith_to_oxygen: 0.40
+    regolith_to_silicon: 0.20
+    regolith_to_aluminum: 0.10
+    regolith_to_slag: 0.30
+    tier3_combined_yield: 0.50
+    tier1_2_late_stage_yield:
+      min: 0.05
+      max: 0.10
+
+  bom_mapping:
+    total_demand_tons: 100000000
+    categories:
+      - id: "infrastructure"
+        share: 0.40
+        source_policy: "isru_only"
+        notes: "radiation shielding, landing pads, roads"
+      - id: "structures"
+        share: 0.30
+        source_policy: "earth_then_isru"
+        earth_share_initial: 0.50
+        isru_share_final: 0.90
+      - id: "consumables"
+        share: 0.20
+        source_policy: "isru_only"
+      - id: "high_tech"
+        share: 0.10
+        source_policy: "earth_dominant"
+        earth_share: 0.90
+        isru_share: 0.10
+
+  linearization_guidance:
+    total_mass_equation: "M_total = sum W_i + sum M_{i,r}"
+    bottleneck_note: "Tier1/2 transport is primary bottleneck"
+
+  additional_parameters:
+    time_discretization:
+      steps_per_month: 1
+      threshold_days: 15
+      arrival_rule: "lead_lt_threshold_same_month_else_next"
+    arc_selection:
+      simplified_single_arc: false
+      arc_rocket_id: "E_port_to_Moon_R"
+      arc_elevator_id: "E_port_to_Apex"
+    elevator_stream_model:
+      enabled: true
+      constraint: "sum_r x_elev[r,t] <= C_E(t) * delta_t"
+    rocket_capacity_growth:
+      baseline_tpy: 5000
+      annual_growth_rate: 0.08
+      formula: "C_R(t) = baseline * (1 + r)^(t/12)"
+    wrights_law_cost:
+      c_start_usd_per_kg: 200
+      c_min_usd_per_kg: 20
+      lambda_per_month: 0.01
+      formula: "Cost(t) = (c_start - c_min) * exp(-lambda * t) + c_min"
+    isru_bootstrapping:
+      seed_input_source: "task_earth_mass"
+      mode: "stepwise_task_unlocks"
+    task_duration:
+      fixed_setup_time: true
+      note: "duration_months in WBS"
+    handling_capacity:
+      tied_to_tasks: true
+      note: "increments from WBS unlocks"
+    inventory_policy:
+      unlimited_prepositioning: true
+      note: "no upper bound on storage"
+    energy_transport_pivot:
+      local_energy_cost_usd_per_kwh: 0.10
+      energy_intensity_kwh_per_kg: 500
+      local_cost_per_kg_formula: "local_energy_cost * energy_intensity"
+      pivot_condition: "transport_cost < local_cost"
+
+# -----------------------------------------------------------------------------
+# Optimization Bounds & Variable Domains
+# -----------------------------------------------------------------------------
+optimization:
+  big_m: 1000000000
+  integer_vars:
+    - "u"
+    - "y"
 
 # -----------------------------------------------------------------------------
 # Objective Function Weights
@@ -250,3 +511,7 @@ solver:
   time_limit: 3600    # seconds
   gap_tolerance: 0.01 # 1% MIP gap
   threads: 4
+  horizon_step_months: 12
+  horizon_max_attempts: 0
+  v0_scale_factor: 10.0
+  v0_adjust_attempts: 4
