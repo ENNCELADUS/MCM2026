@@ -237,6 +237,7 @@ class PyomoBuilder:
         m.v = pyo.Var(m.I, m.T, domain=pyo.NonNegativeReals)
         m.v_inst = pyo.Var(m.I_V, m.T, domain=pyo.NonNegativeReals)
         m.u = pyo.Var(m.I, m.T, domain=pyo.Binary)
+        m.u_done = pyo.Var(m.I, m.T, domain=pyo.Binary)
         m.S_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.z = pyo.Var(m.I, m.T, domain=pyo.Binary)
 
@@ -256,7 +257,8 @@ class PyomoBuilder:
     # -------------------------------------------------------------------------
 
     def _completed_by(self, mdl: Any, i: str, t: int) -> Any:
-        return sum(mdl.u[i, tau] for tau in mdl.T if tau <= t)
+        # u is now cumulative: u[i,t]=1 means 'finished by t'
+        return mdl.u[i, t]
 
     def _create_constraints(self):
         m = self.m
@@ -278,18 +280,34 @@ class PyomoBuilder:
         # 5. Logistics Flow
         self._add_logistics_constraints()
 
+        # 6. Prepositioning / JIT
+        self._add_prepositioning_constraints()
+
     def _add_task_logic_constraints(self):
         m = self.m
 
-        def _complete_once_rule(mdl, i):
-            return sum(mdl.u[i, t] for t in mdl.T) == 1
+        def _task_complete_once_rule(mdl, i):
+            return sum(mdl.u_done[i, t] for t in mdl.T) == 1
 
-        m.task_complete_once = pyo.Constraint(m.I, rule=_complete_once_rule)
+        m.task_complete_once = pyo.Constraint(m.I, rule=_task_complete_once_rule)
 
-        def _makespan_rule(mdl, i, t):
-            return mdl.T_end >= t * mdl.u[i, t]
+        def _task_cumulative_rule(mdl, i, t):
+            return mdl.u[i, t] == sum(mdl.u_done[i, tau] for tau in mdl.T if tau <= t)
 
-        m.makespan_bounds = pyo.Constraint(m.I, m.T, rule=_makespan_rule)
+        m.task_cumulative = pyo.Constraint(m.I, m.T, rule=_task_cumulative_rule)
+
+        def _task_initial_rule(mdl, i):
+            return mdl.u[i, 0] == 0
+
+        m.task_initial = pyo.Constraint(m.I, rule=_task_initial_rule)
+
+        def _all_tasks_done_at_end_rule(mdl, i, t):
+            # If z_end[t] == 1, then u[i, t] must be 1 (task i completed by t)
+            return mdl.u[i, t] >= mdl.z_end[t]
+
+        m.all_tasks_done_at_end = pyo.Constraint(m.I, m.T, rule=_all_tasks_done_at_end_rule)
+
+        # Removed _makespan_rule (old T_end >= t * u pulse constraint)
 
         m.end_time_select = pyo.Constraint(
             rule=lambda mdl: sum(mdl.z_end[t] for t in mdl.T) == 1
@@ -476,43 +494,18 @@ class PyomoBuilder:
             if t_install < 0:
                 inc = 0
             else:
-                # We need to express this via Pyomo Vars.
-                # sum(delta[i] * u[i, tau] for i... for tau <= t_install)
+                # u is cumulative, so u[i, t_install] == 1 means "completed by t_install"
+                # This persists, so the capacity increment persists.
                 if cap_name == "P":
-                    inc = sum(
-                        mdl.delta_P[i] * mdl.u[i, tau]
-                        for i in mdl.I
-                        for tau in mdl.T
-                        if tau <= t_install
-                    )
+                    inc = sum(mdl.delta_P[i] * mdl.u[i, t_install] for i in mdl.I)
                 elif cap_name == "V":
-                    inc = sum(
-                        mdl.delta_V[i] * mdl.u[i, tau]
-                        for i in mdl.I_V
-                        for tau in mdl.T
-                        if tau <= t_install
-                    )
+                    inc = sum(mdl.delta_V[i] * mdl.u[i, t_install] for i in mdl.I_V)
                 elif cap_name == "H":
-                    inc = sum(
-                        mdl.delta_H[i] * mdl.u[i, tau]
-                        for i in mdl.I
-                        for tau in mdl.T
-                        if tau <= t_install
-                    )
+                    inc = sum(mdl.delta_H[i] * mdl.u[i, t_install] for i in mdl.I)
                 elif cap_name == "Pop":
-                    inc = sum(
-                        mdl.delta_Pop[i] * mdl.u[i, tau]
-                        for i in mdl.I
-                        for tau in mdl.T
-                        if tau <= t_install
-                    )
+                    inc = sum(mdl.delta_Pop[i] * mdl.u[i, t_install] for i in mdl.I)
                 else:  # Power
-                    inc = sum(
-                        mdl.delta_Power[i] * mdl.u[i, tau]
-                        for i in mdl.I
-                        for tau in mdl.T
-                        if tau <= t_install
-                    )
+                    inc = sum(mdl.delta_Power[i] * mdl.u[i, t_install] for i in mdl.I)
 
             base = init_cap[f"{cap_name}_0"]
             return getattr(mdl, cap_name)[t] == base + inc
@@ -562,7 +555,7 @@ class PyomoBuilder:
                 return pyo.Constraint.Skip
             C_R_t = utils.get_rocket_capacity_kg_s(t, self.constants)
             return (
-                sum(mdl.x[a, r, t] for a in mdl.A_Rock for r in mdl.R)
+                sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Rock)
                 <= C_R_t * self.delta_t
             )
 
@@ -572,7 +565,7 @@ class PyomoBuilder:
             if not self.elevator_arcs:
                 return pyo.Constraint.Skip
             return (
-                sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R)
+                sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev)
                 <= self.C_E_0 * self.delta_t
             )
 
@@ -584,7 +577,7 @@ class PyomoBuilder:
             # Use precomputed float capacity
             cap = self.elevator_capacity_upper_kg_s
             return (
-                sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R)
+                sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev)
                 <= cap * self.delta_t
             )
 
@@ -715,20 +708,35 @@ class PyomoBuilder:
             >= self.total_demand_kg
         )
 
+    def _add_prepositioning_constraints(self):
+        m = self.m
+        if not self.settings.enable_preposition:
+            # Enforce Zero Inventory Policy on Moon (Strict JIT)
+            # This prevents materials from arriving early and waiting.
+            
+            def _no_inventory_rule(mdl, r, t):
+                return mdl.I_E[self.moon_node, r, t] == 0
+                
+            m.no_moon_inventory = pyo.Constraint(m.R, m.T, rule=_no_inventory_rule)
+            
+            def _no_buffer_rule(mdl, r, t):
+                return mdl.B_E[r, t] == 0
+                
+            m.no_moon_buffer = pyo.Constraint(m.R, m.T, rule=_no_buffer_rule)
+
     def _create_objective(self):
         m = self.m
         w_C = float(self.constants["objective"]["w_C"])
         w_T = float(self.constants["objective"]["w_T"])
 
-        m.obj_makespan = pyo.Objective(expr=w_T * m.T_end, sense=pyo.minimize)
-        m.obj_cost = pyo.Objective(
-            expr=w_C
-            * sum(
+        m.cost_total = pyo.Expression(
+            expr=sum(
                 m.arc_cost[a, t] * m.x[a, r, t] for a in m.A for r in m.R for t in m.T
-            ),
-            sense=pyo.minimize,
+            )
         )
-        m.obj_cost.deactivate()
+        m.obj_total = pyo.Objective(
+            expr=w_T * m.T_end + w_C * m.cost_total, sense=pyo.minimize
+        )
 
         # Validate integer variables
         self._validate_integer_vars()
@@ -736,7 +744,7 @@ class PyomoBuilder:
     def _validate_integer_vars(self):
         m = self.m
         integer_vars = self.constants["optimization"].get("integer_vars", [])
-        integer_map = {"u": m.u, "y": m.y}
+        integer_map = {"u": m.u, "u_done": m.u_done, "y": m.y}
         for var_name in integer_vars:
             if var_name in integer_map:
                 var_obj = integer_map[var_name]

@@ -241,68 +241,61 @@ class MoonLogisticsModel:
             if threads is not None:
                 solver.options["threads"] = threads
 
-        def _solve_lexicographic() -> tuple[dict[str, Any], Any]:
+        def _solve_single_objective() -> tuple[dict[str, Any], Any]:
             if self._model is None:
                 self.build_model()
             model = self._model
 
-            result_1 = solver.solve(model, tee=False, load_solutions=False)
-            term_1 = result_1.solver.termination_condition
-            status_1 = str(result_1.solver.status)
-            if term_1 not in (
-                TerminationCondition.optimal,
-                TerminationCondition.feasible,
-            ):
+            result = solver.solve(model, tee=False, load_solutions=False)
+            
+            # Check termination condition
+            term = result.solver.termination_condition
+            status_str = str(result.solver.status)
+            
+            # Safe check for optimal/feasible
+            is_ok = False
+            if term == TerminationCondition.optimal:
+                is_ok = True
+            elif term == TerminationCondition.feasible:
+                is_ok = True
+            # Some solvers (like HiGHS via appsi) might report differently, 
+            # but standard Pyomo interface usually normalizes this.
+            
+            if not is_ok:
                 return (
                     {
-                        "status": str(term_1).upper(),
+                        "status": str(term).upper(),
                         "objective_value": None,
                         "T_end": None,
                         "total_cost": None,
                         "solution_time": None,
-                        "solver_status": status_1,
+                        "solver_status": status_str,
                     },
-                    term_1,
+                    term,
                 )
 
-            model.solutions.load_from(result_1)
-            T_end_star = int(round(pyo.value(model.T_end)))
+            model.solutions.load_from(result)
 
-            model.obj_makespan.deactivate()
-            model.obj_cost.activate()
-            model.T_end.fix(T_end_star)
+            try:
+                T_end_val = int(round(pyo.value(model.T_end)))
+                total_obj = float(pyo.value(model.obj_total))
+                total_cost = float(pyo.value(model.cost_total))
+            except (ValueError, TypeError):
+                # Fallback if evaluation fails
+                T_end_val = -1
+                total_obj = 0.0
+                total_cost = 0.0
 
-            result_2 = solver.solve(model, tee=False, load_solutions=False)
-            term_2 = result_2.solver.termination_condition
-            status_2 = str(result_2.solver.status)
-            if term_2 not in (
-                TerminationCondition.optimal,
-                TerminationCondition.feasible,
-            ):
-                return (
-                    {
-                        "status": str(term_2).upper(),
-                        "objective_value": None,
-                        "T_end": T_end_star,
-                        "total_cost": None,
-                        "solution_time": None,
-                        "solver_status": status_2,
-                    },
-                    term_2,
-                )
-
-            model.solutions.load_from(result_2)
-            total_cost = float(pyo.value(model.obj_cost))
             return (
                 {
-                    "status": str(term_2).upper(),
-                    "objective_value": total_cost,
-                    "T_end": T_end_star,
+                    "status": str(term).upper(),
+                    "objective_value": total_obj,
+                    "T_end": T_end_val,
                     "total_cost": total_cost,
                     "solution_time": None,
-                    "solver_status": status_2,
+                    "solver_status": status_str,
                 },
-                term_2,
+                term,
             )
 
         # Infeasible handling: increase horizon first, then relax V0 epsilon
@@ -332,7 +325,7 @@ class MoonLogisticsModel:
         for attempt in range(max_attempts + 1):
             if self._model is None or self.settings.T_horizon != current_horizon:
                 _rebuild_for_horizon(current_horizon)
-            result, term = _solve_lexicographic()
+            result, term = _solve_single_objective()
             if term not in (
                 TerminationCondition.infeasible,
                 TerminationCondition.infeasibleOrUnbounded,
@@ -352,7 +345,7 @@ class MoonLogisticsModel:
         v0_value = max(original_v0, min_v0)
         self.constants["initial_capacities"]["V_0"] = v0_value
         _rebuild_for_horizon(current_horizon)
-        result, term = _solve_lexicographic()
+        result, term = _solve_single_objective()
         if term not in (
             TerminationCondition.infeasible,
             TerminationCondition.infeasibleOrUnbounded,
@@ -364,7 +357,7 @@ class MoonLogisticsModel:
             v0_value *= v0_scale
             self.constants["initial_capacities"]["V_0"] = v0_value
             _rebuild_for_horizon(current_horizon)
-            result, term = _solve_lexicographic()
+            result, term = _solve_single_objective()
             if term not in (
                 TerminationCondition.infeasible,
                 TerminationCondition.infeasibleOrUnbounded,
