@@ -105,6 +105,47 @@ scenarios:
     description: "Combined elevator and rocket"
 
 # -----------------------------------------------------------------------------
+# Scenario Parameter References (from outline/parameters.md)
+# -----------------------------------------------------------------------------
+scenario_parameters:
+  elevator:
+    climber_payload_t: 20
+    annual_throughput_tpy:
+      initial: 5100
+      mature: 30000
+      six_tethers: 170000
+    annual_throughput_kg_per_s:
+      initial: 0.1617199391
+      mature: 0.9512937595
+      six_tethers: 5.3906646372
+    transit_time_days: 7
+    climber_velocity_kmh: 200
+    required_avg_velocity:
+      mps: 83
+      kmh: 298
+    power_limit_mw: 4
+    material_specific_strength_gpa_cc_g:
+      min: 30
+      max: 40
+    construction_cost_usd: 10000000000
+    cost_per_kg_usd:
+      initial: 500
+      mature: 100
+  rocket:
+    falcon_heavy_payload_tli_t:
+      min: 15
+      max: 16
+    falcon_heavy_cost_usd: 150000000
+    falcon_family_reliability:
+      min: 0.98
+      max: 0.99
+    starship_cost_per_kg_usd:
+      upper: 100
+      target: 20
+    delta_v_leo_to_moon_kms: 5.9
+    black_carbon_emissions_tpy: 1000
+
+# -----------------------------------------------------------------------------
 # Cost Parameters ($)
 # -----------------------------------------------------------------------------
 costs:
@@ -168,6 +209,32 @@ task_defaults:
   min_duration: 1               # Minimum task duration (months)
   max_concurrent_tasks: 5       # Parallel task limit
   installation_delay: 1         # d_i: delay from completion to capability (months)
+
+# -----------------------------------------------------------------------------
+# Task / Environmental Parameters (from outline/parameters.md)
+# -----------------------------------------------------------------------------
+task_parameters:
+  water:
+    recovery_rate: 0.98
+    consumption_l_per_person_day: 20
+    agricultural_usage_note: "dominant"
+  environment:
+    rocket_black_carbon_tpy: 1000
+    warming_factor_relative_to_co2: 100000
+    alumina_emissions_t_per_launch: 70
+    co2_emissions_falcon_t_per_launch: 400
+    ozone_impact_percent: 4
+    elevator_operational_emissions_note: "near-zero"
+    debris_risk_note: "non-zero"
+  sensitivity:
+    tether_capacity_growth: "logistic"
+    reuse_cost_reduction_note: "diminishing_returns"
+    starship_cost_curve_usd_per_kg:
+      start: 90
+      target: 20
+    failure_rates:
+      rocket_fail: 0.02
+      elevator_downtime_note: "D_SE"
 
 # -----------------------------------------------------------------------------
 # Objective Function Weights
