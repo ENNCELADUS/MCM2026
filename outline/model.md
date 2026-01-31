@@ -63,6 +63,10 @@
 
 **Level 1（上层：AON/RCPSP，决定“做什么/何时解锁能力”）**
 
+*   **任务类型定义：**
+    *   $\mathcal{I}_{V}$：**能力构建任务**（如安装打印机、部署机器人）。其工作量 $W_i$ 代表“安装/调试工作量”，受 $H(t)$ 约束。
+    *   $\mathcal{I}_{normal}$：**普通建设任务**（如盖房子、修路）。其工作量 $W_i$ 代表“建设工作量”，受 $V(t)$ 约束。
+
 *   **任务完成驱动能力跃迁（离散事件系统）：**
     $$
     \begin{aligned}
@@ -73,6 +77,9 @@
     \end{aligned}
     $$
     其中 $d_i$ 为任务完成到能力生效的安装/调试延迟（可为 0）。
+    
+    > **关键逻辑调整：**  
+    > 能力构建任务 $i \in \mathcal{I}_V$ 的完成 **不依赖于 $V(t)$**，而是依赖于 $H(t)$（接收/搬运/安装能力）。这打破了“要有产能先要有产能”的死循环。
 
 **Level 2（下层：时间展开多货类网络流，决定“怎么运/每月运多少”）**
 
@@ -95,7 +102,8 @@
     $$ B^{E}_{r,t} = B^{E}_{r,t-1} + \sum_{a: j(a)=M} x^{E}_{a,r,t-L_a} - A^{E}_{r,t}, \quad \forall r, t $$
 
 *   **月面验收/handling 能力（由上层任务解锁）：**
-    $$ \sum_{r} A^{E}_{r,t} \le H(t) \cdot \Delta t, \quad \forall t $$
+    该能力不仅用于物资验收，还用于“能力构建任务（如安装设备）”的执行。
+    $$ \sum_{r} A^{E}_{r,t} + \sum_{i \in \mathcal{I}_V} v_{i,t} \le H(t) \cdot \Delta t, \quad \forall t $$
 
 *   **月面可用库存更新（区分地运 vs 本地产）：**
     $$ I^{E}_{M,r,t} = I^{E}_{M,r,t-1} + A^{E}_{r,t} - \sum_{i} q^{E}_{i,r,t} $$
@@ -113,8 +121,13 @@
 *   **月面生产能力约束 (ISRU)：**
     $$ \sum_{r} Q_{r,t} \le P(t) \cdot \Delta t, \quad \forall t $$
 
-*   **月面施工能力约束 (装配/土建)：**
-    $$ \sum_{i} v_{i,t} \le V(t) \cdot \Delta t, \quad \forall t $$
+*   **月面施工/安装能力约束：**
+    
+    1.  **普通建设任务 ($i \in \mathcal{I}_{normal}$)**：受施工能力 $V(t)$ 约束
+        $$ \sum_{i \in \mathcal{I}_{normal}} v_{i,t} \le V(t) \cdot \Delta t, \quad \forall t $$
+    
+    2.  **能力构建任务 ($i \in \mathcal{I}_V$)**：受 Handling 能力 $H(t)$ 约束（已在 (B) 中合并，此处强调逻辑）
+        $$ v_{i,t} \text{ contributes to } H(t) \text{ usage} $$
 
 *   **“材料到位才能施工”的物理耦合：**
     对每个任务 $i$：
@@ -126,13 +139,8 @@
     $$ \sum_{\tau \le t} v_{i,\tau} \ge W_i \cdot u_{i,t}, \quad u_{i,t} \le u_{i, t+1}, \quad u_{i,0} = 0, \quad u_{i,T} = 1 $$
 
 *   **紧前关系 (AON Precedence)：**
-    将紧前关系约束施加在“施工动作”上（而不是物资分配/占用），以允许物资提前预置但禁止提前开工：
+    将紧前关系约束施加在“施工动作”上：
     $$ \sum_{\tau \le t} v_{i,\tau} \le M^{\max}_i \cdot u_{j, t-1}, \quad \forall i, \forall j \in Pred(i), \forall t \ge 1 $$
-    其中 $M^{\max}_i$ 可取 $W_i$（更紧的 Big-M）。
-
-> **微小的优化建议 (Minor Tweaks)：紧前关系约束的松紧度**  
-> 若采用形如 $\sum q \le \text{BigM} \cdot u_{j, t-1}$ 的写法，其含义是：“在前置任务 $j$ 完成之前，后续任务 $i$ 甚至不能消耗/分配物资”。风险：这可能有点太严了。现实中，我们可能在 Phase 1 还没结束时，就开始为 Phase 2 运输和囤积物资（Pre-positioning）。  
-> 建议：将紧前约束加在 $v_{i,t}$（施工动作）上，即使用 $\sum_{\tau \le t} v_{i,\tau} \le \text{BigM} \cdot u_{j, t-1}$（或更标准的 RCPSP 写法）。这样允许 $q$（物资分配/占用）提前发生，允许物资提前进入 $I^{E}_{M}$ / $I^{M}$ 库存，但禁止提前开工。
 
 ---
 
@@ -148,7 +156,9 @@ $$ T_{\text{end}} = \min \{ t : u_{i,t} = 1, \forall i \in \mathcal{I} \} $$
 ### 3.2 边界与初始条件 (Boundary/Initial Conditions)
 
 *   **初始库存与缓冲**：$I^E_{n,r,0} = 0, \ I^M_{r,0} = 0, \ B^E_{r,0} = 0$。
-*   **初始能力**：$P(0) = P_0, \ V(0) = V_0, \ H(0) = H_0, \ Pop(0) = Pop_0$。
+*   **初始能力**：$P(0) = P_0, \ V(0) = \text{minimal or } 0, \ H(0) > 0, \ Pop(0) = Pop_0$。
+    *   必须保证 $H(0) > 0$ 以启动最初的卸货和设备安装。
+*   **初始任务状态**：$u_{i,0} = 0$。
 *   **初始任务状态**：$u_{i,0} = 0$。
 *   **提前期边界**：对 $\tau \le 0$，令 $x^E_{a,r,\tau} = 0$。
 
