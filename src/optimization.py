@@ -64,6 +64,8 @@ class PyomoBuilder:
         self.steps_per_year = constants["time"]["steps_per_year"]
         self.ton_to_kg = constants["units"]["ton_to_kg"]
         self.d_install = constants["task_defaults"]["installation_delay"]
+        self.min_task_duration = constants["task_defaults"]["min_duration"]
+        self.max_concurrent_tasks = constants["task_defaults"]["max_concurrent_tasks"]
 
         self.C_E_0 = constants["initial_capacities"]["C_E_0"]
         elevator_capacity_upper_tpy = constants["parameter_summary"]["logistics"][
@@ -80,11 +82,16 @@ class PyomoBuilder:
             "additional_parameters"
         ]["elevator_stream_model"]["enabled"]
 
-        # Tasks with V impact
+        # Task type flags: capability tasks use handling capacity for installation
         self.tasks_with_V = [
-            i for i in self.task_ids if self.tasks_by_id[i].delta_V > 0
+            i for i in self.task_ids if self.tasks_by_id[i].task_type == "capability"
         ]
         self.tasks_without_V = [i for i in self.task_ids if i not in self.tasks_with_V]
+
+        self.total_demand_kg = (
+            constants["parameter_summary"]["bom"]["total_demand_tons"] * self.ton_to_kg
+        )
+        self.target_pop = constants["parameter_summary"]["colony_target"]["population"]
 
     def _create_sets(self):
         m = self.m
@@ -127,6 +134,8 @@ class PyomoBuilder:
         task_delta_Power = {
             i: self.tasks_by_id[i].delta_power_mw for i in self.task_ids
         }
+        task_duration = {}
+        task_max_rate = {}
 
         task_M_earth = {}
         task_M_moon = {}
@@ -135,6 +144,12 @@ class PyomoBuilder:
 
         for i in self.task_ids:
             t = self.tasks_by_id[i]
+            duration = max(float(t.duration_months), float(self.min_task_duration))
+            task_duration[i] = duration
+            if duration > 0:
+                task_max_rate[i] = float(t.W) / duration
+            else:
+                task_max_rate[i] = 0.0
             total_req = 0.0
             for r in self.res_ids:
                 me = float(t.M_earth.get(r, 0.0))
@@ -193,6 +208,10 @@ class PyomoBuilder:
         m.delta_Power = pyo.Param(
             m.I, initialize=task_delta_Power, within=pyo.NonNegativeReals
         )
+        m.duration = pyo.Param(m.I, initialize=task_duration, within=pyo.NonNegativeReals)
+        m.max_rate = pyo.Param(
+            m.I, initialize=task_max_rate, within=pyo.NonNegativeReals
+        )
 
         m.isru_ok = pyo.Param(
             m.R,
@@ -219,6 +238,7 @@ class PyomoBuilder:
         m.v_inst = pyo.Var(m.I_V, m.T, domain=pyo.NonNegativeReals)
         m.u = pyo.Var(m.I, m.T, domain=pyo.Binary)
         m.S_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
+        m.z = pyo.Var(m.I, m.T, domain=pyo.Binary)
 
         m.P = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.V = pyo.Var(m.T, domain=pyo.NonNegativeReals)
@@ -229,6 +249,7 @@ class PyomoBuilder:
         m.T_end = pyo.Var(
             domain=pyo.NonNegativeIntegers, bounds=(0, settings.T_horizon - 1)
         )
+        m.z_end = pyo.Var(m.T, domain=pyo.Binary)
 
     # -------------------------------------------------------------------------
     # Constraints
@@ -242,6 +263,7 @@ class PyomoBuilder:
 
         # 1. Task Logic
         self._add_task_logic_constraints()
+        self._add_duration_concurrency_constraints()
 
         # 2. Material Requirements
         self._add_material_req_constraints()
@@ -269,6 +291,18 @@ class PyomoBuilder:
 
         m.makespan_bounds = pyo.Constraint(m.I, m.T, rule=_makespan_rule)
 
+        m.end_time_select = pyo.Constraint(
+            rule=lambda mdl: sum(mdl.z_end[t] for t in mdl.T) == 1
+        )
+        m.end_time_link = pyo.Constraint(
+            rule=lambda mdl: mdl.T_end
+            == sum(t * mdl.z_end[t] for t in mdl.T)
+        )
+        m.population_target = pyo.Constraint(
+            m.T,
+            rule=lambda mdl, t: mdl.Pop[t] >= self.target_pop * mdl.z_end[t],
+        )
+
         def _work_completion_rule(mdl, i, t):
             comp = self._completed_by(mdl, i, t)
             if i in mdl.I_V:
@@ -284,7 +318,10 @@ class PyomoBuilder:
             if i in mdl.I_V:
                 lhs = sum(mdl.v_inst[i, tau] for tau in mdl.T if tau <= t)
                 rhs = sum(
-                    mdl.q_E[i, r, tau] for r in mdl.R for tau in mdl.T if tau <= t
+                    mdl.q_E[i, r, tau] + mdl.q_M[i, r, tau]
+                    for r in mdl.R
+                    for tau in mdl.T
+                    if tau <= t
                 )
                 return lhs <= rhs
             lhs = sum(mdl.v[i, tau] for tau in mdl.T if tau <= t)
@@ -298,32 +335,114 @@ class PyomoBuilder:
 
         m.material_work_coupling = pyo.Constraint(m.I, m.T, rule=_material_work_rule)
 
+    def _add_duration_concurrency_constraints(self):
+        m = self.m
+        
+        # 1. Max Concurrent Tasks
+        max_concurrent = self.constants["task_defaults"]["max_concurrent_tasks"]
+        m.concurrency_limit = pyo.Constraint(
+            m.T, 
+            rule=lambda mdl, t: sum(mdl.z[i, t] for i in mdl.I) <= max_concurrent
+        )
+        
+        # 2. Duration / Rate Limits
+        # Link z[i,t] with v[i,t] and enforce max rate
+        min_duration = self.constants["task_defaults"]["min_duration"]
+        
+        def _rate_limit_rule(mdl, i, t):
+            duration = max(self.tasks_by_id[i].duration_months, min_duration)
+            max_rate = mdl.W[i] / duration
+            
+            # v <= max_rate * z
+            # Force z=1 if v > 0
+            if i in mdl.I_V:
+                return mdl.v_inst[i, t] <= max_rate * mdl.z[i, t]
+            return mdl.v[i, t] <= max_rate * mdl.z[i, t]
+            
+        m.rate_limit = pyo.Constraint(m.I, m.T, rule=_rate_limit_rule)
+        
+        # Ensure z is 0 if task not started or already finished?
+        # Actually, the optimizer minimizes concurrency cost (shadow) if bounded.
+        # But we need to ensure z isn't 0 if working. (Handled by v <= R*z).
+        # Do we need to force z=0 if NOT working? 
+        # No, allowing z=1 when v=0 just wastes a concurrency slot, which is suboptimal but valid.
+        pass
+
+        def _task_rate_rule(mdl, i, t):
+            if i in mdl.I_V:
+                return mdl.v_inst[i, t] <= mdl.max_rate[i] * mdl.z[i, t]
+            return mdl.v[i, t] <= mdl.max_rate[i] * mdl.z[i, t]
+
+        m.task_rate_limit = pyo.Constraint(m.I, m.T, rule=_task_rate_rule)
+
+        m.concurrent_limit = pyo.Constraint(
+            m.T,
+            rule=lambda mdl, t: sum(mdl.z[i, t] for i in mdl.I)
+            <= self.max_concurrent_tasks,
+        )
+
     def _add_material_req_constraints(self):
         m = self.m
         m.material_req_earth = pyo.Constraint(
             m.I,
             m.R,
             rule=lambda mdl, i, r: sum(mdl.q_E[i, r, t] for t in mdl.T)
-            == mdl.M_earth[i, r],
+            >= mdl.M_earth[i, r],
         )
         m.material_req_moon = pyo.Constraint(
             m.I,
             m.R,
             rule=lambda mdl, i, r: sum(mdl.q_M[i, r, t] for t in mdl.T)
-            == mdl.M_moon[i, r],
+            >= mdl.M_moon[i, r],
         )
-        m.material_req_flex = pyo.Constraint(
+        m.material_req_total = pyo.Constraint(
             m.I,
             m.R,
             rule=lambda mdl, i, r: sum(
                 mdl.q_E[i, r, t] + mdl.q_M[i, r, t] for t in mdl.T
             )
-            == mdl.M_flex[i, r],
+            == mdl.M_earth[i, r] + mdl.M_moon[i, r] + mdl.M_flex[i, r],
         )
 
     def _precedence_rule(self, mdl, pred, succ, t):
+        # If prepositioning is ENABLED:
+        # - Materials (q) are NOT constrained by predecessor.
+        # - But Work (v) or Start must be constrained.
+        # - Here we enforce: Cannot START succ until pred is DONE.
+        # - Using z[succ, t] <= completed_by(pred, t) ? No, z is active.
+        # - Using completed_by(succ, t) <= completed_by(pred, t)? No, can run in parallel? No, precedence.
+        # - Standard AON: Start(succ) >= Finish(pred).
+        # - We simulate this by strictly blocking z (active) if pred not done?
+        # - Actually, just blocking 'v' is enough.
+        
+        if self.settings.enable_preposition:
+            # Relax material constraint. Enforce work precedence.
+            # Work done on succ <= Total Work * Pred Completed
+            # v[succ] can only be non-zero if pred is done? 
+            # Or cumulative work?
+            # sum(v_succ) <= W_succ * u_pred
+            comp_pred = self._completed_by(mdl, pred, t)
+            
+            # If pred is defined as "must be done before start":
+            if succ in mdl.I_V:
+                 work_done = sum(mdl.v_inst[succ, tau] for tau in mdl.T if tau <= t)
+            else:
+                 work_done = sum(mdl.v[succ, tau] for tau in mdl.T if tau <= t)
+                 
+            return work_done <= mdl.W[succ] * comp_pred
+
+        # If prepositioning is DISABLED (Strict):
+        # - Materials cannot arrive until pred is done.
+        # - This implicitly blocks work (since v <= q).
         if self.task_M_total[succ] <= 0:
-            return pyo.Constraint.Skip
+            # Fallback for tasks with no materials: constrain work directly
+            comp_pred = self._completed_by(mdl, pred, t)
+            if succ in mdl.I_V:
+                 work_done = sum(mdl.v_inst[succ, tau] for tau in mdl.T if tau <= t)
+            else:
+                 work_done = sum(mdl.v[succ, tau] for tau in mdl.T if tau <= t)
+            return work_done <= mdl.W[succ] * comp_pred
+
         consumed = sum(
             mdl.q_E[succ, r, tau] + mdl.q_M[succ, r, tau]
             for r in mdl.R
@@ -529,7 +648,10 @@ class PyomoBuilder:
 
         m.handling_capacity = pyo.Constraint(
             m.T,
-            rule=lambda mdl, t: sum(mdl.A_E[r, t] for r in mdl.R)
+            rule=lambda mdl, t: (
+                sum(mdl.A_E[r, t] for r in mdl.R)
+                + sum(mdl.v_inst[i, t] for i in mdl.I_V)
+            )
             <= mdl.H[t] * self.delta_t,
         )
         m.isru_capacity = pyo.Constraint(
@@ -551,18 +673,46 @@ class PyomoBuilder:
             if self.tasks_without_V
             else pyo.Constraint.Skip,
         )
-        m.installation_capacity = pyo.Constraint(
-            m.T,
-            rule=lambda mdl, t: sum(mdl.v_inst[i, t] for i in mdl.I_V)
-            <= mdl.H[t] * self.delta_t
-            if self.tasks_with_V
-            else pyo.Constraint.Skip,
-        )
         m.installation_total = pyo.Constraint(
             m.I_V, rule=lambda mdl, i: sum(mdl.v_inst[i, t] for t in mdl.T) == mdl.W[i]
         )
+        m.construction_total = pyo.Constraint(
+            m.I_nonV, rule=lambda mdl, i: sum(mdl.v[i, t] for t in mdl.T) == mdl.W[i]
+        )
         m.standard_work_zero = pyo.Constraint(
             m.I_V, m.T, rule=lambda mdl, i, t: mdl.v[i, t] == 0
+        )
+
+        # Power Constraint
+        # Map resource to energy (kWh/kg)
+        r_energy = {
+             "water": self.constants["isru"]["water_energy"],
+             "fuel": self.constants["isru"]["oxygen_energy"], 
+             "structure": self.constants["isru"]["metal_energy"]
+        }
+        
+        def _power_rule(mdl, t):
+             # Total Energy kWh used in month t
+             total_energy_kwh = sum(
+                 mdl.Q[r, t] * r_energy.get(r, 0.0) 
+                 for r in mdl.R
+             )
+             
+             # Convert to Average Power (MW) required
+             # Power(kW) = Energy(kWh) / Hours
+             hours = self.delta_t / 3600.0
+             avg_power_kw = total_energy_kwh / hours
+             avg_power_mw = avg_power_kw / 1000.0
+             
+             return avg_power_mw <= mdl.Power[t]
+
+        m.power_balance = pyo.Constraint(m.T, rule=_power_rule)
+
+        m.total_mass_sanity = pyo.Constraint(
+            rule=lambda mdl: sum(
+                mdl.A_E[r, t] + mdl.Q[r, t] for r in mdl.R for t in mdl.T
+            )
+            >= self.total_demand_kg
         )
 
     def _create_objective(self):

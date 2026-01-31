@@ -90,6 +90,7 @@ class TaskDefinition:
         delta_H: Handling capacity increment (REQUIRED, >= 0)
         delta_Pop: Population capacity increment (REQUIRED, >= 0)
         delta_power_mw: Power capacity increment (REQUIRED, >= 0)
+        task_type: Task type flag (REQUIRED, "capability" or "construction")
     """
 
     id: str = field(default=_MISSING)
@@ -105,6 +106,7 @@ class TaskDefinition:
     delta_H: float = field(default=_MISSING)
     delta_Pop: int = field(default=_MISSING)
     delta_power_mw: float = field(default=_MISSING)
+    task_type: str = field(default=_MISSING)
 
     def __post_init__(self) -> None:
         """Validate all fields after initialization."""
@@ -130,6 +132,7 @@ class TaskDefinition:
         _validate_required(self, "delta_H", self.delta_H, (int, float))
         _validate_required(self, "delta_Pop", self.delta_Pop, (int, float))
         _validate_required(self, "delta_power_mw", self.delta_power_mw, (int, float))
+        _validate_required(self, "task_type", self.task_type, str)
 
         _validate_non_negative(self, "W", self.W)
         _validate_non_negative(self, "duration_months", self.duration_months)
@@ -138,6 +141,12 @@ class TaskDefinition:
         _validate_non_negative(self, "delta_H", self.delta_H)
         _validate_non_negative(self, "delta_Pop", self.delta_Pop)
         _validate_non_negative(self, "delta_power_mw", self.delta_power_mw)
+
+        allowed_task_types = {"capability", "construction"}
+        if self.task_type not in allowed_task_types:
+            raise ValueError(
+                f"TaskDefinition.task_type must be one of {sorted(allowed_task_types)}, got {self.task_type}"
+            )
 
         # Validate dict value types
         for key, val in self.M_earth.items():
@@ -350,8 +359,11 @@ def build_task_network_from_wbs(
     tiers = parameter_summary["bom"]["tiers"]
     tier1 = next((t for t in tiers if t["class"] == 1), None)
     tier2 = next((t for t in tiers if t["class"] == 2), None)
+    tier3 = next((t for t in tiers if t["class"] == 3), None)
     if tier1 is None or tier2 is None:
         raise ValueError("parameter_summary.bom.tiers must include class 1 and class 2")
+    if tier3 is None:
+        raise ValueError("parameter_summary.bom.tiers must include class 3")
 
     tier1_share = tier1.get("share_initial", 0.0)
     tier2_share = tier2.get("share_initial", 0.0)
@@ -361,8 +373,11 @@ def build_task_network_from_wbs(
 
     tier1_resources = tier1.get("resources", [])
     tier2_resources = tier2.get("resources", [])
+    tier3_resources = tier3.get("resources", [])
     if not tier1_resources or not tier2_resources:
         raise ValueError("Tier 1 and Tier 2 resources cannot be empty")
+    if not tier3_resources:
+        raise ValueError("Tier 3 resources cannot be empty")
 
     tasks: list[TaskDefinition] = []
     for task in wbs_tasks:
@@ -380,11 +395,17 @@ def build_task_network_from_wbs(
         for res in tier2_resources:
             M_earth[res] = M_earth.get(res, 0.0) + tier2_each
 
+        M_moon: dict[str, float] = {}
+        tier3_each = regolith_mass_kg / len(tier3_resources)
+        for res in tier3_resources:
+            M_moon[res] = M_moon.get(res, 0.0) + tier3_each
+
         unlocks = task["unlocks"]
         delta_P = (unlocks["production_t_per_year"] * ton_to_kg) / (
             steps_per_year * delta_t
         )
         delta_H = (unlocks["handling_t_per_month"] * ton_to_kg) / delta_t
+        delta_V = (unlocks.get("construction_t_per_month", 0.0) * ton_to_kg) / delta_t
         delta_Pop = unlocks["population"]
         delta_power_mw = unlocks["power_mw"]
 
@@ -394,15 +415,16 @@ def build_task_network_from_wbs(
                 name=task["name"],
                 predecessors=task["predecessors"],
                 M_earth=M_earth,
-                M_moon={},
+                M_moon=M_moon,
                 M_flex={},
                 W=regolith_mass_kg,
                 duration_months=task["duration_months"],
                 delta_P=delta_P,
-                delta_V=0.0,
+                delta_V=delta_V,
                 delta_H=delta_H,
                 delta_Pop=delta_Pop,
                 delta_power_mw=delta_power_mw,
+                task_type=task["task_type"],
             )
         )
 

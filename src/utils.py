@@ -205,7 +205,142 @@ def load_constants_from_file(path: Path | str) -> ConfigTracker:
     if data is None:
         raise ValueError(f"Constants file is empty: {path}")
 
+    data = expand_network_templates(data)
+
     return ConfigTracker(data)
+
+
+def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
+    """
+    Expand a compact network template section into explicit nodes/arcs.
+
+    If nodes/arcs are already present, this is a no-op.
+    """
+    if "network" not in data:
+        return data
+    if "nodes" in data or "arcs" in data:
+        return data
+
+    net = data["network"]
+    ground = net["ground_hub"]
+    moon = net["moon"]
+    harbours = net["harbours"]
+    launch = net["launch_sites"]
+    arcs_cfg = net["arcs"]
+
+    harbour_ids = harbours.get("ids")
+    if harbour_ids is None:
+        count = int(harbours["count"])
+        harbour_ids = list(range(1, count + 1))
+
+    apex_labels = harbours.get("apex_labels", ["A", "B"])
+    earth_port_id_t = harbours["earth_port_id_template"]
+    earth_port_name_t = harbours["earth_port_name_template"]
+    apex_id_t = harbours["apex_id_template"]
+    apex_name_t = harbours["apex_name_template"]
+
+    nodes: list[dict[str, Any]] = []
+    nodes.append({"id": ground["id"], "name": ground["name"], "type": "earth"})
+
+    earth_port_ids: list[str] = []
+    apex_ids: list[str] = []
+
+    for h in harbour_ids:
+        port_id = earth_port_id_t.format(h=h)
+        port_name = earth_port_name_t.format(h=h)
+        earth_port_ids.append(port_id)
+        nodes.append({"id": port_id, "name": port_name, "type": "earth"})
+        for k in apex_labels:
+            apex_id = apex_id_t.format(h=h, k=k)
+            apex_name = apex_name_t.format(h=h, k=k)
+            apex_ids.append(apex_id)
+            nodes.append({"id": apex_id, "name": apex_name, "type": "transit"})
+
+    launch_ids: list[str] = []
+    for item in launch.get("known", []):
+        launch_ids.append(item["id"])
+        nodes.append({"id": item["id"], "name": item["name"], "type": "earth"})
+
+    future_count = int(launch.get("future_count", 0))
+    if future_count > 0:
+        start_index = int(launch.get("future_start_index", len(launch_ids) + 1))
+        id_t = launch["future_id_template"]
+        name_t = launch["future_name_template"]
+        for n in range(start_index, start_index + future_count):
+            launch_id = id_t.format(n=n)
+            launch_name = name_t.format(n=n)
+            launch_ids.append(launch_id)
+            nodes.append({"id": launch_id, "name": launch_name, "type": "earth"})
+
+    nodes.append({"id": moon["id"], "name": moon["name"], "type": "moon"})
+
+    arcs: list[dict[str, Any]] = []
+    elevator_cfg = arcs_cfg["elevator"]
+    transfer_cfg = arcs_cfg["transfer"]
+    rocket_cfg = arcs_cfg["rocket"]
+    ground_cfg = arcs_cfg["ground"]
+
+    for h in harbour_ids:
+        port_id = earth_port_id_t.format(h=h)
+        for k in apex_labels:
+            apex_id = apex_id_t.format(h=h, k=k)
+            arcs.append(
+                {
+                    "id": f"{port_id}_to_{apex_id}",
+                    "from": port_id,
+                    "to": apex_id,
+                    "type": "elevator",
+                    "lead_time_days": elevator_cfg["lead_time_days"],
+                    "payload_t": elevator_cfg["payload_t"],
+                    "cost_per_kg_2050": elevator_cfg["cost_per_kg_2050"],
+                    "enabled": elevator_cfg["enabled"],
+                }
+            )
+            arcs.append(
+                {
+                    "id": f"{apex_id}_to_{moon['id']}",
+                    "from": apex_id,
+                    "to": moon["id"],
+                    "type": "transfer",
+                    "lead_time_days": transfer_cfg["lead_time_days"],
+                    "payload_t": transfer_cfg["payload_t"],
+                    "cost_per_kg_2050": transfer_cfg["cost_per_kg_2050"],
+                    "enabled": transfer_cfg["enabled"],
+                }
+            )
+
+    for launch_id in launch_ids:
+        arcs.append(
+            {
+                "id": f"{launch_id}_to_{moon['id']}_R",
+                "from": launch_id,
+                "to": moon["id"],
+                "type": "rocket",
+                "lead_time_days": rocket_cfg["lead_time_days"],
+                "payload_t": rocket_cfg["payload_t"],
+                "cost_per_kg_2050": rocket_cfg["cost_per_kg_2050"],
+                "enabled": rocket_cfg["enabled"],
+            }
+        )
+
+    for node_id in earth_port_ids + launch_ids:
+        arcs.append(
+            {
+                "id": f"{ground['id']}_to_{node_id}",
+                "from": ground["id"],
+                "to": node_id,
+                "type": "ground",
+                "lead_time": ground_cfg["lead_time"],
+                "payload": ground_cfg["payload"],
+                "cost_per_kg_2050": ground_cfg["cost_per_kg_2050"],
+                "enabled": ground_cfg["enabled"],
+            }
+        )
+
+    data["nodes"] = nodes
+    data["arcs"] = arcs
+    del data["network"]
+    return data
 
 
 def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:

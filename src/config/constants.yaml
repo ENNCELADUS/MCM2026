@@ -20,66 +20,69 @@ units:
   seconds_per_day: 86400
 
 # -----------------------------------------------------------------------------
-# Network Nodes (N)
+# Network Templates (expanded to nodes/arcs in utils.expand_network_templates)
 # -----------------------------------------------------------------------------
-nodes:
-  - id: "E_agg"
+network:
+  ground_hub:
+    id: "E_agg"
     name: "Earth Aggregation"
-    type: "earth"
-  - id: "E_port"
-    name: "Earth Launch Port"
-    type: "earth"
-  - id: "Apex"
-    name: "GEO Apex Station"
-    type: "transit"
-  - id: "Moon"
+  moon:
+    id: "Moon"
     name: "Lunar Surface"
-    type: "moon"
-
-# -----------------------------------------------------------------------------
-# Logistics Arcs (A)
-# format: {from, to, id, type, lead_time, payload, enabled}
-# lead_time and payload are in months and kg, respectively.
-# -----------------------------------------------------------------------------
-arcs:
-  # Elevator segments
-  - id: "E_port_to_Apex"
-    from: "E_port"
-    to: "Apex"
-    type: "elevator"
-    lead_time_days: 7       # ~1 week to GEO
-    payload_t: 20           # 20t climber
-    cost_per_kg_2050: 20    # Target operational cost
-    enabled: ["E-only", "Mix"]
-
-  - id: "Apex_to_Moon"
-    from: "Apex"
-    to: "Moon"
-    type: "transfer"
-    lead_time_days: 5       # Transfer + LOI + Landing
-    payload_t: 20           # Matches climber payload
-    cost_per_kg_2050: 40    # $60 total (20 lift + 40 transfer/landing)
-    enabled: ["E-only", "Mix"]
-
-  # Rocket segments
-  - id: "E_port_to_Moon_R"
-    from: "E_port"
-    to: "Moon"
-    type: "rocket"
-    lead_time_days: 5       # Direct TLI
-    payload_t: 100          # Starship class
-    cost_per_kg_2050: 100   # 2050 Target ($100/kg)
-    enabled: ["R-only", "Mix"]
-
-  # Ground transport (Earth)
-  - id: "E_agg_to_E_port"
-    from: "E_agg"
-    to: "E_port"
-    type: "ground"
-    lead_time: 1
-    payload: 1000000
-    cost_per_kg_2050: 0
-    enabled: ["E-only", "R-only", "Mix"]
+  harbours:
+    count: 3
+    earth_port_id_template: "E_port_H{h}"
+    earth_port_name_template: "Galactic Harbour {h} - Earth Port"
+    apex_id_template: "Apex_H{h}_{k}"
+    apex_name_template: "Harbour {h} Apex Anchor {k}"
+    apex_labels: ["A", "B"]
+  launch_sites:
+    known:
+      - id: "Launch_01"
+        name: "Alaska Launch Site"
+      - id: "Launch_02"
+        name: "California Launch Site"
+      - id: "Launch_03"
+        name: "Texas Launch Site"
+      - id: "Launch_04"
+        name: "Florida Launch Site"
+      - id: "Launch_05"
+        name: "Virginia Launch Site"
+      - id: "Launch_06"
+        name: "Kazakhstan Launch Site"
+      - id: "Launch_07"
+        name: "French Guiana Launch Site"
+      - id: "Launch_08"
+        name: "Satish Dhawan Launch Site"
+      - id: "Launch_09"
+        name: "Taiyuan Launch Site"
+      - id: "Launch_10"
+        name: "Mahia Peninsula Launch Site"
+    future_count: 10
+    future_start_index: 11
+    future_id_template: "Launch_{n:02d}"
+    future_name_template: "Future Launch Site {n}"
+  arcs:
+    elevator:
+      lead_time_days: 7
+      payload_t: 20
+      cost_per_kg_2050: 20
+      enabled: ["E-only", "Mix"]
+    transfer:
+      lead_time_days: 5
+      payload_t: 20
+      cost_per_kg_2050: 40
+      enabled: ["E-only", "Mix"]
+    rocket:
+      lead_time_days: 5
+      payload_t: 100
+      cost_per_kg_2050: 100
+      enabled: ["R-only", "Mix"]
+    ground:
+      lead_time: 1
+      payload: 1000000
+      cost_per_kg_2050: 0
+      enabled: ["E-only", "R-only", "Mix"]
 
 # -----------------------------------------------------------------------------
 # Resource Types (R)
@@ -315,6 +318,8 @@ parameter_summary:
         years:
           start: 2080
         description: "mature self-sufficiency (T -> 0)"
+  colony_target:
+    population: 100000
 
 # -----------------------------------------------------------------------------
 # Implementation Details (from outline/assumptions/implementation_details.md)
@@ -323,92 +328,108 @@ implementation_details:
   wbs_tasks:
     - id: "T01"
       name: "Site_Survey_Prep"
+      task_type: "capability"
       predecessors: []
       earth_mass_t: 5
       regolith_mass_t: 500
       duration_months: 3
       unlocks:
         power_mw: 0
+        construction_t_per_month: 0
         handling_t_per_month: 0
         production_t_per_year: 0
         population: 0
     - id: "T02"
       name: "Power_Gen_Phase1"
+      task_type: "capability"
       predecessors: ["T01"]
       earth_mass_t: 60
       regolith_mass_t: 200
       duration_months: 6
       unlocks:
         power_mw: 1
+        construction_t_per_month: 0
         handling_t_per_month: 0
         production_t_per_year: 0
         population: 0
     - id: "T03"
       name: "Landing_Pad_V1"
+      task_type: "capability"
       predecessors: ["T01"]
       earth_mass_t: 10
       regolith_mass_t: 2000
       duration_months: 4
       unlocks:
         power_mw: 0
+        construction_t_per_month: 100
         handling_t_per_month: 50
         production_t_per_year: 0
         population: 0
     - id: "T04"
       name: "ISRU_Pilot_Plant"
+      task_type: "capability"
       predecessors: ["T02", "T03"]
       earth_mass_t: 20
       regolith_mass_t: 100
       duration_months: 6
       unlocks:
         power_mw: 0
+        construction_t_per_month: 0
         handling_t_per_month: 0
         production_t_per_year: 100
         population: 0
     - id: "T05"
       name: "Habitat_Module_A"
+      task_type: "construction"
       predecessors: ["T04"]
       earth_mass_t: 25
       regolith_mass_t: 5000
       duration_months: 3
       unlocks:
         power_mw: 0
+        construction_t_per_month: 0
         handling_t_per_month: 0
         production_t_per_year: 0
         population: 20
     - id: "T06"
       name: "ISRU_Industrial"
+      task_type: "capability"
       predecessors: ["T04"]
       earth_mass_t: 150
       regolith_mass_t: 1000
       duration_months: 12
       unlocks:
         power_mw: 0
+        construction_t_per_month: 50000
         handling_t_per_month: 0
         production_t_per_year: 5000
         population: 0
     - id: "T07"
       name: "Power_Gen_Phase2"
+      task_type: "capability"
       predecessors: ["T06"]
       earth_mass_t: 2000
       regolith_mass_t: 5000
       duration_months: 24
       unlocks:
         power_mw: 100
+        construction_t_per_month: 500000
         handling_t_per_month: 0
         production_t_per_year: 0
         population: 0
     - id: "T08"
-      name: "City_Block_Beta"
+      name: "City_Construction_Main"
+      task_type: "construction"
       predecessors: ["T06", "T07"]
-      earth_mass_t: 500
-      regolith_mass_t: 100000
-      duration_months: 0
+      earth_mass_t: 500000
+      regolith_mass_t: 100000000
+      duration_months: 240
       unlocks:
         power_mw: 0
+        construction_t_per_month: 0
         handling_t_per_month: 0
         production_t_per_year: 0
-        population: 1000
+        population: 100000
 
   handling_capacity:
     excavator_efficiency_t_per_hour_per_ton: 10
@@ -456,8 +477,8 @@ implementation_details:
       arrival_rule: "lead_lt_threshold_same_month_else_next"
     arc_selection:
       simplified_single_arc: false
-      arc_rocket_id: "E_port_to_Moon_R"
-      arc_elevator_id: "E_port_to_Apex"
+      arc_rocket_id: "Launch_01_to_Moon_R"
+      arc_elevator_id: "E_port_H1_to_Apex_H1_A"
     elevator_stream_model:
       enabled: true
       constraint: "sum_r x_elev[r,t] <= C_E(t) * delta_t"
