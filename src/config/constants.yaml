@@ -1,0 +1,185 @@
+# =============================================================================
+# Moon Logistics & Task Network - Constants Configuration
+# Based on model.md formulation
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Time Parameters
+# -----------------------------------------------------------------------------
+time:
+  delta_t: 2592000  # 1 month in seconds (30 * 24 * 3600)
+  T_max: 120        # Maximum time horizon (months, 10 years)
+
+# -----------------------------------------------------------------------------
+# Network Nodes (N)
+# -----------------------------------------------------------------------------
+nodes:
+  - id: "E_agg"
+    name: "Earth Aggregation"
+    type: "earth"
+  - id: "E_port"
+    name: "Earth Launch Port"
+    type: "earth"
+  - id: "Apex"
+    name: "GEO Apex Station"
+    type: "transit"
+  - id: "Moon"
+    name: "Lunar Surface"
+    type: "moon"
+
+# -----------------------------------------------------------------------------
+# Logistics Arcs (A)
+# format: {from, to, id, type, lead_time_months, payload_kg, enabled_scenarios}
+# -----------------------------------------------------------------------------
+arcs:
+  # Elevator segments
+  - id: "E_port_to_Apex"
+    from: "E_port"
+    to: "Apex"
+    type: "elevator"
+    lead_time: 1    # ~7 days transit, rounded to 1 month step
+    payload: 20000  # 20 tons per climber
+    enabled: ["E-only", "Mix"]
+    
+  - id: "Apex_to_Moon"
+    from: "Apex"
+    to: "Moon"
+    type: "transfer"
+    lead_time: 1
+    payload: 20000
+    enabled: ["E-only", "Mix"]
+    
+  # Rocket segments
+  - id: "E_port_to_Moon_R"
+    from: "E_port"
+    to: "Moon"
+    type: "rocket"
+    lead_time: 1    # ~3-5 days transit
+    payload: 15000  # Falcon Heavy TLI ~15-16t
+    enabled: ["R-only", "Mix"]
+    
+  # Ground transport (Earth)
+  - id: "E_agg_to_E_port"
+    from: "E_agg"
+    to: "E_port"
+    type: "ground"
+    lead_time: 1
+    payload: 1000000  # effectively unlimited
+    enabled: ["E-only", "R-only", "Mix"]
+
+# -----------------------------------------------------------------------------
+# Resource Types (R)
+# -----------------------------------------------------------------------------
+resources:
+  - id: "structure"
+    name: "Structural Materials"
+    isru_producible: true
+  - id: "equipment"
+    name: "Equipment/Machinery"
+    isru_producible: false
+  - id: "water"
+    name: "Water/Volatiles"
+    isru_producible: true
+  - id: "fuel"
+    name: "Propellants"
+    isru_producible: true
+  - id: "electronics"
+    name: "Electronics/Control"
+    isru_producible: false
+  - id: "life_support"
+    name: "Life Support Systems"
+    isru_producible: false
+
+# -----------------------------------------------------------------------------
+# Scenario Definitions (S)
+# -----------------------------------------------------------------------------
+scenarios:
+  - id: "E-only"
+    name: "Elevator Only"
+    description: "Space elevator as sole transport"
+  - id: "R-only"
+    name: "Rocket Only"
+    description: "Rockets as sole transport"
+  - id: "Mix"
+    name: "Mixed"
+    description: "Combined elevator and rocket"
+
+# -----------------------------------------------------------------------------
+# Cost Parameters ($)
+# -----------------------------------------------------------------------------
+costs:
+  # Elevator costs (per kg)
+  elevator:
+    initial: 500        # $/kg (Phase 0)
+    mature: 100         # $/kg (Phase 1)
+    fixed_per_trip: 0   # No fixed launch cost
+    
+  # Rocket costs
+  rocket:
+    falcon_heavy:
+      per_kg: 10000       # ~$150M / 15t
+      fixed_per_launch: 150000000  # $150M
+    starship:
+      per_kg_initial: 100
+      per_kg_target: 20
+      fixed_per_launch: 2000000  # Target $2M
+
+# -----------------------------------------------------------------------------
+# Initial Capacity Parameters (at t=0)
+# -----------------------------------------------------------------------------
+initial_capacities:
+  P_0: 0.0      # ISRU production (kg/s)
+  V_0: 0.0      # Construction/assembly (kg/s)
+  H_0: 0.001    # Handling/receiving (kg/s) - minimal initial
+  Pop_0: 0      # Population capacity (persons)
+  
+  # Transport capacity pools
+  C_R_0: 0.5    # Rocket capacity pool (kg/s) - ~1500t/month
+  C_E_0: 0.2    # Elevator capacity pool (kg/s) - ~500t/month
+
+# -----------------------------------------------------------------------------
+# Learning Curve Parameters
+# -----------------------------------------------------------------------------
+learning:
+  # Cost reduction factor per doubling of cumulative throughput
+  elevator_rate: 0.85   # 15% reduction per doubling
+  rocket_rate: 0.90     # 10% reduction per doubling (reuse)
+  isru_rate: 0.80       # 20% reduction per doubling
+
+# -----------------------------------------------------------------------------
+# ISRU Production Parameters
+# -----------------------------------------------------------------------------
+isru:
+  # Efficiency ratios (output/input)
+  water_extraction_rate: 0.03       # kg H2O per kg regolith
+  oxygen_from_ilmenite: 0.045       # kg O2 per kg ilmenite
+  metal_from_regolith: 0.01         # kg metal per kg regolith
+  
+  # Energy requirements (kWh/kg product)
+  water_energy: 50
+  oxygen_energy: 100
+  metal_energy: 500
+
+# -----------------------------------------------------------------------------
+# Task Network (AON/RCPSP) Default Parameters
+# Note: Actual task definitions in settings.py
+# -----------------------------------------------------------------------------
+task_defaults:
+  min_duration: 1               # Minimum task duration (months)
+  max_concurrent_tasks: 5       # Parallel task limit
+  installation_delay: 1         # d_i: delay from completion to capability (months)
+
+# -----------------------------------------------------------------------------
+# Objective Function Weights
+# -----------------------------------------------------------------------------
+objective:
+  w_C: 1.0      # Cost weight
+  w_T: 1.0e8    # Time weight ($/month equivalent)
+
+# -----------------------------------------------------------------------------
+# Solver Settings
+# -----------------------------------------------------------------------------
+solver:
+  time_limit: 3600    # seconds
+  gap_tolerance: 0.01 # 1% MIP gap
+  threads: 4
