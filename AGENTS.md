@@ -16,7 +16,7 @@ The repository is organized as follows:
 
 ## Build, Test, and Development Commands
 
-Ensure you have **Python 3.10+** and the `esm` Conda environment activated.
+Conda environment activate `ml-dl`.
 
 - **Run Pipeline**:
   ```bash
