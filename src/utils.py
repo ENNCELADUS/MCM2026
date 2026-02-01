@@ -261,17 +261,6 @@ def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
         launch_ids.append(item["id"])
         nodes.append({"id": item["id"], "name": item["name"], "type": "earth"})
 
-    future_count = int(launch.get("future_count", 0))
-    if future_count > 0:
-        start_index = int(launch.get("future_start_index", len(launch_ids) + 1))
-        id_t = launch["future_id_template"]
-        name_t = launch["future_name_template"]
-        for n in range(start_index, start_index + future_count):
-            launch_id = id_t.format(n=n)
-            launch_name = name_t.format(n=n)
-            launch_ids.append(launch_id)
-            nodes.append({"id": launch_id, "name": launch_name, "type": "earth"})
-
     nodes.append({"id": moon["id"], "name": moon["name"], "type": "moon"})
 
     arcs: list[dict[str, Any]] = []

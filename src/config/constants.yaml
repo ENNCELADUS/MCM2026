@@ -55,10 +55,6 @@ network:
         name: "Taiyuan Launch Site"
       - id: "Launch_10"
         name: "Mahia Peninsula Launch Site"
-    future_count: 10
-    future_start_index: 11
-    future_id_template: "Launch_{n:02d}"
-    future_name_template: "Future Launch Site {n}"
   arcs:
     elevator:
       lead_time_days: 7
