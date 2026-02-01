@@ -221,7 +221,7 @@ def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
         return data
 
     net = data["network"]
-    ground = net["ground_hub"]
+    ground = net.get("ground_hub")
     moon = net["moon"]
     harbours = net["harbours"]
     launch = net["launch_sites"]
@@ -239,7 +239,8 @@ def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
     apex_name_t = harbours["apex_name_template"]
 
     nodes: list[dict[str, Any]] = []
-    nodes.append({"id": ground["id"], "name": ground["name"], "type": "earth"})
+    if ground is not None:
+        nodes.append({"id": ground["id"], "name": ground["name"], "type": "earth"})
 
     earth_port_ids: list[str] = []
     apex_ids: list[str] = []
@@ -277,7 +278,7 @@ def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
     elevator_cfg = arcs_cfg["elevator"]
     transfer_cfg = arcs_cfg["transfer"]
     rocket_cfg = arcs_cfg["rocket"]
-    ground_cfg = arcs_cfg["ground"]
+    ground_cfg = arcs_cfg.get("ground")
 
     for h in harbour_ids:
         port_id = earth_port_id_t.format(h=h)
@@ -322,19 +323,20 @@ def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
-    for node_id in earth_port_ids + launch_ids:
-        arcs.append(
-            {
-                "id": f"{ground['id']}_to_{node_id}",
-                "from": ground["id"],
-                "to": node_id,
-                "type": "ground",
-                "lead_time": ground_cfg["lead_time"],
-                "payload": ground_cfg["payload"],
-                "cost_per_kg_2050": ground_cfg["cost_per_kg_2050"],
-                "enabled": ground_cfg["enabled"],
-            }
-        )
+    if ground is not None and ground_cfg is not None:
+        for node_id in earth_port_ids + launch_ids:
+            arcs.append(
+                {
+                    "id": f"{ground['id']}_to_{node_id}",
+                    "from": ground["id"],
+                    "to": node_id,
+                    "type": "ground",
+                    "lead_time": ground_cfg["lead_time"],
+                    "payload": ground_cfg["payload"],
+                    "cost_per_kg_2050": ground_cfg["cost_per_kg_2050"],
+                    "enabled": ground_cfg["enabled"],
+                }
+            )
 
     data["nodes"] = nodes
     data["arcs"] = arcs
@@ -676,6 +678,9 @@ def load_model_data(
     for a in constants["arcs"]:
         if scenario not in a["enabled"]:
             continue
+        if scenario == "R-only":
+            if a["type"] != "rocket":
+                continue
         if "lead_time_days" in a:
             lead_time_days = a["lead_time_days"]
             if lead_time_days < threshold_days:

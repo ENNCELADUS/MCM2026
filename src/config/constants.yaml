@@ -23,9 +23,6 @@ units:
 # Network Templates (expanded to nodes/arcs in utils.expand_network_templates)
 # -----------------------------------------------------------------------------
 network:
-  ground_hub:
-    id: "E_agg"
-    name: "Earth Aggregation"
   moon:
     id: "Moon"
     name: "Lunar Surface"

@@ -34,6 +34,7 @@ class PyomoBuilder:
         constants = self.constants
 
         self.node_ids = [n.id for n in data.nodes]
+        self.node_types = {n.id: n.node_type for n in data.nodes}
         self.arc_ids = [a.id for a in data.arcs]
         self.res_ids = [r.id for r in data.resources]
         self.task_ids = [t.id for t in data.tasks]
@@ -254,7 +255,6 @@ class PyomoBuilder:
         m.v_inst = pyo.Var(m.I_V, m.T, domain=pyo.NonNegativeReals)
         m.u = pyo.Var(m.I, m.T, domain=pyo.Binary)
         m.u_done = pyo.Var(m.I, m.T, domain=pyo.Binary)
-        m.S_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.z = pyo.Var(m.I, m.T, domain=pyo.Binary)
         m.N_rate = pyo.Var(
             m.T,
@@ -617,6 +617,8 @@ class PyomoBuilder:
         def _inv_balance_rule(mdl, n, r, t):
             if n == self.moon_node:
                 return pyo.Constraint.Skip
+            if self.node_types.get(n) in ("earth", "source"):
+                return pyo.Constraint.Skip
             prev = mdl.I_E[n, r, t - 1] if t > 0 else 0
 
             inflow = sum(
@@ -625,8 +627,7 @@ class PyomoBuilder:
                 if t - mdl.arc_lead[a] >= 0
             )
             outflow = sum(mdl.x[a, r, t] for a in self.arcs_from[n])
-            supply = mdl.S_E[r, t] if n == "E_agg" else 0
-            return mdl.I_E[n, r, t] == prev + inflow - outflow + supply
+            return mdl.I_E[n, r, t] == prev + inflow - outflow
 
         m.inv_balance = pyo.Constraint(m.N, m.R, m.T, rule=_inv_balance_rule)
 
