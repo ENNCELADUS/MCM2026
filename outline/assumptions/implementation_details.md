@@ -11,8 +11,9 @@
 
 ### 2. 物流网络定义 (Logistics)
 *   **火箭运力 ($U_a$)**: 逻辑回归增长. 2050年单次 $L_{cap} \approx 100 \sim 150$ MT. 极限 $L_{max} \approx 250$ MT.
-*   **发射成本 ($c_{a,r,t}$)**: Wright's Law + Transcost. 2050年 基准 $\approx 100,000$ USD/kg (保守估计).
+*   **发射成本 ($c_{a,r,t}$)**: 固定弧成本 2050年 $\approx 100,000$ USD/kg；若启用学习曲线则按年衰减 (见 §5 Wright's Law).
 *   **太空电梯成本**: 2050年 $\approx 20,000$ USD/kg.
+*   **太空电梯容量**: 固定 $F_{elevator} = 179,000$ 吨/年 (等效 $C_E \approx 0.00567607$ 吨/秒).
 *   **环境约束**: 加权排放指数 (WEI)，黑碳 (BC) 权重 500.
 
 ## 1. 产能增长模型 (Continuous Capacity Growth Model)
@@ -22,23 +23,25 @@
 ### 1.1 阶段 I：引导期 (Bootstrapping Phase)
 *   **特征**: 依赖地球补给，产能呈线性增长。此阶段月球仅仅是“接收端”，机器人负责组装来自地球的预制件。
 *   **时间跨度**: 初期 (2050 - ~2055/2060)。
-*   **数学模型**: 
-    $$P(t) = P_{earth} \cdot t + P_0$$
+*   **数学模型 (离散步长，按月)**: 
+    $$P_t \le P_{t-1} + \beta \cdot M_{earth,t} - \phi \cdot P_{t-1}$$
 *   **参数**:
-    *   $P_0$: 初始产能 (0 t/yr)。
-    *   $P_{earth}$: 地球发射支持下的产能增长率 (由运力瓶颈决定)。
+    *   $P_0$: 初始产能 (默认 $0.1$ t/yr)。
+    *   $\beta$: 地球设备转化为产能的系数 (t/yr per ton)。
+    *   $M_{earth,t}$: 当期到达月面的 Tier-1 设备质量 (tons/step)。
+    *   $\phi$: 年度折旧率，按 $\phi/steps\_per\_year$ 折算到月度。
     *   **瓶颈**: 运力成本与地球发射频率。
 
 ### 1.2 阶段 II：指数爆发期 (Self-Replication Phase)
 *   **特征**: 机器人开始建造机器人（利用月壤提取铝、铁、硅）。此时产能进入指数增长。
 *   **触发条件**: 当本地生产成本 < 地球运输成本，且具备完整的 ISRU 闭环能力。
-*   **数学模型**:
-    $$P(t) = P_{start\_II} \cdot e^{(\eta \cdot \alpha) (t - t_{start\_II})}$$
+*   **数学模型 (当前 MILP 口径，离散步长)**:
+    $$P_t \le P_{t-1} + \beta \cdot M_{earth,t} + \beta \eta \cdot \Delta G_{t-1} - \phi \cdot P_{t-1}$$
 *   **参数**:
-    *   $\beta$: 设备产能转化率 (Equipment Leverage) $= 50.0$ (t/y capacity per ton equipment).
+    *   $\beta$: 设备产能转化率 (Equipment Leverage) $= 50.0$ (t/yr capacity per ton equipment).
     *   $\eta$: 资源转化效率 (ISRU Efficiency) $= 0.90$.
-    *   $\alpha$: 机器人自我复制的增益常数 (Replication Factor, year$^{-1}$) $= 0.35$.
-    *   **控制论视角**: 这是一个正反馈回路。如果 $\eta \alpha > 1$，系统将产生爆发式增长。
+    *   $\Delta G_{t-1}$: 上一期用于扩产的“本地设备投资” (tons/step).
+    *   **说明**: 经典连续形式 $P(t) \propto e^{(\eta \alpha)t}$ 在当前 MILP 中未显式使用，$\alpha$ 仅作为未来替代方案保留。
 
 ### 1.3 阶段 III：环境极限期 (Saturation Phase)
 *   **特征**: 受限于月球南极采光面、散热极限或特定稀有元素（如挥发物）的枯竭。
@@ -47,6 +50,7 @@
 *   **参数**:
     *   $K(A)$: 动态环境承载力 (Carrying Capacity)，随技术进步 $A$ 移动。
     *   $\phi(D)$: 损耗项 (Depreciation)，代表宇宙射线损伤、月尘磨损导致的报废率。
+*   **离散化说明**: 实现中采用线性折旧 $P_t = P_{t-1} - (\phi/steps\_per\_year) P_{t-1}$，并施加硬上限 $P_t \le K$。
 
 ## 2. 物流网络定义 (Logistics Network Parameters)
 
@@ -65,7 +69,7 @@
 | `Arc_Elevator` | Earth $\to$ Geo $\to$ Moon | Space Elevator | 7 Days | Cont. Flow | \$20,000/kg (Ops) | 高固定投入，低变动成本 |
 | `Arc_ISRU_Log` | Moon $\to$ Moon | Surface Rovers | 0 Days | N/A | Local Energy | 本地短途运输 |
 
-*   **注**: 模型可简化为 `Earth -> Moon` 的单一等效弧段，Lead Time 取 **6 Days** (Rocket) 或 **14 Days** (Slow Cargo / Elevator).
+*   **注**: 模型可简化为 `Earth -> Moon` 的单一等效弧段，Lead Time 取 **5 Days** (Rocket) 或 **12 Days** (Elevator+Transfer).
 
 ## 3. 处理能力 (Handling Capacity)
 
@@ -102,20 +106,20 @@
 ## 5. 变量域与优化参数 (Optimization Bounds)
 
 *   **Big-M**: 取 $10^9$ (大于总资源量)。
-*   **Time Horizon**: $T_{max} = 600$ Months (50 Years, 2050-2100).
+*   **Time Horizon**: $T_{max} = 1200$ Months (100 Years, 2050-2150).
 *   **Integer Cuts**: 任务完成 $u_{i,t}$ 为 Binary；火箭发射次数 $y_{a,t}$ 为 Integer。
 
 ## Additional parameters
 
 1. Time Discretization
-Assumption: 1-Month Steps ($t \in [0, 600]$).
+Assumption: 1-Month Steps ($t \in [0, 1200]$).
 Reasoning: Logistics lead times for Rockets (~5 days) and Elevators (~7 days) are sub-monthly. We aggregate them into monthly buckets. Any flow $x_{t}$ initiated in month $t$ arrives in month $t$ (if lead < 15 days) or $t+1$. This keeps the MILP solvable.
 2. Arc Selection
 Assumption: Simplified Single Arc (Earth $\to$ Moon).
 Reasoning: The multi-node graph (Earth $\to$ LLO $\to$ Moon) adds unnecessary variables. We define Arc_Rocket and Arc_Elevator directly from Earth to Moon, with effective costs and lead times that account for the intermediate staging.
 3. Elevator Payload Model (Stream Model)
 Assumption: Continuous Throughput Limit (Flow Constraint).
-Formula: $\sum_{r} x_{elev, r, t} \le C_E(t) \cdot \Delta t$.
+Formula: $\sum_{r} x_{elev, r, t} \le C_E(t) \cdot \Delta t$, where $C_E(t)$ is in tons/second and $\Delta t$ is seconds/step.
 Reasoning: Elevators operate as a "pipeline". We do not track individual integer climbers ($y_{a,t}$) in the global optimization, as they number in the thousands. Capacity $C_E(t)$ is the dynamic constraint.
 4. Rocket Capacity Growth (Launch-Rate + Logistic Payload Model)
 Assumption: Decoupled Capacity and Frequency.
@@ -125,27 +129,27 @@ Model:
     *   $$L_{cap}(t) = \frac{L_{max}}{1 + A \cdot e^{-k(t - t_0)}}$$
     *   $L_{max} = 250$ MT, $L_{cap}(2050) \approx 150$ MT.
 *   **Launch Rate ($N_{rate}(t)$)**: Modeled separately as the operational bottleneck (e.g., launches/year), which may grow linearly or similarly curve off.
-    *   $N_{rate}(t)$ acts as an integer decision variable or controlled parameter (e.g., Max 5000 launches/year).
+    *   $N_{rate}(t)$ acts as an integer decision variable or controlled parameter (e.g., Max 10000 launches/year).
 *   **Total Capacity**: $Total(t) = N_{rate}(t) \times L_{cap}(t)$.
 5. Wright’s Law Cost Curve
-Assumption: Time-Dependent Exponential Decay (Wright's Law).
+Assumption: Annual Power Decay (Wright's Law, yearly).
 Parameters:
 $C_{base} = $870,600/kg$ (2024 Baseline).
 $C_{min} = $20,000/kg$.
-$\lambda_c = 0.01$ month$^{-1}$.
-Formula: $Cost(t) = (C_{base} - C_{min}) \cdot e^{-\lambda t} + C_{min}$.
+$d = 0.055$ (annual_decay_rate).
+Formula: $Cost(y) = \\max\\{C_{min},\\; C_{base} \\cdot (1-d)^{(y-2024)}\\}$.
 6. ISRU Bootstrapping (Continuous Input)
-Assumption: Linear & Exponential Phases.
+Assumption: Linear & Endogenous Replication.
 Logic: We replace the "Stepwise Function" with a continuous flow model.
 *   **Phase I**: $\Delta P \propto \Delta M_{Earth}$. Global capacity rises linearly as machinery arrives.
-*   **Phase II**: $\Delta P \propto P(t)$. Global capacity rises exponentially as machinery replicates.
+*   **Phase II**: $\Delta P \propto \Delta G_{t-1}$. Local investment drives capacity expansion via $\beta \eta$.
 *   Transition: Occurs when $P(t)$ reaches critical mass for self-replication (e.g., capable of producing Tier 2 components).
 
 7. Phase Durations
 Assumption: Endogenous Transition.
 Logic: We do not set fixed task durations (e.g., "6 months"). Instead, the duration of each phase is determined by the *Growth Rate*.
 *   $T_{Phase\_I} = P_{critical} / Rate_{shipping}$.
-*   $T_{Phase\_II} = \ln(K/P_{critical}) / (\eta \alpha)$.
+*   $T_{Phase\_II}$: No closed-form in the discrete MILP; use simulation outputs or define an effective growth rate $g_{eff}$ if applying a continuous approximation.
 
 8. Handling Capacity ($H(t)$)
 Assumption: Proportional to Production.
