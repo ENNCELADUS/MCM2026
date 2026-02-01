@@ -30,9 +30,6 @@ network:
     count: 3
     earth_port_id_template: "E_port_H{h}"
     earth_port_name_template: "Galactic Harbour {h} - Earth Port"
-    apex_id_template: "Apex_H{h}_{k}"
-    apex_name_template: "Harbour {h} Apex Anchor {k}"
-    apex_labels: ["A", "B"]
   launch_sites:
     known:
       - id: "Launch_01"
@@ -169,7 +166,7 @@ scenario_parameters:
   arc_selection:
     simplified_single_arc: false
     arc_rocket_id: "Launch_01_to_Moon_R"
-    arc_elevator_id: "E_port_H1_to_Apex_H1_A"
+    arc_elevator_id: "E_port_H1_to_Moon_E"
 
 # -----------------------------------------------------------------------------
 # Cost Parameters ($)
