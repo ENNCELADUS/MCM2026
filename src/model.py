@@ -242,7 +242,7 @@ class MoonLogisticsModel:
                 self.build_model()
             model = self._model
 
-            result = solver.solve(model, tee=False, load_solutions=False)
+            result = solver.solve(model, tee=True, load_solutions=False)
             
             # Check termination condition
             term = result.solver.termination_condition

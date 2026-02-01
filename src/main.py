@@ -240,8 +240,10 @@ def run_pipeline(
         # Step 4: Solve
         # ---------------------------------------------------------------------
         if verbose:
+            solver_cfg = model.constants.get("solver", {})
+            effective_gap = solver_cfg.get("gap_tolerance", settings.mip_gap)
             print(
-                f"[Step 4] Solving (timeout: {settings.solver_timeout}s, gap: {settings.mip_gap})..."
+                f"[Step 4] Solving (timeout: {settings.solver_timeout}s, gap: {effective_gap})..."
             )
 
         result = model.solve()

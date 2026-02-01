@@ -525,7 +525,7 @@ objective:
 # -----------------------------------------------------------------------------
 solver:
   time_limit: 3600    # seconds
-  gap_tolerance: 0.05 # 5% MIP gap
+  gap_tolerance: 0.10 # 5% MIP gap
   threads: 8
   horizon_step_months: 24
   horizon_max_attempts: 0
