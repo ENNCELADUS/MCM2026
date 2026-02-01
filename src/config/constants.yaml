@@ -7,10 +7,10 @@
 # Time Parameters
 # -----------------------------------------------------------------------------
 time:
-  delta_t: 2592000  # 1 month in seconds (30 * 24 * 3600)
+  delta_t: 5184000  # 2 months in seconds (60 * 24 * 3600)
   T_max: 1200       # Maximum time horizon (months, 100 years, 2050-2150)
   start_year: 2050  # Calendar year for t=0 (Phase I start)
-  steps_per_year: 12
+  steps_per_year: 6
 
 # -----------------------------------------------------------------------------
 # Unit Conversions
@@ -490,8 +490,8 @@ implementation_details:
       formula: "L_max / (1 + A * exp(-k * (year - t0)))"
     rocket_launch_rate:
       base_per_year: 1000
-      annual_growth_rate: 0.05
-      max_per_year: 5000
+      annual_growth_rate: 0.1
+      max_per_year: 8000
       start_year: 2050
       formula: "min(max, base * (1 + r)^(year - start_year)) (per-year)"
     rocket_cost_decay:
@@ -541,9 +541,9 @@ objective:
 # -----------------------------------------------------------------------------
 solver:
   time_limit: 3600    # seconds
-  gap_tolerance: 0.01 # 1% MIP gap
-  threads: 4
-  horizon_step_months: 12
+  gap_tolerance: 0.05 # 5% MIP gap
+  threads: 8
+  horizon_step_months: 24
   horizon_max_attempts: 0
   v0_scale_factor: 10.0
   v0_adjust_attempts: 4
