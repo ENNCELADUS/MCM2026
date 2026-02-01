@@ -492,7 +492,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = cost_per_kg.get("mature")
         elev_stream = elev.get("stream_model", {})
         _ = elev_stream.get("enabled")
-        _ = elev_stream.get("constraint")
 
         rocket = scenario_params.get("rocket", {})
         fh_payload = rocket.get("falcon_heavy_payload_tli_t", {})
@@ -509,13 +508,11 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = rocket_payload.get("k")
         _ = rocket_payload.get("t0_year")
         _ = rocket_payload.get("ref_year")
-        _ = rocket_payload.get("formula")
         rocket_launch_rate = rocket.get("launch_rate", {})
         _ = rocket_launch_rate.get("base_per_year")
         _ = rocket_launch_rate.get("annual_growth_rate")
         _ = rocket_launch_rate.get("max_per_year")
         _ = rocket_launch_rate.get("start_year")
-        _ = rocket_launch_rate.get("formula")
 
         arc_sel = scenario_params.get("arc_selection", {})
         _ = arc_sel.get("simplified_single_arc")
@@ -539,7 +536,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     pivot = env.get("energy_transport_pivot", {})
     _ = pivot.get("local_energy_cost_usd_per_kwh")
     _ = pivot.get("energy_intensity_kwh_per_kg")
-    _ = pivot.get("local_cost_per_kg_formula")
     _ = pivot.get("pivot_condition")
 
     # Validate cost parameters
@@ -563,7 +559,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = rocket_decay.get("base_cost_usd_per_kg")
         _ = rocket_decay.get("annual_decay_rate")
         _ = rocket_decay.get("min_cost_usd_per_kg")
-        _ = rocket_decay.get("formula")
 
     # Validate implementation details
     impl = constants["implementation_details"]
@@ -803,7 +798,6 @@ def get_rocket_launch_rate_max(
     annual_growth_rate = float(params["annual_growth_rate"])
     max_per_year = float(params["max_per_year"])
     start_year = float(params.get("start_year", constants["time"]["start_year"]))
-    _ = params.get("formula")
 
     if base_per_year < 0 or max_per_year < 0:
         raise ValueError("rocket_launch_rate base/max must be non-negative")
@@ -851,7 +845,6 @@ def get_rocket_cost_usd_per_kg(
     base_cost = float(params["base_cost_usd_per_kg"])
     annual_decay = float(params["annual_decay_rate"])
     min_cost = params.get("min_cost_usd_per_kg")
-    _ = params.get("formula")
 
     if annual_decay < 0 or annual_decay >= 1:
         raise ValueError("rocket_cost_decay.annual_decay_rate must be in [0, 1)")

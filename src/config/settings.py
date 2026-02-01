@@ -573,7 +573,6 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     if isru_boot is None:
         raise KeyError("parameter_summary.isru.bootstrapping is required")
     for key in [
-        "equation",
         "eta",
         "phi",
         "alpha_per_year",
@@ -584,7 +583,6 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     ]:
         if key not in isru_boot:
             raise KeyError(f"parameter_summary.isru.bootstrapping.{key} is required")
-    _ = isru_boot["equation"]
     eta = isru_boot["eta"]
     _ = eta.get("min")
     _ = eta.get("max")
@@ -663,5 +661,4 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
         raise KeyError("parameter_summary.environment.energy_transport_pivot is required")
     _ = energy_pivot.get("local_energy_cost_usd_per_kwh")
     _ = energy_pivot.get("energy_intensity_kwh_per_kg")
-    _ = energy_pivot.get("local_cost_per_kg_formula")
     _ = energy_pivot.get("pivot_condition")
