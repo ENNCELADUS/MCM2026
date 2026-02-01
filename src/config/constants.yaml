@@ -7,10 +7,10 @@
 # Time Parameters
 # -----------------------------------------------------------------------------
 time:
-  delta_t: 5184000  # 2 months in seconds (60 * 24 * 3600)
+  delta_t: 2592000  # 1 month in seconds (30 * 24 * 3600)
   T_max: 1200       # Maximum time horizon (months, 100 years, 2050-2150)
   start_year: 2050  # Calendar year for t=0 (Phase I start)
-  steps_per_year: 6
+  steps_per_year: 12
 
 # -----------------------------------------------------------------------------
 # Unit Conversions
@@ -384,29 +384,30 @@ implementation_details:
         production_t_per_year: 0
         population: 20
     - id: "T06"
-      name: "ISRU_Industrial"
+      name: "ISRU_Industrial_Bootstrapping"
       task_type: "capability"
       predecessors: ["T04"]
-      earth_mass_t: 150
-      regolith_mass_t: 1000
-      duration_months: 12
+      earth_mass_t: 5000            # "Seed" mass for self-replicating factory (~33 Starships)
+      regolith_mass_t: 50000        # Local material for initial machines
+      duration_months: 24           # Time to replicate to maturity
       unlocks:
         power_mw: 0
-        construction_t_per_month: 50000
+        construction_t_per_month: 200000   # Initial construction capability upgrade
         handling_t_per_month: 0
-        production_t_per_year: 5000
+        production_t_per_year: 2000000     # 2M tons/year (Bootstrapped Industry)
         population: 0
+        handling_t_per_month: 2000         # Upgrade to handle next phase inputs (2000t/mo)
     - id: "T07"
-      name: "Power_Gen_Phase2"
+      name: "Power_Gen_Phase2_Grid"
       task_type: "capability"
       predecessors: ["T06"]
-      earth_mass_t: 2000
-      regolith_mass_t: 5000
-      duration_months: 24
+      earth_mass_t: 10000           # Massive solar/nuclear core components
+      regolith_mass_t: 200000
+      duration_months: 36
       unlocks:
-        power_mw: 100
-        construction_t_per_month: 500000
-        handling_t_per_month: 0
+        power_mw: 5000              # 5 GW (Industrial Scale)
+        construction_t_per_month: 10000000 # 10M tons/month (Swarm Construction)
+        handling_t_per_month: 50000 # Spaceport Upgrade (50,000 t/mo) to handle city components
         production_t_per_year: 0
         population: 0
     - id: "T08"
