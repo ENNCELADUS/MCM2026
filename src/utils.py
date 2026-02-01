@@ -26,8 +26,6 @@ REQUIRED_CONSTANT_SECTIONS = [
     "arcs",
     "resources",
     "scenarios",
-    "initial_capacities",
-    "task_defaults",
     "objective",
     "scenario_parameters",
     "parameter_summary",
@@ -36,8 +34,6 @@ REQUIRED_CONSTANT_SECTIONS = [
 ]
 
 REQUIRED_INITIAL_CAPACITIES = [
-    "P_0",
-    "V_0",
     "H_0",
     "Pop_0",
     "Power_0",
@@ -339,15 +335,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
 
 
 
-    # Validate ISRU section
-    isru = constants["isru"]
-    _ = isru["water_extraction_rate"]
-    _ = isru["oxygen_from_ilmenite"]
-    _ = isru["metal_from_regolith"]
-    _ = isru["water_energy"]
-    _ = isru["oxygen_energy"]
-    _ = isru["metal_energy"]
-
     # Validate solver section
     solver_cfg = constants.get("solver", {})
     if solver_cfg:
@@ -416,7 +403,7 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     # Validate parameter summary (Section 5)
     if not constants["parameter_summary"]:
         raise ValueError("constants.yaml parameter_summary cannot be empty")
-    for section in ["materials", "transport", "colony"]:
+    for section in ["materials", "colony"]:
         if section not in constants["parameter_summary"]:
             raise KeyError(f"Missing parameter_summary section: '{section}'")
 
@@ -437,13 +424,22 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     scenario_params = constants.get("scenario_parameters", {})
     if scenario_params:
         elev = scenario_params.get("elevator", {})
-        elev_cap = elev.get("capacity", {})
-        _ = elev_cap.get("per_harbour_tpy")
-        _ = elev_cap.get("count")
+        
+        # Validate elevator capacity_logistic
+        elev_cap_log = elev.get("capacity_logistic", {})
+        if elev_cap_log:
+            _ = elev_cap_log.get("C_E_max_tpy")
+            _ = elev_cap_log.get("C_E_ref_tpy")
+            _ = elev_cap_log.get("k_E")
+            _ = elev_cap_log.get("t0_year")
 
-        cost_per_kg = elev.get("cost_per_kg_usd", {})
-        _ = cost_per_kg.get("initial")
-        _ = cost_per_kg.get("mature")
+        # Validate elevator cost_decay
+        elev_cost_decay = elev.get("cost_decay", {})
+        if elev_cost_decay:
+            _ = elev_cost_decay.get("base_year")
+            _ = elev_cost_decay.get("initial_cost_usd_per_kg")
+            _ = elev_cost_decay.get("min_cost_usd_per_kg")
+            _ = elev_cost_decay.get("decay_rate_monthly")
 
         rocket = scenario_params.get("rocket", {})
         rocket_payload = rocket.get("payload_logistic", {})
@@ -482,26 +478,9 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
 
     for section in [
         "logistics",
-        "materials",
     ]:
         if section not in impl:
             raise KeyError(f"Missing implementation_details section: '{section}'")
-
-    # Touch implementation detail parameters for audit/validation
-    handling = impl["logistics"]["handling_capacity"]
-    _ = handling["excavator_efficiency_t_per_hour_per_ton"]
-    _ = handling["handling_t_per_month_per_ton_excavator"]
-
-    bom_map = impl["materials"]["bom_mapping"]
-    _ = bom_map["total_demand_tons"]
-    for category in bom_map.get("categories", []):
-        _ = category.get("id")
-        _ = category.get("share")
-        _ = category.get("source_policy")
-        _ = category.get("earth_share_initial")
-        _ = category.get("isru_share_final")
-        _ = category.get("earth_share")
-        _ = category.get("isru_share")
 
     time_disc = impl["logistics"]["time_discretization"]
     _ = time_disc.get("threshold_days")
@@ -530,10 +509,10 @@ def load_model_data(
     seconds_per_day = constants["units"]["seconds_per_day"]
     ton_to_kg = constants["units"]["ton_to_kg"]
     
-    # NEW: Read capacity from scenario_parameters
+    # NEW: Read capacity from scenario_parameters (logistic model)
     elevator_params = constants["scenario_parameters"]["elevator"]
-    elevator_capacity_per_harbour_tpy = elevator_params["capacity"]["per_harbour_tpy"]
-    elevator_cost_params = elevator_params.get("cost_per_kg_usd", {})
+    elevator_capacity_per_harbour_tpy = elevator_params["capacity_logistic"]["C_E_ref_tpy"]
+    elevator_cost_params = elevator_params.get("cost_decay", {})
     
     total_demand_tons = constants["parameter_summary"]["materials"]["bom"][
         "total_demand_tons"
@@ -568,8 +547,8 @@ def load_model_data(
         else:
             payload_mass = float(a["payload"])
         cost_per_kg_2050 = a["cost_per_kg_2050"]
-        if a["type"] == "elevator" and elevator_cost_params.get("initial") is not None:
-            cost_per_kg_2050 = float(elevator_cost_params["initial"])
+        if a["type"] == "elevator" and elevator_cost_params.get("initial_cost_usd_per_kg") is not None:
+            cost_per_kg_2050 = float(elevator_cost_params["initial_cost_usd_per_kg"])
         arcs.append(
             Arc(
                 id=a["id"],
@@ -623,8 +602,9 @@ def load_model_data(
 
     # Set initial capacities
     init_cap = constants["initial_capacities"]
-    state.P[0] = init_cap["P_0"]
-    # V_0 removed from logic, P handles it
+    state.P[0] = constants["implementation_details"]["growth_model"]["initial_state"][
+        "P_0"
+    ]
     state.H[0] = init_cap["H_0"]
     state.Pop[0] = init_cap["Pop_0"]
     state.Power[0] = init_cap["Power_0"]
@@ -727,26 +707,101 @@ def get_rocket_cost_usd_per_kg(
     return cost
 
 
+def get_elevator_capacity_tpy(
+    t: int, constants: ConfigTracker | dict[str, Any]
+) -> float:
+    """
+    Compute elevator annual capacity (tons/year) using logistic S-curve growth.
+    
+    Formula:
+        C_E(t) = C_E_max / (1 + A * exp(-k_E * (year - t0)))
+    
+    Where A is solved so that C_E(t0) = C_E_ref (537,000 t/y at 2050).
+    
+    The capacity is constrained by physical limits from tether properties:
+        C_E_max = N_tethers * (m_load * v_climber / D_safe) * T_operation
+    
+    Args:
+        t: Discrete time step index
+        constants: Configuration dictionary
+        
+    Returns:
+        Annual elevator throughput capacity in tons/year
+    """
+    elev_params = constants["scenario_parameters"]["elevator"]
+    
+    # Check for new logistic model parameters
+    if "capacity_logistic" in elev_params:
+        params = elev_params["capacity_logistic"]
+        C_E_max = float(params["C_E_max_tpy"])
+        C_E_ref = float(params["C_E_ref_tpy"])  # Capacity at t0 (2050)
+        k_E = float(params["k_E"])
+        t0 = float(params.get("t0_year", constants["time"]["start_year"]))
+        
+        year = get_year_for_t(t, constants)
+        
+        # Solve A so that C_E(t0) = C_E_ref
+        # At t0: C_E_ref = C_E_max / (1 + A) => A = (C_E_max / C_E_ref) - 1
+        if C_E_ref <= 0:
+            raise ValueError("elevator capacity_logistic.C_E_ref_tpy must be positive")
+        if C_E_max <= C_E_ref:
+            raise ValueError("elevator capacity_logistic.C_E_max_tpy must exceed C_E_ref_tpy")
+        
+        A = (C_E_max / C_E_ref) - 1.0
+        
+        # Logistic S-curve: C_E(t) = C_E_max / (1 + A * exp(-k_E * (year - t0)))
+        exponent = -k_E * (year - t0)
+        # Clamp exponent to avoid overflow
+        exponent = max(-50, min(50, exponent))
+        capacity = C_E_max / (1.0 + A * math.exp(exponent))
+        
+        return capacity
+    
+    raise KeyError("Missing required section: scenario_parameters.elevator.capacity_logistic")
+
+
+def get_elevator_capacity_per_step(
+    t: int, constants: ConfigTracker | dict[str, Any]
+) -> float:
+    """
+    Compute elevator capacity per time step (tons/step).
+    
+    Divides annual capacity by steps_per_year for monthly resolution.
+    """
+    steps_per_year = constants["time"]["steps_per_year"]
+    annual_capacity = get_elevator_capacity_tpy(t, constants)
+    return annual_capacity / steps_per_year
+
+
 def get_elevator_cost_usd_per_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
     """
-    Compute elevator transport cost per kg (USD).
+    Compute elevator transport cost per kg (USD) using exponential decay.
     
-    Logic:
-    - Initial Cost (2050): scenario_parameters.elevator.cost_per_kg_usd.initial ($500k)
-    - Mature Cost (by ~2070): scenario_parameters.elevator.cost_per_kg_usd.mature ($100k)
-    - Linear interpolation over 20 years (240 months).
-    """
-    params = constants["scenario_parameters"]["elevator"]["cost_per_kg_usd"]
-    c_initial = float(params["initial"])
-    c_mature = float(params["mature"])
+    Formula:
+        C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
     
-    # Assumption: 20-year transition period
-    transition_months = 20 * constants["time"]["steps_per_year"]
+    This mirrors the rocket cost decay model for consistency.
     
-    if t >= transition_months:
-        return c_mature
+    Args:
+        t: Discrete time step index
+        constants: Configuration dictionary
         
-    decay_per_step = (c_initial - c_mature) / transition_months
-    return c_initial - (decay_per_step * t)
+    Returns:
+        Cost per kg in USD
+    """
+    elev_params = constants["scenario_parameters"]["elevator"]
+    
+    # Check for new exponential decay model
+    if "cost_decay" in elev_params:
+        params = elev_params["cost_decay"]
+        c_start = float(params["initial_cost_usd_per_kg"])
+        c_min = float(params["min_cost_usd_per_kg"])
+        lambda_c = float(params["decay_rate_monthly"])
+        
+        # C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
+        cost = (c_start - c_min) * math.exp(-lambda_c * t) + c_min
+        return cost
+    
+    raise KeyError("Missing required section: scenario_parameters.elevator.cost_decay")

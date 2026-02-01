@@ -53,7 +53,7 @@ resources:
     isru_producible: true
   - id: "equipment"
     name: "Equipment/Machinery"
-    isru_producible: false
+    isru_producible: true
   - id: "water"
     name: "Water/Volatiles"
     isru_producible: true
@@ -86,12 +86,23 @@ scenarios:
 # -----------------------------------------------------------------------------
 scenario_parameters:
   elevator:
-    capacity:
-      per_harbour_tpy: 537000 # Aggregated capacity (179,000 * 3)
-      count: 1
-    cost_per_kg_usd:
-      initial: 500000
-      mature: 100000
+    # Capacity: Logistic S-curve growth with physical ceiling
+    # Formula: C_E(t) = C_E_max / (1 + A * exp(-k_E * (year - t0)))
+    # where A is solved so that C_E(t0) = C_E_ref (537,000 t/y at 2050)
+    capacity_logistic:
+      C_E_max_tpy: 1000000  # Physical ceiling (~1 Mt/y, see implementation_details.md)
+      C_E_ref_tpy: 537000   # Initial capacity at 2050 (179k × 3 harbours)
+      k_E: 0.15             # Growth rate parameter
+      t0_year: 2050         # Reference year (model start)
+      
+    # Cost: Exponential decay model
+    # Formula: C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
+    cost_decay:
+      base_year: 2050
+      initial_cost_usd_per_kg: 50   # Initial cost at 2050
+      min_cost_usd_per_kg: 5        # Floor cost after maturity
+      decay_rate_monthly: 0.005     # Monthly decay rate (λ ≈ 0.06/yr)
+      
   rocket:
     payload_logistic:
       L_max_t: 250
@@ -118,34 +129,9 @@ scenario_parameters:
 # Initial Capacity Parameters (at t=0)
 # -----------------------------------------------------------------------------
 initial_capacities:
-  P_0: 0.0001      # ISRU production (ton/s) -> ~3150 t/y (0.0001 * 31.5e6)
-  V_0: 0.05     # Construction/assembly (ton/s)
-  H_0: 0.00015     # Handling/receiving (ton/s) -> 1.5 * P_0
+  H_0: 4.75e-9     # Handling/receiving (ton/s) -> 1.5 * P_0 (0.1 t/y)
   Pop_0: 0      # Population capacity (persons)
-  Power_0: 5000  # Power capacity (MW) - bootstrap to avoid power deadlock
-
-# -----------------------------------------------------------------------------
-# ISRU Production Parameters
-# -----------------------------------------------------------------------------
-isru:
-  # Efficiency ratios (output/input)
-  water_extraction_rate: 0.03       # kg H2O per kg regolith
-  oxygen_from_ilmenite: 0.045       # kg O2 per kg ilmenite
-  metal_from_regolith: 0.01         # kg metal per kg regolith
-  
-  # Energy requirements (kWh/ton product)
-  water_energy: 50000
-  oxygen_energy: 100000
-  metal_energy: 500000
-
-# -----------------------------------------------------------------------------
-# Task Network (AON/RCPSP) Default Parameters
-# Note: Actual task definitions in settings.py
-# -----------------------------------------------------------------------------
-task_defaults:
-  min_duration: 1               # Minimum task duration (months)
-  max_concurrent_tasks: 5       # Parallel task limit
-  installation_delay: 1         # d_i: delay from completion to capability (months)
+  Power_0: 0.1  # Power capacity (MW) - bootstrap to avoid power deadlock
 
 # -----------------------------------------------------------------------------
 # Task/Theme-Oriented Parameter Summary (from outline/model.md §5)
@@ -170,9 +156,6 @@ parameter_summary:
           class: 3
           share_initial: 0.5
           resources: ["structure", "water", "fuel"]
-  transport:
-    capacities:
-      elevator_capacity_fixed_tpy: 179000  # 固定 179000 t/year
   colony:
     target:
       population: 100000
@@ -199,7 +182,6 @@ implementation_details:
         
       # P(t) = P(t-1) + eta * delta_Growth - depreciation
       replication:
-        eta_isru_efficiency: 0.90
         alpha_replication_rate: 0.35      # 35% growth per year 
         
       # P(t) capped by K
@@ -208,31 +190,8 @@ implementation_details:
         decay_rate_phi: 0.05              # 5% annual depreciation
 
   logistics:
-    handling_capacity:
-      excavator_efficiency_t_per_hour_per_ton: 10
-      handling_t_per_month_per_ton_excavator: 6000
     time_discretization:
       threshold_days: 15
-  materials:
-    bom_mapping:
-      total_demand_tons: 100000000
-      categories:
-        - id: "infrastructure"
-          share: 0.40
-          source_policy: "isru_only"
-        - id: "structures"
-          share: 0.30
-          source_policy: "earth_then_isru"
-          earth_share_initial: 0.50
-          isru_share_final: 0.90
-        - id: "consumables"
-          share: 0.20
-          source_policy: "isru_only"
-        - id: "high_tech"
-          share: 0.10
-          source_policy: "earth_dominant"
-          earth_share: 0.90
-          isru_share: 0.10
 
 # -----------------------------------------------------------------------------
 # Optimization Bounds & Variable Domains

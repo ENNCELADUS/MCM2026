@@ -167,18 +167,6 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
             f"{sorted(missing_resources)}"
         )
 
-    # Transport validation
-    transport = summary.get("transport")
-    if transport is None:
-        raise KeyError("parameter_summary.transport is required")
-    capacities = transport.get("capacities")
-    if capacities is None:
-        raise KeyError("parameter_summary.transport.capacities is required")
-    if "elevator_capacity_fixed_tpy" not in capacities:
-        raise KeyError(
-            "parameter_summary.transport.capacities.elevator_capacity_fixed_tpy is required"
-        )
-
     # Colony target & phase timeline validation
     colony = summary.get("colony")
     if colony is None:

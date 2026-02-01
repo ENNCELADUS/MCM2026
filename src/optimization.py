@@ -75,15 +75,12 @@ class PyomoBuilder:
         
         # self.C_E_0 = constants["initial_capacities"]["C_E_0"] # Removed
         
-        elev_params = constants["scenario_parameters"]["elevator"]["capacity"]
-        elevator_capacity_per_harbour_tpy = elev_params["per_harbour_tpy"]
-        harbor_count = elev_params["count"]
+        # Get elevator capacity at t=0 using logistic model
+        elevator_capacity_tpy_t0 = utils.get_elevator_capacity_tpy(0, constants)
         
-        # Total fixed capacity per year (all harbors)
-        total_elevator_capacity_tpy = elevator_capacity_per_harbour_tpy * harbor_count
-        
+        # Convert to per-step capacity in mass/second
         self.elevator_capacity_fixed_mass_s = (
-            total_elevator_capacity_tpy
+            elevator_capacity_tpy_t0
             * self.ton_to_kg
             / (self.steps_per_year * self.delta_t)
         )
@@ -305,7 +302,6 @@ class PyomoBuilder:
         
         # Parameters for Growth
         beta = float(self.bootstrapping["beta_equipment_to_capacity"]) # Phase I Multiplier
-        eta = float(self.replication["eta_isru_efficiency"])           # Phase II Efficiency
         # Alpha is Annual Growth Rate (1/yr). We need to verify if constant has it. 
         # If not, default to 0.35.
         alpha_val = float(self.replication.get("alpha_replication_rate", 0.35))
