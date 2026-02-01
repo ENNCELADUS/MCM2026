@@ -142,12 +142,16 @@ Reasoning: The multi-node graph (Earth $\to$ LLO $\to$ Moon) adds unnecessary va
 Assumption: Continuous Throughput Limit (Flow Constraint).
 Formula: $\sum_{r} x_{elev, r, t} \le C_E(t) \cdot \Delta t$.
 Reasoning: Elevators operate as a "pipeline". We do not track individual integer climbers ($y_{a,t}$) in the global optimization, as they number in the thousands. Capacity $C_E(t)$ is the dynamic constraint.
-4. Rocket Capacity Growth
-Assumption: Exponential Growth (per Eq 3.1 in text).
-Parameters:
-$C_{R_0} = 5,000$ t/year (approx. 1 launch/week of Starship @ 100t).
-$r_{growth} = 0.08$ (8% annual growth).
-Formula: $C_R(t) = 5000 \cdot (1.08)^{(t/12)}$.
+4. Rocket Capacity Growth (Launch-Rate + Logistic Payload Model)
+Assumption: Decoupled Capacity and Frequency.
+Reasoning: Physical constraints limit individual rocket size ($L_{cap}$), while operational capabilities limit launch frequency ($N_{rate}$).
+Model:
+*   **Payload per Launch ($L_{cap}(t)$)**: Follows a Logistic Growth curve (as defined in `rocket-lift.md`), approaching a physical limit ($L_{max} \approx 250$t) due to $I_{sp}$ and material limits.
+    *   $$L_{cap}(t) = \frac{L_{max}}{1 + A \cdot e^{-k(t - t_0)}}$$
+    *   $L_{max} = 250$ MT, $L_{cap}(2050) \approx 150$ MT.
+*   **Launch Rate ($N_{rate}(t)$)**: Modeled separately as the operational bottleneck (e.g., launches/year), which may grow linearly or similarly curve off.
+    *   $N_{rate}(t)$ acts as an integer decision variable or controlled parameter (e.g., Max 5000 launches/year).
+*   **Total Capacity**: $Total(t) = N_{rate}(t) \times L_{cap}(t)$.
 5. Wright’s Law Cost Curve
 Assumption: Time-Dependent Exponential Decay (per Eq 3.2 in text).
 Parameters:
@@ -166,6 +170,14 @@ Reasoning: While Eq 3.7 suggests dynamic duration ($W/V(t)$), solving for variab
 Assumption: Tied to Tasks.
 Logic: $H(t)$ is a state variable increased by completing specific tasks (e.g., T03_Landing_Pad adds +50t/mo capacity). It is not a separate decision variable.
 9. Inventory Policies
+Assumption: Unlimited Pre-positioning.
+Logic: $I_{Moon}(t+1) = I_{Moon}(t) + Inflow - Outflow$. No upper bound constraint ($I_{max}$) is applied to storage, assuming lunar space is effectively infinite.
+10. Energy vs. Transport Pivot
+Assumption: Pivot Condition = Cost Cross-over.
+Quantification: The pivot occurs when Local Production Cost < Transport Cost.
+Transport Cost: $Cost_{Trans}(t)$ (from curve above).
+Local Cost: Energy Cost ($\approx $0.10/kWh$) $\times$ Energy Intensity ($500 kWh/kg$ for metals) $\approx $50/kg$.
+Result: When Rocket Cost drops below $$50/kg$, or Elevator is built ($$20/kg$), the dynamic balance shifts.9. Inventory Policies
 Assumption: Unlimited Pre-positioning.
 Logic: $I_{Moon}(t+1) = I_{Moon}(t) + Inflow - Outflow$. No upper bound constraint ($I_{max}$) is applied to storage, assuming lunar space is effectively infinite.
 10. Energy vs. Transport Pivot

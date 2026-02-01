@@ -45,7 +45,6 @@ REQUIRED_INITIAL_CAPACITIES = [
     "H_0",
     "Pop_0",
     "Power_0",
-    "C_R_0",
     "C_E_0",
 ]
 REQUIRED_OBJECTIVE_KEYS = ["w_C", "w_T"]
@@ -373,7 +372,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
             raise KeyError(
                 f"Missing required key in constants.yaml initial_capacities: '{key}'"
             )
-    _ = constants["initial_capacities"]["C_R_0"]
     _ = constants["initial_capacities"]["C_E_0"]
 
     # Validate objective
@@ -586,16 +584,27 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     _ = elev_stream.get("enabled")
     _ = elev_stream.get("constraint")
 
-    rocket_growth = additional["rocket_capacity_growth"]
-    _ = rocket_growth.get("baseline_tpy")
-    _ = rocket_growth.get("annual_growth_rate")
-    _ = rocket_growth.get("formula")
+    rocket_payload = additional["rocket_payload_logistic"]
+    _ = rocket_payload.get("L_max_t")
+    _ = rocket_payload.get("L_ref_t")
+    _ = rocket_payload.get("k")
+    _ = rocket_payload.get("t0_year")
+    _ = rocket_payload.get("ref_year")
+    _ = rocket_payload.get("formula")
 
-    wrights = additional["wrights_law_cost"]
-    _ = wrights.get("c_start_usd_per_kg")
-    _ = wrights.get("c_min_usd_per_kg")
-    _ = wrights.get("lambda_per_month")
-    _ = wrights.get("formula")
+    rocket_launch_rate = additional["rocket_launch_rate"]
+    _ = rocket_launch_rate.get("base_per_year")
+    _ = rocket_launch_rate.get("annual_growth_rate")
+    _ = rocket_launch_rate.get("max_per_year")
+    _ = rocket_launch_rate.get("start_year")
+    _ = rocket_launch_rate.get("formula")
+
+    rocket_cost = additional["rocket_cost_decay"]
+    _ = rocket_cost.get("base_year")
+    _ = rocket_cost.get("base_cost_usd_per_kg")
+    _ = rocket_cost.get("annual_decay_rate")
+    _ = rocket_cost.get("min_cost_usd_per_kg")
+    _ = rocket_cost.get("formula")
 
     isru_boot = additional["isru_bootstrapping"]
     _ = isru_boot.get("seed_input_source")
@@ -797,34 +806,76 @@ def get_tier_definitions(
     return constants["parameter_summary"]["bom"]["tiers"]
 
 
-def get_rocket_capacity_kg_s(
+def get_rocket_launch_rate_max(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
-    """Compute rocket capacity C_R(t) in kg/s using additional parameters."""
+    """Compute maximum rocket launches per time step using growth with cap."""
     params = constants["implementation_details"]["additional_parameters"][
-        "rocket_capacity_growth"
+        "rocket_launch_rate"
     ]
-    baseline_tpy = params["baseline_tpy"]
-    annual_growth_rate = params["annual_growth_rate"]
+    base_per_year = float(params["base_per_year"])
+    annual_growth_rate = float(params["annual_growth_rate"])
+    max_per_year = float(params["max_per_year"])
+    start_year = float(params.get("start_year", constants["time"]["start_year"]))
     _ = params.get("formula")
+
+    if base_per_year < 0 or max_per_year < 0:
+        raise ValueError("rocket_launch_rate base/max must be non-negative")
+    if annual_growth_rate < 0:
+        raise ValueError("rocket_launch_rate.annual_growth_rate must be >= 0")
+
+    year = get_year_for_t(t, constants)
+    years = max(0.0, year - start_year)
     steps_per_year = constants["time"]["steps_per_year"]
+    rate = base_per_year * ((1.0 + annual_growth_rate) ** years)
+    rate_year = min(max_per_year, rate)
+    return rate_year / steps_per_year
+
+
+def get_rocket_payload_kg(
+    t: int, constants: ConfigTracker | dict[str, Any]
+) -> float:
+    """Compute per-launch rocket payload (kg) using logistic growth."""
+    params = constants["implementation_details"]["additional_parameters"][
+        "rocket_payload_logistic"
+    ]
+    L_max_t = float(params["L_max_t"])
+    L_ref_t = float(params["L_ref_t"])
+    k = float(params["k"])
+    t0_year = float(params.get("t0_year", constants["time"]["start_year"]))
+    ref_year = float(params.get("ref_year", constants["time"]["start_year"]))
     ton_to_kg = constants["units"]["ton_to_kg"]
-    delta_t = constants["time"]["delta_t"]
-    capacity_tpy = baseline_tpy * ((1 + annual_growth_rate) ** (t / steps_per_year))
-    capacity_kg_s = (capacity_tpy * ton_to_kg) / (steps_per_year * delta_t)
-    C_R_0 = constants["initial_capacities"]["C_R_0"]
-    return max(C_R_0, capacity_kg_s)
+
+    year = get_year_for_t(t, constants)
+    if L_ref_t <= 0:
+        raise ValueError("rocket_payload_logistic.L_ref_t must be positive")
+    if L_max_t <= 0:
+        raise ValueError("rocket_payload_logistic.L_max_t must be positive")
+
+    # Solve A so that L_cap(ref_year) = L_ref_t
+    A = (L_max_t / L_ref_t - 1.0) * math.exp(k * (ref_year - t0_year))
+    L_cap_t = L_max_t / (1.0 + A * math.exp(-k * (year - t0_year)))
+    return L_cap_t * ton_to_kg
 
 
 def get_rocket_cost_usd_per_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
-    """Compute rocket transport cost per kg using Wright's law curve."""
+    """Compute rocket transport cost per kg using annual decay."""
     params = constants["implementation_details"]["additional_parameters"][
-        "wrights_law_cost"
+        "rocket_cost_decay"
     ]
-    c_start = params["c_start_usd_per_kg"]
-    c_min = params["c_min_usd_per_kg"]
-    lam = params["lambda_per_month"]
+    base_year = float(params["base_year"])
+    base_cost = float(params["base_cost_usd_per_kg"])
+    annual_decay = float(params["annual_decay_rate"])
+    min_cost = params.get("min_cost_usd_per_kg")
     _ = params.get("formula")
-    return (c_start - c_min) * math.exp(-lam * t) + c_min
+
+    if annual_decay < 0 or annual_decay >= 1:
+        raise ValueError("rocket_cost_decay.annual_decay_rate must be in [0, 1)")
+
+    year = get_year_for_t(t, constants)
+    cost = base_cost * ((1.0 - annual_decay) ** (year - base_year))
+    if min_cost is not None:
+        cost = max(float(min_cost), cost)
+    return cost

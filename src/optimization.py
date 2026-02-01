@@ -52,6 +52,7 @@ class PyomoBuilder:
         self.rocket_arcs = [
             a.id for a in data.arcs if a.arc_type in ("rocket", "transfer")
         ]
+        self.launch_arcs = [a.id for a in data.arcs if a.arc_type == "rocket"]
         self.ground_arcs = [a.id for a in data.arcs if a.arc_type == "ground"]
         self.arcs_to_moon = self.arcs_to["Moon"]
 
@@ -108,6 +109,7 @@ class PyomoBuilder:
 
         m.A_Elev = pyo.Set(initialize=self.elevator_arcs)
         m.A_Rock = pyo.Set(initialize=self.rocket_arcs)
+        m.A_Launch = pyo.Set(initialize=self.launch_arcs)
         m.A_Ground = pyo.Set(initialize=self.ground_arcs)
         m.A_to_Moon = pyo.Set(initialize=self.arcs_to_moon)
 
@@ -178,6 +180,14 @@ class PyomoBuilder:
                 else:
                     arc_cost[(a_id, t_idx)] = float(a.cost_per_kg_2050)
 
+        rocket_payload = {}
+        rocket_launch_rate = {}
+        for t_idx in range(settings.T_horizon):
+            rocket_payload[t_idx] = utils.get_rocket_payload_kg(t_idx, self.constants)
+            rocket_launch_rate[t_idx] = utils.get_rocket_launch_rate_max(
+                t_idx, self.constants
+            )
+
         m.arc_from = pyo.Param(m.A, initialize=arc_from, within=pyo.Any)
         m.arc_to = pyo.Param(m.A, initialize=arc_to, within=pyo.Any)
         m.arc_lead = pyo.Param(m.A, initialize=arc_lead, within=pyo.NonNegativeIntegers)
@@ -187,6 +197,12 @@ class PyomoBuilder:
         m.arc_type = pyo.Param(m.A, initialize=arc_type, within=pyo.Any)
         m.arc_cost = pyo.Param(
             m.A, m.T, initialize=arc_cost, within=pyo.NonNegativeReals
+        )
+        m.rocket_payload = pyo.Param(
+            m.T, initialize=rocket_payload, within=pyo.NonNegativeReals
+        )
+        m.rocket_launch_rate = pyo.Param(
+            m.T, initialize=rocket_launch_rate, within=pyo.NonNegativeReals
         )
 
         m.M_earth = pyo.Param(
@@ -240,6 +256,11 @@ class PyomoBuilder:
         m.u_done = pyo.Var(m.I, m.T, domain=pyo.Binary)
         m.S_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.z = pyo.Var(m.I, m.T, domain=pyo.Binary)
+        m.N_rate = pyo.Var(
+            m.T,
+            domain=pyo.NonNegativeIntegers,
+            bounds=lambda mdl, t: (0, mdl.rocket_launch_rate[t]),
+        )
 
         m.P = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.V = pyo.Var(m.T, domain=pyo.NonNegativeReals)
@@ -523,12 +544,13 @@ class PyomoBuilder:
     def _add_logistics_constraints(self):
         m = self.m
 
-        m.arc_capacity = pyo.Constraint(
-            m.A,
-            m.T,
-            rule=lambda mdl, a, t: sum(mdl.x[a, r, t] for r in mdl.R)
-            <= mdl.arc_payload[a] * mdl.y[a, t],
-        )
+        def _arc_capacity_rule(mdl, a, t):
+            payload = mdl.arc_payload[a]
+            if mdl.arc_type[a] in ("rocket", "transfer"):
+                payload = mdl.rocket_payload[t]
+            return sum(mdl.x[a, r, t] for r in mdl.R) <= payload * mdl.y[a, t]
+
+        m.arc_capacity = pyo.Constraint(m.A, m.T, rule=_arc_capacity_rule)
 
         m.arc_horizon = pyo.Constraint(
             m.A,
@@ -550,16 +572,12 @@ class PyomoBuilder:
     def _add_pool_constraints(self):
         m = self.m
 
-        def _rocket_pool_rule(mdl, t):
-            if not self.rocket_arcs:
+        def _rocket_launch_rate_rule(mdl, t):
+            if not self.launch_arcs:
                 return pyo.Constraint.Skip
-            C_R_t = utils.get_rocket_capacity_kg_s(t, self.constants)
-            return (
-                sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Rock)
-                <= C_R_t * self.delta_t
-            )
+            return sum(mdl.y[a, t] for a in mdl.A_Launch) <= mdl.N_rate[t]
 
-        m.rocket_pool = pyo.Constraint(m.T, rule=_rocket_pool_rule)
+        m.rocket_launch_limit = pyo.Constraint(m.T, rule=_rocket_launch_rate_rule)
 
         def _elevator_pool_rule(mdl, t):
             if not self.elevator_arcs:
@@ -584,13 +602,14 @@ class PyomoBuilder:
         m.elevator_upper = pyo.Constraint(m.T, rule=_elevator_upper_rule)
 
         if self.stream_model:
-            m.elevator_stream = pyo.Constraint(
-                m.T,
-                rule=lambda mdl, t: sum(
-                    mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R
+            def _elevator_stream_rule(mdl, t):
+                if not self.elevator_arcs:
+                    return pyo.Constraint.Skip
+                return sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R) <= (
+                    self.C_E_0 * self.delta_t
                 )
-                <= self.C_E_0 * self.delta_t,
-            )
+
+            m.elevator_stream = pyo.Constraint(m.T, rule=_elevator_stream_rule)
 
     def _add_inventory_constraints(self):
         m = self.m

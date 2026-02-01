@@ -151,10 +151,6 @@ class MoonLogisticsModel:
         """Return BOM tier definitions from parameter_summary."""
         return utils.get_tier_definitions(self.constants)
 
-    def _rocket_capacity_kg_s(self, t: int) -> float:
-        """Compute rocket capacity C_R(t) in kg/s."""
-        return utils.get_rocket_capacity_kg_s(t, self.constants)
-
     def _rocket_cost_usd_per_kg(self, t: int) -> float:
         """Compute rocket transport cost per kg."""
         return utils.get_rocket_cost_usd_per_kg(t, self.constants)

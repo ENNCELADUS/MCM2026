@@ -8,7 +8,7 @@
 # -----------------------------------------------------------------------------
 time:
   delta_t: 2592000  # 1 month in seconds (30 * 24 * 3600)
-  T_max: 600        # Maximum time horizon (months, 50 years, 2050-2100)
+  T_max: 1200       # Maximum time horizon (months, 100 years, 2050-2150)
   start_year: 2050  # Calendar year for t=0 (Phase I start)
   steps_per_year: 12
 
@@ -189,7 +189,6 @@ initial_capacities:
   Power_0: 0.0  # Power capacity (MW)
   
   # Transport capacity pools
-  C_R_0: 0.1617 # Rocket capacity pool (kg/s) - 5000 t/yr baseline
   C_E_0: 0.2    # Elevator capacity pool (kg/s) - ~500t/month
 
 # -----------------------------------------------------------------------------
@@ -482,15 +481,25 @@ implementation_details:
     elevator_stream_model:
       enabled: true
       constraint: "sum_r x_elev[r,t] <= C_E(t) * delta_t"
-    rocket_capacity_growth:
-      baseline_tpy: 5000
-      annual_growth_rate: 0.08
-      formula: "C_R(t) = baseline * (1 + r)^(t/12)"
-    wrights_law_cost:
-      c_start_usd_per_kg: 200
-      c_min_usd_per_kg: 20
-      lambda_per_month: 0.01
-      formula: "Cost(t) = (c_start - c_min) * exp(-lambda * t) + c_min"
+    rocket_payload_logistic:
+      L_max_t: 250
+      L_ref_t: 150
+      k: 0.12
+      t0_year: 2050
+      ref_year: 2050
+      formula: "L_max / (1 + A * exp(-k * (year - t0)))"
+    rocket_launch_rate:
+      base_per_year: 1000
+      annual_growth_rate: 0.05
+      max_per_year: 5000
+      start_year: 2050
+      formula: "min(max, base * (1 + r)^(year - start_year)) (per-year)"
+    rocket_cost_decay:
+      base_year: 2024
+      base_cost_usd_per_kg: 870.6
+      annual_decay_rate: 0.055
+      min_cost_usd_per_kg: 20
+      formula: "Cost(t) = base_cost * (1 - r)^(year - base_year)"
     isru_bootstrapping:
       seed_input_source: "task_earth_mass"
       mode: "stepwise_task_unlocks"
@@ -516,7 +525,9 @@ optimization:
   big_m: 1000000000
   integer_vars:
     - "u"
+    - "u_done"
     - "y"
+    - "N_rate"
 
 # -----------------------------------------------------------------------------
 # Objective Function Weights
