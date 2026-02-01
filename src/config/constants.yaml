@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------------------
 time:
   delta_t: 2628000   # 1 month in seconds (365 * 24 * 3600 / 12)
-  T_max: 1200         # Maximum time horizon (time steps)
+  T_max: 1800         # Maximum time horizon (time steps)
   start_year: 2050   # Calendar year for t=0 (Phase I start)
   steps_per_year: 12
 
@@ -20,44 +20,32 @@ units:
   seconds_per_day: 86400
 
 # -----------------------------------------------------------------------------
-# Network Templates (expanded to nodes/arcs in utils.expand_network_templates)
+# Network
 # -----------------------------------------------------------------------------
 network:
   moon:
     id: "Moon"
     name: "Lunar Surface"
   harbours:
-    count: 3
-    earth_port_id_template: "E_port_H{h}"
-    earth_port_name_template: "Galactic Harbour {h} - Earth Port"
+    id: "E_port_Agg"
+    name: "Aggregate Galactic Harbour"
   launch_sites:
-    known:
-      - id: "Launch_Agg"
-        name: "Aggregate Earth Launch Site"
+    id: "Launch_Agg"
+    name: "Aggregate Earth Launch Site"
   arcs:
     elevator:
       lead_time_days: 7
-      payload_t: 20
-      cost_per_kg_2050: 20000
-      enabled: ["E-only", "Mix"]
-    transfer:
-      lead_time_days: 5
-      payload_t: 20
-      cost_per_kg_2050: 40000
+      payload_t: null # Will be calculated from scenario_parameters capacity (179000 t/y)
+      cost_per_kg_2050: 500000 # Initial cost from scenario_parameters ($500/kg -> $500k/ton)
       enabled: ["E-only", "Mix"]
     rocket:
       lead_time_days: 5
-      payload_t: 100
-      cost_per_kg_2050: 100000
+      payload_t: 150 # L_ref_t from scenario_parameters
+      cost_per_kg_2050: 88900 # $88.90/kg * 1000 (scenario base_cost)
       enabled: ["R-only", "Mix"]
-    ground:
-      lead_time: 1
-      payload: 1000000
-      cost_per_kg_2050: 0
-      enabled: ["E-only", "R-only", "Mix"]
 
 # -----------------------------------------------------------------------------
-# Resource Types (R)
+# Resource Types
 # -----------------------------------------------------------------------------
 resources:
   - id: "structure"
@@ -98,31 +86,13 @@ scenarios:
 # -----------------------------------------------------------------------------
 scenario_parameters:
   elevator:
-    climber_payload_t: 20
-    transit_time_days: 7
-    climber_velocity_kmh: 200
-    required_avg_velocity:
-      mps: 83
-      kmh: 298
-    power_limit_mw: 4
-    material_specific_strength_gpa_cc_g:
-      min: 30
-      max: 40
-    construction_cost_usd: 10000000000
+    capacity:
+      per_harbour_tpy: 537000 # Aggregated capacity (179,000 * 3)
+      count: 1
     cost_per_kg_usd:
       initial: 500000
       mature: 100000
-    stream_model:
-      enabled: true
   rocket:
-    falcon_heavy_payload_tli_t:
-      min: 15
-      max: 16
-    falcon_heavy_cost_usd: 150000000
-    starship_cost_per_kg_usd:
-      upper: 100000
-      target: 20000
-    delta_v_leo_to_moon_kms: 5.9
     payload_logistic:
       L_max_t: 250
       L_ref_t: 150
@@ -130,62 +100,29 @@ scenario_parameters:
       t0_year: 2050
       ref_year: 2050
     launch_rate:
-      base_per_year: 3000
-      annual_growth_rate: 0.05
-      max_per_year: 10000
-      start_year: 2050
-  arc_selection:
-    simplified_single_arc: false
-    arc_rocket_id: "Launch_Agg_to_Moon_R"
-    arc_elevator_id: "E_port_H1_to_Moon_E"
-
-# -----------------------------------------------------------------------------
-# Cost Parameters ($)
-# -----------------------------------------------------------------------------
-costs:
-  # Elevator costs (per ton)
-  elevator:
-    initial: 500000     # $/ton (Phase 0)
-    mature: 100000      # $/ton (Phase 1)
-    fixed_per_trip: 0   # No fixed launch cost
-    
-  # Rocket costs
-  rocket:
-    falcon_heavy:
-      per_kg: 10000000    # ~$150M / 15t
-      fixed_per_launch: 150000000  # $150M
-    starship:
-      per_kg_initial: 100000
-      per_kg_target: 20000
-      fixed_per_launch: 2000000  # Target $2M
+      # Logistic Growth Model: L(t) = K / (1 + A * exp(-r * (t - t0)))
+      # Fitted to historical data (2005-2024)
+      K: 35274        # Carrying capacity (max launches/year)
+      A: 1000         # Initial scaling factor
+      r: 0.0991       # Growth rate
+      t0: 2005        # Base year (historical start)
     cost_decay:
-      base_year: 2024
-      base_cost_usd_per_kg: 870600
-      annual_decay_rate: 0.055
-      decay_rate_monthly: 0.01
-      min_cost_usd_per_kg: 20000
+      # Exponential Decay: C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
+      # Fitted to 2005-2024 history ($25k -> $1.5k). Base Year t=0 is 2050.
+      base_year: 2050
+      base_cost_usd_per_kg: 88.90   # Projected cost at 2050
+      decay_rate_monthly: 0.015001  # Annual: 0.1800 -> Monthly: 0.015
+      min_cost_usd_per_kg: 80.82    # Floor cost
 
 # -----------------------------------------------------------------------------
 # Initial Capacity Parameters (at t=0)
 # -----------------------------------------------------------------------------
 initial_capacities:
-  P_0: 0.1      # ISRU production (ton/s) -> 3150 t/y
+  P_0: 0.0001      # ISRU production (ton/s) -> ~3150 t/y (0.0001 * 31.5e6)
   V_0: 0.05     # Construction/assembly (ton/s)
-  H_0: 0.1      # Handling/receiving (ton/s)
+  H_0: 0.00015     # Handling/receiving (ton/s) -> 1.5 * P_0
   Pop_0: 0      # Population capacity (persons)
   Power_0: 5000  # Power capacity (MW) - bootstrap to avoid power deadlock
-  
-  # Transport capacity pools
-  C_E_0: 0.00567607    # 电梯固定运力 (ton/s) = 179000 t/year
-
-# -----------------------------------------------------------------------------
-# Learning Curve Parameters
-# -----------------------------------------------------------------------------
-learning:
-  # Cost reduction factor per doubling of cumulative throughput
-  elevator_rate: 0.85   # 15% reduction per doubling
-  rocket_rate: 0.90     # 10% reduction per doubling (reuse)
-  isru_rate: 0.80       # 20% reduction per doubling
 
 # -----------------------------------------------------------------------------
 # ISRU Production Parameters
@@ -243,18 +180,22 @@ parameter_summary:
       water_per_capita_per_month: 0.5  # tons/person/month (assumption: 16-17 kg/day? High but simple)
 
 # -----------------------------------------------------------------------------
-# Implementation Details (from outline/assumptions/implementation_details.md)
+# Implementation Details
 # -----------------------------------------------------------------------------
 implementation_details:
   growth_model:
     initial_state:
-      P_0: 0.1          # Production (t/y) approx 3500 t/y
+      P_0: 0.1          # Production (t/y) - pilot scale startup
       H_ratio: 1.5      # Handling capacity buffer ratio
+    growth_bom:
+      structure: 0.7
+      equipment: 0.2
+      electronics: 0.1
       
     phases:
       # P(t) = P(t-1) + beta * Inflow_Tier1
       bootstrapping:
-        beta_equipment_to_capacity: 50.0  # 1 ton Tier1 -> 50 t/y capacity (High leverage)
+        beta_equipment_to_capacity: 10.0  # 1 ton Tier1 -> 10 t/y capacity (Realistic leverage)
         
       # P(t) = P(t-1) + eta * delta_Growth - depreciation
       replication:
@@ -308,16 +249,16 @@ optimization:
 # -----------------------------------------------------------------------------
 objective:
   w_C: 1.0      # Cost weight
-  w_T: 10000      # Time weight ($/month equivalent) 
+  w_T: 20000.0    # Time weight - Increased to balance $100B+ cost vs Ton-Months (Order of 1e11 vs 1e7)
   
 # -----------------------------------------------------------------------------
 # Solver Settings
 # -----------------------------------------------------------------------------
 solver:
   time_limit: 3600    # seconds
-  gap_tolerance: 0.10 # 5% MIP gap
+  gap_tolerance: 0.05 # 5% MIP gap
   threads: 8
-  horizon_step_months: 24
+  horizon_step_months: 12
   horizon_max_attempts: 0
   v0_scale_factor: 10.0
   v0_adjust_attempts: 4

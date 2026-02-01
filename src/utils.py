@@ -26,7 +26,6 @@ REQUIRED_CONSTANT_SECTIONS = [
     "arcs",
     "resources",
     "scenarios",
-    "costs",
     "initial_capacities",
     "task_defaults",
     "objective",
@@ -42,7 +41,6 @@ REQUIRED_INITIAL_CAPACITIES = [
     "H_0",
     "Pop_0",
     "Power_0",
-    "C_E_0",
 ]
 REQUIRED_OBJECTIVE_KEYS = ["w_C", "w_T"]
 REQUIRED_TIME_KEYS = ["delta_t", "T_max", "start_year", "steps_per_year"]
@@ -224,45 +222,31 @@ def expand_network_templates(data: dict[str, Any]) -> dict[str, Any]:
     launch = net["launch_sites"]
     arcs_cfg = net["arcs"]
 
-    harbour_ids = harbours.get("ids")
-    if harbour_ids is None:
-        count = int(harbours["count"])
-        harbour_ids = list(range(1, count + 1))
-
-    earth_port_id_t = harbours["earth_port_id_template"]
-    earth_port_name_t = harbours["earth_port_name_template"]
+    harbour_id = harbours["id"]
+    harbour_name = harbours["name"]
 
     nodes: list[dict[str, Any]] = []
     if ground is not None:
         nodes.append({"id": ground["id"], "name": ground["name"], "type": "earth"})
 
-    earth_port_ids: list[str] = []
-    for h in harbour_ids:
-        port_id = earth_port_id_t.format(h=h)
-        port_name = earth_port_name_t.format(h=h)
-        earth_port_ids.append(port_id)
-        nodes.append({"id": port_id, "name": port_name, "type": "earth"})
+    earth_port_ids = [harbour_id]
+    nodes.append({"id": harbour_id, "name": harbour_name, "type": "earth"})
 
-    launch_ids: list[str] = []
-    for item in launch.get("known", []):
-        launch_ids.append(item["id"])
-        nodes.append({"id": item["id"], "name": item["name"], "type": "earth"})
+    launch_id = launch["id"]
+    launch_ids = [launch_id]
+    nodes.append({"id": launch_id, "name": launch["name"], "type": "earth"})
 
     nodes.append({"id": moon["id"], "name": moon["name"], "type": "moon"})
 
     arcs: list[dict[str, Any]] = []
     elevator_cfg = arcs_cfg["elevator"]
-    transfer_cfg = arcs_cfg.get("transfer")
     rocket_cfg = arcs_cfg["rocket"]
     ground_cfg = arcs_cfg.get("ground")
 
-    for h in harbour_ids:
-        port_id = earth_port_id_t.format(h=h)
+    for port_id in earth_port_ids:
         lead_time_days = elevator_cfg["lead_time_days"]
         cost_per_kg_2050 = elevator_cfg["cost_per_kg_2050"]
-        if transfer_cfg is not None:
-            lead_time_days += transfer_cfg["lead_time_days"]
-            cost_per_kg_2050 += transfer_cfg["cost_per_kg_2050"]
+
         arcs.append(
             {
                 "id": f"{port_id}_to_{moon['id']}_E",
@@ -341,7 +325,8 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
             raise KeyError(
                 f"Missing required key in constants.yaml initial_capacities: '{key}'"
             )
-    _ = constants["initial_capacities"]["C_E_0"]
+
+
 
     # Validate objective
     for key in REQUIRED_OBJECTIVE_KEYS:
@@ -350,22 +335,9 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     _ = constants["objective"]["w_C"]
     _ = constants["objective"]["w_T"]
 
-    # Validate costs section (touch keys for audit)
-    costs = constants["costs"]
-    _ = costs["elevator"]["initial"]
-    _ = costs["elevator"]["mature"]
-    _ = costs["elevator"]["fixed_per_trip"]
-    _ = costs["rocket"]["falcon_heavy"]["per_kg"]
-    _ = costs["rocket"]["falcon_heavy"]["fixed_per_launch"]
-    _ = costs["rocket"]["starship"]["per_kg_initial"]
-    _ = costs["rocket"]["starship"]["per_kg_target"]
-    _ = costs["rocket"]["starship"]["fixed_per_launch"]
 
-    # Validate learning section
-    learning = constants["learning"]
-    _ = learning["elevator_rate"]
-    _ = learning["rocket_rate"]
-    _ = learning["isru_rate"]
+
+
 
     # Validate ISRU section
     isru = constants["isru"]
@@ -465,32 +437,15 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     scenario_params = constants.get("scenario_parameters", {})
     if scenario_params:
         elev = scenario_params.get("elevator", {})
-        _ = elev.get("climber_payload_t")
-        _ = elev.get("transit_time_days")
-        _ = elev.get("climber_velocity_kmh")
-        req_vel = elev.get("required_avg_velocity", {})
-        _ = req_vel.get("mps")
-        _ = req_vel.get("kmh")
-        _ = elev.get("power_limit_mw")
-        strength = elev.get("material_specific_strength_gpa_cc_g", {})
-        _ = strength.get("min")
-        _ = strength.get("max")
-        _ = elev.get("construction_cost_usd")
+        elev_cap = elev.get("capacity", {})
+        _ = elev_cap.get("per_harbour_tpy")
+        _ = elev_cap.get("count")
+
         cost_per_kg = elev.get("cost_per_kg_usd", {})
         _ = cost_per_kg.get("initial")
         _ = cost_per_kg.get("mature")
-        elev_stream = elev.get("stream_model", {})
-        _ = elev_stream.get("enabled")
 
         rocket = scenario_params.get("rocket", {})
-        fh_payload = rocket.get("falcon_heavy_payload_tli_t", {})
-        _ = fh_payload.get("min")
-        _ = fh_payload.get("max")
-        _ = rocket.get("falcon_heavy_cost_usd")
-        starship_cost = rocket.get("starship_cost_per_kg_usd", {})
-        _ = starship_cost.get("upper")
-        _ = starship_cost.get("target")
-        _ = rocket.get("delta_v_leo_to_moon_kms")
         rocket_payload = rocket.get("payload_logistic", {})
         _ = rocket_payload.get("L_max_t")
         _ = rocket_payload.get("L_ref_t")
@@ -503,32 +458,15 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = rocket_launch_rate.get("max_per_year")
         _ = rocket_launch_rate.get("start_year")
 
-        arc_sel = scenario_params.get("arc_selection", {})
-        _ = arc_sel.get("simplified_single_arc")
-        _ = arc_sel.get("arc_rocket_id")
-        _ = arc_sel.get("arc_elevator_id")
 
-    # Validate cost parameters
-    costs = constants.get("costs", {})
-    if costs:
-        elevator_costs = costs.get("elevator", {})
-        _ = elevator_costs.get("initial")
-        _ = elevator_costs.get("mature")
-        _ = elevator_costs.get("fixed_per_trip")
 
-        rocket_costs = costs.get("rocket", {})
-        falcon = rocket_costs.get("falcon_heavy", {})
-        _ = falcon.get("per_kg")
-        _ = falcon.get("fixed_per_launch")
-        starship = rocket_costs.get("starship", {})
-        _ = starship.get("per_kg_initial")
-        _ = starship.get("per_kg_target")
-        _ = starship.get("fixed_per_launch")
-        rocket_decay = rocket_costs.get("cost_decay", {})
-        _ = rocket_decay.get("base_year")
-        _ = rocket_decay.get("base_cost_usd_per_kg")
-        _ = rocket_decay.get("annual_decay_rate")
-        _ = rocket_decay.get("min_cost_usd_per_kg")
+    # Validate cost parameters in scenario_parameters
+    rocket_cost_decay = scenario_params.get("rocket", {}).get("cost_decay", {})
+    if rocket_cost_decay:
+        _ = rocket_cost_decay.get("base_year")
+        _ = rocket_cost_decay.get("base_cost_usd_per_kg")
+        _ = rocket_cost_decay.get("decay_rate_monthly")
+        _ = rocket_cost_decay.get("min_cost_usd_per_kg")
 
     # Validate implementation details
     impl = constants["implementation_details"]
@@ -591,9 +529,12 @@ def load_model_data(
     scenario = settings.scenario.value
     seconds_per_day = constants["units"]["seconds_per_day"]
     ton_to_kg = constants["units"]["ton_to_kg"]
-    elevator_capacity_fixed_tpy = constants["parameter_summary"]["transport"][
-        "capacities"
-    ]["elevator_capacity_fixed_tpy"]
+    
+    # NEW: Read capacity from scenario_parameters
+    elevator_params = constants["scenario_parameters"]["elevator"]
+    elevator_capacity_per_harbour_tpy = elevator_params["capacity"]["per_harbour_tpy"]
+    elevator_cost_params = elevator_params.get("cost_per_kg_usd", {})
+    
     total_demand_tons = constants["parameter_summary"]["materials"]["bom"][
         "total_demand_tons"
     ]
@@ -620,12 +561,15 @@ def load_model_data(
             payload_t = a["payload_t"]
             if payload_t is None:
                 if a["type"] == "elevator":
-                    payload_t = elevator_capacity_fixed_tpy / steps_per_year
+                    payload_t = elevator_capacity_per_harbour_tpy / steps_per_year
                 else:
                     payload_t = total_demand_tons
             payload_mass = payload_t * ton_to_kg
         else:
             payload_mass = float(a["payload"])
+        cost_per_kg_2050 = a["cost_per_kg_2050"]
+        if a["type"] == "elevator" and elevator_cost_params.get("initial") is not None:
+            cost_per_kg_2050 = float(elevator_cost_params["initial"])
         arcs.append(
             Arc(
                 id=a["id"],
@@ -634,7 +578,7 @@ def load_model_data(
                 arc_type=a["type"],
                 lead_time=lead_time_steps,
                 payload=payload_mass,
-                cost_per_kg_2050=a["cost_per_kg_2050"],
+                cost_per_kg_2050=cost_per_kg_2050,
                 enabled_scenarios=a["enabled"],
             )
         )
@@ -707,22 +651,18 @@ def get_rocket_launch_rate_max(
 ) -> float:
     """Compute maximum rocket launches per time step using growth with cap."""
     params = constants["scenario_parameters"]["rocket"]["launch_rate"]
-    base_per_year = float(params["base_per_year"])
-    annual_growth_rate = float(params["annual_growth_rate"])
-    max_per_year = float(params["max_per_year"])
-    start_year = float(params.get("start_year", constants["time"]["start_year"]))
-
-    if base_per_year < 0 or max_per_year < 0:
-        raise ValueError("rocket_launch_rate base/max must be non-negative")
-    if annual_growth_rate < 0:
-        raise ValueError("rocket_launch_rate.annual_growth_rate must be >= 0")
-
-    year = get_year_for_t(t, constants)
-    years = max(0.0, year - start_year)
+    # Logistic Growth Model: L(t) = K / (1 + A * exp(-r * (t - t0)))
+    K = float(params["K"])
+    A = float(params["A"])
+    r = float(params["r"])
+    t0 = float(params["t0"])
     steps_per_year = constants["time"]["steps_per_year"]
-    rate = base_per_year * ((1.0 + annual_growth_rate) ** years)
-    rate_year = min(max_per_year, rate)
-    return rate_year / steps_per_year
+    
+    year = get_year_for_t(t, constants)
+    A_term = A * math.exp(-r * (year - t0))
+    rate = K / (1.0 + A_term)
+    
+    return rate / steps_per_year
 
 
 def get_rocket_payload_kg(
@@ -753,7 +693,7 @@ def get_rocket_cost_usd_per_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
     """Compute rocket transport cost per mass unit using exponential or annual decay."""
-    params = constants["costs"]["rocket"]["cost_decay"]
+    params = constants["scenario_parameters"]["rocket"]["cost_decay"]
     min_cost = float(params.get("min_cost_usd_per_kg", 0))
 
     # Check for Exponential Decay (Moon Logic) - implementation_details.md
@@ -785,3 +725,28 @@ def get_rocket_cost_usd_per_kg(
     if min_cost is not None:
         cost = max(float(min_cost), cost)
     return cost
+
+
+def get_elevator_cost_usd_per_kg(
+    t: int, constants: ConfigTracker | dict[str, Any]
+) -> float:
+    """
+    Compute elevator transport cost per kg (USD).
+    
+    Logic:
+    - Initial Cost (2050): scenario_parameters.elevator.cost_per_kg_usd.initial ($500k)
+    - Mature Cost (by ~2070): scenario_parameters.elevator.cost_per_kg_usd.mature ($100k)
+    - Linear interpolation over 20 years (240 months).
+    """
+    params = constants["scenario_parameters"]["elevator"]["cost_per_kg_usd"]
+    c_initial = float(params["initial"])
+    c_mature = float(params["mature"])
+    
+    # Assumption: 20-year transition period
+    transition_months = 20 * constants["time"]["steps_per_year"]
+    
+    if t >= transition_months:
+        return c_mature
+        
+    decay_per_step = (c_initial - c_mature) / transition_months
+    return c_initial - (decay_per_step * t)

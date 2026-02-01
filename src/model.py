@@ -232,12 +232,25 @@ class MoonLogisticsModel:
             model.solutions.load_from(result)
 
             try:
-                # T_end removed from model, assume T_horizon if successful
-                T_end_val = self.settings.T_horizon 
                 total_obj = float(pyo.value(model.obj_total))
                 total_cost = float(pyo.value(model.cost_total))
+                T_end_val = None
+                if hasattr(model, "Cumulative_City"):
+                    target_mass = (
+                        self.constants["parameter_summary"]["materials"]["bom"][
+                            "total_demand_tons"
+                        ]
+                        * self.constants["units"]["ton_to_kg"]
+                    )
+                    for t in model.T:
+                        val = pyo.value(model.Cumulative_City[t])
+                        if val is None:
+                            continue
+                        if val >= target_mass:
+                            T_end_val = int(t) + 1
+                            break
             except (ValueError, TypeError):
-                T_end_val = -1
+                T_end_val = None
                 total_obj = 0.0
                 total_cost = 0.0
 

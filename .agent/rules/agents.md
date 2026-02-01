@@ -15,7 +15,7 @@ Act as a careful junior engineer with strong tooling.
 
 ## Tech Stack & Environment
 - **Python**: 3.10+
-- **Environment**: Conda (env: `esm`). `conda activate esm`
+- **Environment**: Conda (env: `ml-dl`). `conda activate ml-dl`
 - **Core Libs**: PyTorch, Pandas, NumPy, Ruff (lint/format), Pytest.
 
 ## Specialized Role Triggers

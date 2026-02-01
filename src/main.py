@@ -6,7 +6,7 @@ Usage:
     python main.py                          # Run with defaults (Mix scenario)
     python main.py --scenario E-only        # Elevator-only scenario
     python main.py --scenario R-only        # Rocket-only scenario
-    python main.py --horizon 80              # 80-year horizon
+    python main.py --horizon 80              # 80-month horizon
     python main.py --output results/run1    # Custom output directory
 
 Author: [Your Name]
@@ -49,8 +49,8 @@ Examples:
     parser.add_argument(
         "--horizon",
         type=int,
-        default=80,
-        help="Planning horizon in years (default: 80)",
+        default=480,
+        help="Planning horizon in months/steps (default: 80)",
     )
 
     parser.add_argument(
@@ -133,7 +133,7 @@ def create_settings(args: argparse.Namespace) -> ModelSettings:
     if args.scenario is None:
         raise ValueError("--scenario is REQUIRED (choices: E-only, R-only, Mix)")
     if args.horizon is None:
-        raise ValueError("--horizon is REQUIRED (integer, years)")
+        raise ValueError("--horizon is REQUIRED (integer, months)")
     if args.timeout is None:
         raise ValueError("--timeout is REQUIRED (integer, seconds)")
     if args.gap is None:
@@ -194,7 +194,7 @@ def run_pipeline(
         print("Moon Logistics & Task Network Optimization")
         print("=" * 60)
         print(f"Scenario: {settings.scenario.value}")
-        print(f"Horizon: {settings.T_horizon} years")
+        print(f"Horizon: {settings.T_horizon} months")
         print(
             f"Learning Curve: {'Enabled' if settings.enable_learning_curve else 'Disabled'}"
         )
@@ -258,7 +258,11 @@ def run_pipeline(
             if result["objective_value"] is not None:
                 print(f"  - Objective Value: {result['objective_value']:.2e}")
                 print(f"  - Total Cost: ${result['total_cost']:.2e}")
-                print(f"  - Project Duration: {result['T_end']} years")
+                duration = result.get("T_end")
+                if duration is None:
+                    print("  - Project Duration: not reached within horizon")
+                else:
+                    print(f"  - Project Duration: {duration} months")
                 print(f"  - Solution Time: {(result.get('solution_time') or 0.0):.1f}s")
         if sanity_check and result["objective_value"] is not None:
             report = model.sanity_check()

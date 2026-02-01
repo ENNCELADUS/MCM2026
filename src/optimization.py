@@ -71,20 +71,28 @@ class PyomoBuilder:
         self.steps_per_year = constants["time"]["steps_per_year"]
         self.ton_to_kg = constants["units"]["ton_to_kg"]
         
-        self.C_E_0 = constants["initial_capacities"]["C_E_0"]
-        elevator_capacity_fixed_tpy = constants["parameter_summary"]["transport"][
-            "capacities"
-        ]["elevator_capacity_fixed_tpy"]
+        self.ton_to_kg = constants["units"]["ton_to_kg"]
+        
+        # self.C_E_0 = constants["initial_capacities"]["C_E_0"] # Removed
+        
+        elev_params = constants["scenario_parameters"]["elevator"]["capacity"]
+        elevator_capacity_per_harbour_tpy = elev_params["per_harbour_tpy"]
+        harbor_count = elev_params["count"]
+        
+        # Total fixed capacity per year (all harbors)
+        total_elevator_capacity_tpy = elevator_capacity_per_harbour_tpy * harbor_count
+        
         self.elevator_capacity_fixed_mass_s = (
-            elevator_capacity_fixed_tpy
+            total_elevator_capacity_tpy
             * self.ton_to_kg
             / (self.steps_per_year * self.delta_t)
         )
+        # Enforce consistency: C_E_0 matches calculated capacity
+        self.C_E_0 = self.elevator_capacity_fixed_mass_s
 
         self.enable_learning_curve = self.settings.enable_learning_curve
-        self.stream_model = constants["scenario_parameters"]["elevator"]["stream_model"][
-            "enabled"
-        ]
+        # Stream model strictly enforced by default now
+        self.stream_model = True
 
         self.total_demand_kg = (
             constants["parameter_summary"]["materials"]["bom"]["total_demand_tons"]
@@ -110,6 +118,19 @@ class PyomoBuilder:
         self.water_per_capita = float(constants["parameter_summary"]["colony"]
                                       .get("requirements", {})
                                       .get("water_per_capita_per_month", 0.5))
+        
+        # Growth BOM (resource mix for delta_Growth consumption)
+        growth_bom_cfg = (
+            constants.get("implementation_details", {})
+            .get("growth_model", {})
+            .get("growth_bom", {})
+        )
+        self.growth_bom: dict[str, float] = {}
+        for rid, share in growth_bom_cfg.items():
+            if rid in self.res_ids:
+                self.growth_bom[rid] = float(share)
+        if not self.growth_bom and "structure" in self.res_ids:
+            self.growth_bom = {"structure": 1.0}
 
 
     def _create_sets(self):
@@ -145,6 +166,9 @@ class PyomoBuilder:
             for t_idx in range(settings.T_horizon):
                 if a.arc_type in ("rocket", "transfer") and self.enable_learning_curve:
                     cost = utils.get_rocket_cost_usd_per_kg(t_idx, self.constants)
+                    arc_cost[(a_id, t_idx)] = float(cost)
+                elif a.arc_type == "elevator" and self.enable_learning_curve:
+                    cost = utils.get_elevator_cost_usd_per_kg(t_idx, self.constants)
                     arc_cost[(a_id, t_idx)] = float(cost)
                 else:
                     arc_cost[(a_id, t_idx)] = float(a.cost_per_kg_2050)
@@ -282,12 +306,12 @@ class PyomoBuilder:
         # Parameters for Growth
         beta = float(self.bootstrapping["beta_equipment_to_capacity"]) # Phase I Multiplier
         eta = float(self.replication["eta_isru_efficiency"])           # Phase II Efficiency
+        # Alpha is Annual Growth Rate (1/yr). We need to verify if constant has it. 
+        # If not, default to 0.35.
+        alpha_val = float(self.replication.get("alpha_replication_rate", 0.35))
+        
         limit_K = float(self.saturation["carrying_capacity_tpy"])
         decay = float(self.saturation["decay_rate_phi"])
-        
-        # P (Production) Evolution
-        # P[t] = P[t-1] + New_Capacity - Decay
-        # New_Capacity = (beta * Imports_Tier1) + (eta * delta_Growth)
         
         def _p_evolution_rule(mdl, t):
             if t == 0:
@@ -296,8 +320,6 @@ class PyomoBuilder:
             prev_P = mdl.P[t-1]
             
             # 1. Earth Imports (Bootstrapping)
-            # Sum of inflows of Tier 1 items arriving at Moon at time t
-            # Note: We rely on self.tier1_res identified in _precompute
             earth_inflow = sum(
                 mdl.x[a, r, t - mdl.arc_lead[a]]
                 for a in mdl.A_to_Moon
@@ -306,13 +328,25 @@ class PyomoBuilder:
             )
             
             # 2. Local Growth (Replication)
-            # delta_Growth is Mass (tons) invested.
-            # beta is Capacity/Mass (t/y per ton). eta is Efficiency (0-1).
-            # So Capacity Added = beta * eta * delta_Growth
-            # We assume investment at t-1 becomes capacity at t.
+            # Switch to Alpha-based logic.
+            # Local Capacity Addition = (Alpha/12) * P_prev matches exponential growth.
+            # But we want to link this to Material Investment (delta_Growth).
+            # If we assume efficiency allows: Cap_Add <= beta_local * delta_Growth
+            # And we set beta_local such that at full reinvestment, we hit Alpha growth.
+            # beta_local = Alpha (annual) ?
+            # If P=100. Growth=35/yr. Monthly=3.
+            # If delta_Growth = P (unrealistic, P is product, delta_G is mass).
+            # If P means "Tons/Year Production". Max reinvestment = P/12 (tons/month).
+            # Cap_Add = beta_local * (P/12).
+            # We want Cap_Add = (Alpha/12) * P.
+            # Implying: beta_local * (P/12) = (Alpha/12) * P  => beta_local = Alpha.
+            # So multiplier for delta_Growth should be equal to 'Alpha'.
+            # Beta(50) was way too high.
+             
             local_growth = 0
             if t > 0:
-                local_growth = beta * eta * mdl.delta_Growth[t-1] 
+                # Use alpha as the mass-to-capacity multiplier
+                local_growth = alpha_val * mdl.delta_Growth[t-1] 
             
             # 3. Decay
             decay_amount = (decay / self.steps_per_year) * prev_P
@@ -392,9 +426,7 @@ class PyomoBuilder:
         
         def _consumption_rule(mdl, r, t):
             # 1. Growth consumption
-            growth_share = 0.0
-            if "structure" in r:
-                growth_share = 1.0 # 1 ton structure per 1 ton Growth input
+            growth_share = self.growth_bom.get(r, 0.0)
             
             # 2. City consumption (BOM)
             # Simplified:
@@ -447,6 +479,13 @@ class PyomoBuilder:
         # 3. Production Capacity Limit
         # Total Q <= P / steps
         m.production_limit = pyo.Constraint(m.T, rule=lambda mdl, t: sum(mdl.Q[r, t] for r in mdl.R) <= mdl.P[t] / self.steps_per_year)
+
+        # 3b. ISRU Feasibility: Non-ISRU resources cannot be produced locally
+        def _isru_prod_rule(mdl, r, t):
+            if pyo.value(mdl.isru_ok[r]) < 0.5:
+                return mdl.Q[r, t] == 0
+            return pyo.Constraint.Skip
+        m.isru_production = pyo.Constraint(m.R, m.T, rule=_isru_prod_rule)
 
         # Note: I_E at Moon is now redundant if we assume everything dumps into I_M.
         # But we need to handle "Transiting" Inventory? 
@@ -502,8 +541,26 @@ class PyomoBuilder:
         # Assuming w_T in constants is appropriately scaled or we might need to adjust.
         # For now, simplistic implementation.
         
+        # Capped Reward Logic
+        # We want to reward growth only up to the target.
+        # Define auxiliary variable: Rewardable_City[t] 
+        # Rewardable_City[t] <= Cumulative_City[t]
+        # Rewardable_City[t] <= Target_Mass
+        
+        m.Rewardable_City = pyo.Var(m.T, domain=pyo.NonNegativeReals)
+        
+        target_mass_kg = self.total_demand_kg
+        
+        def _reward_cap_rule1(mdl, t):
+            return mdl.Rewardable_City[t] <= mdl.Cumulative_City[t]
+        m.reward_cap1 = pyo.Constraint(m.T, rule=_reward_cap_rule1)
+        
+        def _reward_cap_rule2(mdl, t):
+            return mdl.Rewardable_City[t] <= target_mass_kg
+        m.reward_cap2 = pyo.Constraint(m.T, rule=_reward_cap_rule2)
+
         m.city_integral = pyo.Expression(
-            expr=sum(m.Cumulative_City[t] for t in m.T)
+            expr=sum(m.Rewardable_City[t] for t in m.T)
         )
         
         # We minimize: w_C * Cost - w_T * Integral
