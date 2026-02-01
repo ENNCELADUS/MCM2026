@@ -15,7 +15,8 @@ time:
 # Unit Conversions
 # -----------------------------------------------------------------------------
 units:
-  ton_to_kg: 1000
+  # NOTE: Model mass unit is ton. Legacy *_kg keys are in ton units.
+  ton_to_kg: 1
   seconds_per_day: 86400
 
 # -----------------------------------------------------------------------------
@@ -37,17 +38,17 @@ network:
     elevator:
       lead_time_days: 7
       payload_t: 20
-      cost_per_kg_2050: 20
+      cost_per_kg_2050: 20000
       enabled: ["E-only", "Mix"]
     transfer:
       lead_time_days: 5
       payload_t: 20
-      cost_per_kg_2050: 40
+      cost_per_kg_2050: 40000
       enabled: ["E-only", "Mix"]
     rocket:
       lead_time_days: 5
       payload_t: 100
-      cost_per_kg_2050: 100
+      cost_per_kg_2050: 100000
       enabled: ["R-only", "Mix"]
     ground:
       lead_time: 1
@@ -98,14 +99,6 @@ scenarios:
 scenario_parameters:
   elevator:
     climber_payload_t: 20
-    annual_throughput_tpy:
-      initial: 5100
-      mature: 30000
-      six_tethers: 170000
-    annual_throughput_kg_per_s:
-      initial: 0.1617199391
-      mature: 0.9512937595
-      six_tethers: 5.3906646372
     transit_time_days: 7
     climber_velocity_kmh: 200
     required_avg_velocity:
@@ -117,8 +110,8 @@ scenario_parameters:
       max: 40
     construction_cost_usd: 10000000000
     cost_per_kg_usd:
-      initial: 500
-      mature: 100
+      initial: 500000
+      mature: 100000
     stream_model:
       enabled: true
   rocket:
@@ -127,8 +120,8 @@ scenario_parameters:
       max: 16
     falcon_heavy_cost_usd: 150000000
     starship_cost_per_kg_usd:
-      upper: 100
-      target: 20
+      upper: 100000
+      target: 20000
     delta_v_leo_to_moon_kms: 5.9
     payload_logistic:
       L_max_t: 250
@@ -150,39 +143,39 @@ scenario_parameters:
 # Cost Parameters ($)
 # -----------------------------------------------------------------------------
 costs:
-  # Elevator costs (per kg)
+  # Elevator costs (per ton)
   elevator:
-    initial: 500        # $/kg (Phase 0)
-    mature: 100         # $/kg (Phase 1)
+    initial: 500000     # $/ton (Phase 0)
+    mature: 100000      # $/ton (Phase 1)
     fixed_per_trip: 0   # No fixed launch cost
     
   # Rocket costs
   rocket:
     falcon_heavy:
-      per_kg: 10000       # ~$150M / 15t
+      per_kg: 10000000    # ~$150M / 15t
       fixed_per_launch: 150000000  # $150M
     starship:
-      per_kg_initial: 100
-      per_kg_target: 20
+      per_kg_initial: 100000
+      per_kg_target: 20000
       fixed_per_launch: 2000000  # Target $2M
     cost_decay:
       base_year: 2024
-      base_cost_usd_per_kg: 870.6
+      base_cost_usd_per_kg: 870600
       annual_decay_rate: 0.055
-      min_cost_usd_per_kg: 20
+      min_cost_usd_per_kg: 20000
 
 # -----------------------------------------------------------------------------
 # Initial Capacity Parameters (at t=0)
 # -----------------------------------------------------------------------------
 initial_capacities:
-  P_0: 0.01     # ISRU production (kg/s)
-  V_0: 0.05     # Construction/assembly (kg/s)
-  H_0: 0.1      # Handling/receiving (kg/s)
+  P_0: 0.1      # ISRU production (ton/s) -> 3150 t/y
+  V_0: 0.05     # Construction/assembly (ton/s)
+  H_0: 0.1      # Handling/receiving (ton/s)
   Pop_0: 0      # Population capacity (persons)
-  Power_0: 0.0  # Power capacity (MW)
+  Power_0: 5000  # Power capacity (MW) - bootstrap to avoid power deadlock
   
   # Transport capacity pools
-  C_E_0: 0.2    # Elevator capacity pool (kg/s) - ~500t/month
+  C_E_0: 0.00567607    # 电梯固定运力 (ton/s) = 179000 t/year
 
 # -----------------------------------------------------------------------------
 # Learning Curve Parameters
@@ -202,10 +195,10 @@ isru:
   oxygen_from_ilmenite: 0.045       # kg O2 per kg ilmenite
   metal_from_regolith: 0.01         # kg metal per kg regolith
   
-  # Energy requirements (kWh/kg product)
-  water_energy: 50
-  oxygen_energy: 100
-  metal_energy: 500
+  # Energy requirements (kWh/ton product)
+  water_energy: 50000
+  oxygen_energy: 100000
+  metal_energy: 500000
 
 # -----------------------------------------------------------------------------
 # Task Network (AON/RCPSP) Default Parameters
@@ -265,12 +258,12 @@ parameter_summary:
           min: 100
           max: 150
         max_capacity_mt: 250
-      elevator_capacity_upper_tpy: 179000
+      elevator_capacity_fixed_tpy: 179000  # 固定 179000 t/year
     cost_model:
       launch_cost_model: "wrights_law_plus_transcost"
       year_2050_cost_usd_per_kg:
-        min: 100
-        max: 200
+        min: 100000
+        max: 200000
   isru:
     bootstrapping:
       eta:
@@ -327,7 +320,7 @@ parameter_summary:
       black_carbon_weight: 500
     energy_transport_pivot:
       local_energy_cost_usd_per_kwh: 0.10
-      energy_intensity_kwh_per_kg: 500
+      energy_intensity_kwh_per_kg: 500000
       pivot_condition: "transport_cost < local_cost"
 
 # -----------------------------------------------------------------------------
@@ -423,7 +416,7 @@ implementation_details:
         regolith_mass_t: 200000
         duration_months: 36
         unlocks:
-          power_mw: 5000              # 5 GW (Industrial Scale)
+          power_mw: 50000             # 50 GW (Industrial Scale)
           construction_t_per_month: 10000000 # 10M tons/month (Swarm Construction)
           handling_t_per_month: 50000 # Spaceport Upgrade (50,000 t/mo) to handle city components
           production_t_per_year: 0
@@ -499,7 +492,7 @@ optimization:
 # -----------------------------------------------------------------------------
 objective:
   w_C: 1.0      # Cost weight
-  w_T: 1.0e8    # Time weight ($/month equivalent)
+  w_T: 1.0      # Time weight ($/month equivalent) - Scaled down for numerical stability
 
 # -----------------------------------------------------------------------------
 # Solver Settings

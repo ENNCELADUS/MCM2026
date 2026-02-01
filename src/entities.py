@@ -26,9 +26,9 @@ class Arc:
     from_node: str
     to_node: str
     arc_type: str  # "elevator", "rocket", "transfer", "ground"
-    lead_time: int  # L_a (months)
-    payload: float  # U_a (kg)
-    cost_per_kg_2050: float
+    lead_time: int  # L_a (time steps)
+    payload: float  # U_a (mass units)
+    cost_per_kg_2050: float  # Cost per mass unit
     enabled_scenarios: list[str]
 
 

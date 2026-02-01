@@ -83,7 +83,7 @@ class TaskDefinition:
         M_earth: Material requirements from Earth (REQUIRED, can be empty dict)
         M_moon: Material requirements from Moon (REQUIRED, can be empty dict)
         M_flex: Flexible material requirements (REQUIRED, can be empty dict)
-        W: Construction workload in kg (REQUIRED, >= 0)
+        W: Construction workload in mass units (REQUIRED, >= 0)
         duration_months: Task setup duration in model time steps (derived from months)
         delta_P: ISRU capacity increment (REQUIRED, >= 0)
         delta_V: Construction capacity increment (REQUIRED, >= 0)
@@ -386,11 +386,11 @@ def build_task_network_from_wbs(
 
     tasks: list[TaskDefinition] = []
     for task in wbs_tasks:
-        earth_mass_kg = task["earth_mass_t"] * ton_to_kg
-        regolith_mass_kg = task["regolith_mass_t"] * ton_to_kg
+        earth_mass = task["earth_mass_t"] * ton_to_kg
+        regolith_mass = task["regolith_mass_t"] * ton_to_kg
 
-        tier1_mass = earth_mass_kg * (tier1_share / tier12_total)
-        tier2_mass = earth_mass_kg * (tier2_share / tier12_total)
+        tier1_mass = earth_mass * (tier1_share / tier12_total)
+        tier2_mass = earth_mass * (tier2_share / tier12_total)
 
         M_earth: dict[str, float] = {}
         tier1_each = tier1_mass / len(tier1_resources)
@@ -401,7 +401,7 @@ def build_task_network_from_wbs(
             M_earth[res] = M_earth.get(res, 0.0) + tier2_each
 
         M_moon: dict[str, float] = {}
-        tier3_each = regolith_mass_kg / len(tier3_resources)
+        tier3_each = regolith_mass / len(tier3_resources)
         for res in tier3_resources:
             M_moon[res] = M_moon.get(res, 0.0) + tier3_each
 
@@ -423,7 +423,7 @@ def build_task_network_from_wbs(
                 M_earth=M_earth,
                 M_moon=M_moon,
                 M_flex={},
-                W=regolith_mass_kg,
+                W=regolith_mass,
                 duration_months=duration_steps,
                 delta_P=delta_P,
                 delta_V=delta_V,
@@ -563,9 +563,9 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
         )
     _ = cost_2050["min"]
     _ = cost_2050["max"]
-    if "elevator_capacity_upper_tpy" not in capacities:
+    if "elevator_capacity_fixed_tpy" not in capacities:
         raise KeyError(
-            "parameter_summary.transport.capacities.elevator_capacity_upper_tpy is required"
+            "parameter_summary.transport.capacities.elevator_capacity_fixed_tpy is required"
         )
     _ = cost_model.get("launch_cost_model")
 

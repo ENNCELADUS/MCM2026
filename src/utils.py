@@ -469,14 +469,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     if scenario_params:
         elev = scenario_params.get("elevator", {})
         _ = elev.get("climber_payload_t")
-        throughput_tpy = elev.get("annual_throughput_tpy", {})
-        _ = throughput_tpy.get("initial")
-        _ = throughput_tpy.get("mature")
-        _ = throughput_tpy.get("six_tethers")
-        throughput_kg = elev.get("annual_throughput_kg_per_s", {})
-        _ = throughput_kg.get("initial")
-        _ = throughput_kg.get("mature")
-        _ = throughput_kg.get("six_tethers")
         _ = elev.get("transit_time_days")
         _ = elev.get("climber_velocity_kmh")
         req_vel = elev.get("required_avg_velocity", {})
@@ -640,9 +632,9 @@ def load_model_data(
     scenario = settings.scenario.value
     seconds_per_day = constants["units"]["seconds_per_day"]
     ton_to_kg = constants["units"]["ton_to_kg"]
-    elevator_capacity_upper_tpy = constants["parameter_summary"]["transport"][
+    elevator_capacity_fixed_tpy = constants["parameter_summary"]["transport"][
         "capacities"
-    ]["elevator_capacity_upper_tpy"]
+    ]["elevator_capacity_fixed_tpy"]
     total_demand_tons = constants["parameter_summary"]["materials"]["bom"][
         "total_demand_tons"
     ]
@@ -671,12 +663,12 @@ def load_model_data(
             payload_t = a["payload_t"]
             if payload_t is None:
                 if a["type"] == "elevator":
-                    payload_t = elevator_capacity_upper_tpy / steps_per_year
+                    payload_t = elevator_capacity_fixed_tpy / steps_per_year
                 else:
                     payload_t = total_demand_tons
-            payload_kg = payload_t * ton_to_kg
+            payload_mass = payload_t * ton_to_kg
         else:
-            payload_kg = float(a["payload"])
+            payload_mass = float(a["payload"])
         arcs.append(
             Arc(
                 id=a["id"],
@@ -684,7 +676,7 @@ def load_model_data(
                 to_node=a["to"],
                 arc_type=a["type"],
                 lead_time=lead_time_steps,
-                payload=payload_kg,
+                payload=payload_mass,
                 cost_per_kg_2050=a["cost_per_kg_2050"],
                 enabled_scenarios=a["enabled"],
             )
@@ -815,7 +807,7 @@ def get_rocket_launch_rate_max(
 def get_rocket_payload_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
-    """Compute per-launch rocket payload (kg) using logistic growth."""
+    """Compute per-launch rocket payload (mass units) using logistic growth."""
     params = constants["scenario_parameters"]["rocket"]["payload_logistic"]
     L_max_t = float(params["L_max_t"])
     L_ref_t = float(params["L_ref_t"])
@@ -839,7 +831,7 @@ def get_rocket_payload_kg(
 def get_rocket_cost_usd_per_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
-    """Compute rocket transport cost per kg using annual decay."""
+    """Compute rocket transport cost per mass unit using annual decay."""
     params = constants["costs"]["rocket"]["cost_decay"]
     base_year = float(params["base_year"])
     base_cost = float(params["base_cost_usd_per_kg"])

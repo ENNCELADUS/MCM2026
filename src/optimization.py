@@ -75,11 +75,11 @@ class PyomoBuilder:
         self.max_concurrent_tasks = constants["task_defaults"]["max_concurrent_tasks"]
 
         self.C_E_0 = constants["initial_capacities"]["C_E_0"]
-        elevator_capacity_upper_tpy = constants["parameter_summary"]["transport"][
+        elevator_capacity_fixed_tpy = constants["parameter_summary"]["transport"][
             "capacities"
-        ]["elevator_capacity_upper_tpy"]
-        self.elevator_capacity_upper_kg_s = (
-            elevator_capacity_upper_tpy
+        ]["elevator_capacity_fixed_tpy"]
+        self.elevator_capacity_fixed_mass_s = (
+            elevator_capacity_fixed_tpy
             * self.ton_to_kg
             / (self.steps_per_year * self.delta_t)
         )
@@ -595,17 +595,17 @@ class PyomoBuilder:
 
         m.elevator_pool = pyo.Constraint(m.T, rule=_elevator_pool_rule)
 
-        def _elevator_upper_rule(mdl, t):
+        def _elevator_fixed_rule(mdl, t):
             if not self.elevator_arcs:
                 return pyo.Constraint.Skip
-            # Use precomputed float capacity
-            cap = self.elevator_capacity_upper_kg_s
+            # Fixed capacity limit
+            cap = self.elevator_capacity_fixed_mass_s
             return (
                 sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev)
                 <= cap * self.delta_t
             )
 
-        m.elevator_upper = pyo.Constraint(m.T, rule=_elevator_upper_rule)
+        m.elevator_fixed = pyo.Constraint(m.T, rule=_elevator_fixed_rule)
 
         if self.stream_model:
             def _elevator_stream_rule(mdl, t):

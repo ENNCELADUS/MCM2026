@@ -252,7 +252,7 @@ def run_pipeline(
                 print(f"  - Objective Value: {result['objective_value']:.2e}")
                 print(f"  - Total Cost: ${result['total_cost']:.2e}")
                 print(f"  - Project Duration: {result['T_end']} years")
-                print(f"  - Solution Time: {result['solution_time']:.1f}s")
+                print(f"  - Solution Time: {(result.get('solution_time') or 0.0):.1f}s")
 
         # ---------------------------------------------------------------------
         # Step 5: Export Results
