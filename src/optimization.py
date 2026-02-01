@@ -70,9 +70,9 @@ class PyomoBuilder:
         self.max_concurrent_tasks = constants["task_defaults"]["max_concurrent_tasks"]
 
         self.C_E_0 = constants["initial_capacities"]["C_E_0"]
-        elevator_capacity_upper_tpy = constants["parameter_summary"]["logistics"][
-            "elevator_capacity_upper_tpy"
-        ]
+        elevator_capacity_upper_tpy = constants["parameter_summary"]["transport"][
+            "capacities"
+        ]["elevator_capacity_upper_tpy"]
         self.elevator_capacity_upper_kg_s = (
             elevator_capacity_upper_tpy
             * self.ton_to_kg
@@ -80,9 +80,9 @@ class PyomoBuilder:
         )
 
         self.enable_learning_curve = self.settings.enable_learning_curve
-        self.stream_model = constants["implementation_details"][
-            "additional_parameters"
-        ]["elevator_stream_model"]["enabled"]
+        self.stream_model = constants["scenario_parameters"]["elevator"]["stream_model"][
+            "enabled"
+        ]
 
         # Task type flags: capability tasks use handling capacity for installation
         self.tasks_with_V = [
@@ -91,9 +91,10 @@ class PyomoBuilder:
         self.tasks_without_V = [i for i in self.task_ids if i not in self.tasks_with_V]
 
         self.total_demand_kg = (
-            constants["parameter_summary"]["bom"]["total_demand_tons"] * self.ton_to_kg
+            constants["parameter_summary"]["materials"]["bom"]["total_demand_tons"]
+            * self.ton_to_kg
         )
-        self.target_pop = constants["parameter_summary"]["colony_target"]["population"]
+        self.target_pop = constants["parameter_summary"]["colony"]["target"]["population"]
 
     def _create_sets(self):
         m = self.m

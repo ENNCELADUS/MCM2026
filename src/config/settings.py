@@ -227,7 +227,7 @@ class ModelSettings:
 
 # =============================================================================
 # Task Network Definitions (AON/RCPSP)
-# Populated from constants.yaml implementation_details.wbs_tasks
+# Populated from constants.yaml implementation_details.tasks.wbs_tasks
 # =============================================================================
 
 TASK_NETWORK: list[TaskDefinition] = []
@@ -356,14 +356,16 @@ def build_task_network_from_wbs(
     delta_t = time["delta_t"]
     steps_per_year = time["steps_per_year"]
 
-    tiers = parameter_summary["bom"]["tiers"]
+    tiers = parameter_summary["materials"]["bom"]["tiers"]
     tier1 = next((t for t in tiers if t["class"] == 1), None)
     tier2 = next((t for t in tiers if t["class"] == 2), None)
     tier3 = next((t for t in tiers if t["class"] == 3), None)
     if tier1 is None or tier2 is None:
-        raise ValueError("parameter_summary.bom.tiers must include class 1 and class 2")
+        raise ValueError(
+            "parameter_summary.materials.bom.tiers must include class 1 and class 2"
+        )
     if tier3 is None:
-        raise ValueError("parameter_summary.bom.tiers must include class 3")
+        raise ValueError("parameter_summary.materials.bom.tiers must include class 3")
 
     tier1_share = tier1.get("share_initial", 0.0)
     tier2_share = tier2.get("share_initial", 0.0)
@@ -445,51 +447,58 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     if not summary:
         raise ValueError("parameter_summary cannot be empty")
 
-    # BOM validation
-    bom = summary.get("bom")
+    # Materials / BOM validation
+    materials = summary.get("materials")
+    if materials is None:
+        raise KeyError("parameter_summary.materials is required")
+    bom = materials.get("bom")
     if bom is None:
-        raise KeyError("parameter_summary.bom is required")
+        raise KeyError("parameter_summary.materials.bom is required")
     if "total_demand_tons" not in bom:
-        raise KeyError("parameter_summary.bom.total_demand_tons is required")
+        raise KeyError("parameter_summary.materials.bom.total_demand_tons is required")
     tiers = bom.get("tiers")
     if not tiers:
-        raise ValueError("parameter_summary.bom.tiers cannot be empty")
+        raise ValueError("parameter_summary.materials.bom.tiers cannot be empty")
 
     valid_source_policies = {"earth_only", "mixed", "isru_only"}
     for i, tier in enumerate(tiers):
         for key in ["id", "name", "class", "source_policy", "resources"]:
             if key not in tier:
-                raise KeyError(f"parameter_summary.bom.tiers[{i}].{key} is required")
+                raise KeyError(
+                    f"parameter_summary.materials.bom.tiers[{i}].{key} is required"
+                )
         tier_id = tier["id"]
         tier_name = tier["name"]
         tier_class = tier["class"]
         _ = tier_id, tier_name, tier_class
         if tier["source_policy"] not in valid_source_policies:
             raise ValueError(
-                f"parameter_summary.bom.tiers[{i}].source_policy must be one of "
+                f"parameter_summary.materials.bom.tiers[{i}].source_policy must be one of "
                 f"{sorted(valid_source_policies)}"
             )
         if "examples" in tier:
             examples = tier["examples"]
             if not isinstance(examples, list):
                 raise ValueError(
-                    f"parameter_summary.bom.tiers[{i}].examples must be a list"
+                    f"parameter_summary.materials.bom.tiers[{i}].examples must be a list"
                 )
         if "chi" in tier:
             chi = tier["chi"]
             if "min" not in chi or "max" not in chi:
-                raise KeyError(f"parameter_summary.bom.tiers[{i}].chi requires min/max")
+                raise KeyError(
+                    f"parameter_summary.materials.bom.tiers[{i}].chi requires min/max"
+                )
             _ = chi["min"]
             _ = chi["max"]
         resources = tier.get("resources", [])
         if not resources:
             raise ValueError(
-                f"parameter_summary.bom.tiers[{i}].resources cannot be empty"
+                f"parameter_summary.materials.bom.tiers[{i}].resources cannot be empty"
             )
         unknown = [r for r in resources if r not in resource_ids]
         if unknown:
             raise ValueError(
-                f"parameter_summary.bom.tiers[{i}].resources contains unknown ids: {unknown}"
+                f"parameter_summary.materials.bom.tiers[{i}].resources contains unknown ids: {unknown}"
             )
         for share_key in [
             "share_initial",
@@ -501,7 +510,7 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
                 share_val = tier[share_key]
                 if not isinstance(share_val, (int, float)) or not (0 <= share_val <= 1):
                     raise ValueError(
-                        f"parameter_summary.bom.tiers[{i}].{share_key} must be in [0,1]"
+                        f"parameter_summary.materials.bom.tiers[{i}].{share_key} must be in [0,1]"
                     )
 
     covered_resources = set()
@@ -510,17 +519,22 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     missing_resources = resource_ids - covered_resources
     if missing_resources:
         raise ValueError(
-            "parameter_summary.bom.tiers must cover all resources. Missing: "
+            "parameter_summary.materials.bom.tiers must cover all resources. Missing: "
             f"{sorted(missing_resources)}"
         )
 
-    # Logistics validation
-    logistics = summary.get("logistics")
-    if logistics is None:
-        raise KeyError("parameter_summary.logistics is required")
-    rocket_capacity = logistics.get("rocket_capacity")
+    # Transport validation
+    transport = summary.get("transport")
+    if transport is None:
+        raise KeyError("parameter_summary.transport is required")
+    capacities = transport.get("capacities")
+    if capacities is None:
+        raise KeyError("parameter_summary.transport.capacities is required")
+    rocket_capacity = capacities.get("rocket_capacity")
     if rocket_capacity is None:
-        raise KeyError("parameter_summary.logistics.rocket_capacity is required")
+        raise KeyError(
+            "parameter_summary.transport.capacities.rocket_capacity is required"
+        )
     for key in [
         "growth_model",
         "year_2050_single_launch_capacity_mt",
@@ -528,37 +542,48 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     ]:
         if key not in rocket_capacity:
             raise KeyError(
-                f"parameter_summary.logistics.rocket_capacity.{key} is required"
+                f"parameter_summary.transport.capacities.rocket_capacity.{key} is required"
             )
     _ = rocket_capacity["growth_model"]
     _ = rocket_capacity["max_capacity_mt"]
     year_2050_cap = rocket_capacity["year_2050_single_launch_capacity_mt"]
     _ = year_2050_cap["min"]
     _ = year_2050_cap["max"]
-    cost_2050 = logistics.get("year_2050_cost_usd_per_kg")
+    cost_model = transport.get("cost_model")
+    if cost_model is None:
+        raise KeyError("parameter_summary.transport.cost_model is required")
+    cost_2050 = cost_model.get("year_2050_cost_usd_per_kg")
     if cost_2050 is None:
         raise KeyError(
-            "parameter_summary.logistics.year_2050_cost_usd_per_kg is required"
+            "parameter_summary.transport.cost_model.year_2050_cost_usd_per_kg is required"
         )
     _ = cost_2050["min"]
     _ = cost_2050["max"]
-    if "elevator_capacity_upper_tpy" not in logistics:
+    if "elevator_capacity_upper_tpy" not in capacities:
         raise KeyError(
-            "parameter_summary.logistics.elevator_capacity_upper_tpy is required"
+            "parameter_summary.transport.capacities.elevator_capacity_upper_tpy is required"
         )
-    _ = logistics.get("launch_cost_model")
-    if "environmental_constraint" in logistics:
-        env = logistics["environmental_constraint"]
-        _ = env.get("index")
-        _ = env.get("black_carbon_weight")
+    _ = cost_model.get("launch_cost_model")
 
     # ISRU bootstrapping validation
-    isru_boot = summary.get("isru_bootstrapping")
+    isru = summary.get("isru")
+    if isru is None:
+        raise KeyError("parameter_summary.isru is required")
+    isru_boot = isru.get("bootstrapping")
     if isru_boot is None:
-        raise KeyError("parameter_summary.isru_bootstrapping is required")
-    for key in ["equation", "eta", "phi", "alpha_per_year", "beta", "gamma"]:
+        raise KeyError("parameter_summary.isru.bootstrapping is required")
+    for key in [
+        "equation",
+        "eta",
+        "phi",
+        "alpha_per_year",
+        "beta",
+        "gamma",
+        "seed_input_source",
+        "mode",
+    ]:
         if key not in isru_boot:
-            raise KeyError(f"parameter_summary.isru_bootstrapping.{key} is required")
+            raise KeyError(f"parameter_summary.isru.bootstrapping.{key} is required")
     _ = isru_boot["equation"]
     eta = isru_boot["eta"]
     _ = eta.get("min")
@@ -577,28 +602,66 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     gamma = isru_boot["gamma"]
     _ = gamma.get("note")
     _ = gamma.get("magnitude")
+    _ = isru_boot.get("seed_input_source")
+    _ = isru_boot.get("mode")
 
-    # Scenario timeline validation
-    scenarios = summary.get("scenarios")
-    if scenarios is None:
-        raise KeyError("parameter_summary.scenarios is required")
-    _ = scenarios.get("pivot_condition")
-    if "timeline" not in scenarios:
-        raise KeyError("parameter_summary.scenarios.timeline is required")
-    timeline = scenarios.get("timeline", [])
+    # ISRU yield validation
+    yields = isru.get("yields")
+    if yields is None:
+        raise KeyError("parameter_summary.isru.yields is required")
+    _ = yields["regolith_to_oxygen"]
+    _ = yields["regolith_to_silicon"]
+    _ = yields["regolith_to_aluminum"]
+    _ = yields["regolith_to_slag"]
+    _ = yields["tier3_combined_yield"]
+    tier12 = yields["tier1_2_late_stage_yield"]
+    _ = tier12.get("min")
+    _ = tier12.get("max")
+
+    # Colony target & phase timeline validation
+    colony = summary.get("colony")
+    if colony is None:
+        raise KeyError("parameter_summary.colony is required")
+    target = colony.get("target")
+    if target is None or "population" not in target:
+        raise KeyError("parameter_summary.colony.target.population is required")
+    phases = colony.get("phases")
+    if phases is None:
+        raise KeyError("parameter_summary.colony.phases is required")
+    _ = phases.get("pivot_condition")
+    if "timeline" not in phases:
+        raise KeyError("parameter_summary.colony.phases.timeline is required")
+    timeline = phases.get("timeline", [])
     if not timeline:
-        raise ValueError("parameter_summary.scenarios.timeline cannot be empty")
+        raise ValueError("parameter_summary.colony.phases.timeline cannot be empty")
     for i, phase in enumerate(timeline):
         if "phase" not in phase or "years" not in phase:
             raise KeyError(
-                f"parameter_summary.scenarios.timeline[{i}] requires phase/years"
+                f"parameter_summary.colony.phases.timeline[{i}] requires phase/years"
             )
         _ = phase.get("description")
         _ = phase["phase"]
         years = phase["years"]
         if "start" not in years:
             raise KeyError(
-                f"parameter_summary.scenarios.timeline[{i}].years.start is required"
+                f"parameter_summary.colony.phases.timeline[{i}].years.start is required"
             )
         _ = years["start"]
         _ = years.get("end")
+
+    # Environment validation
+    environment = summary.get("environment")
+    if environment is None:
+        raise KeyError("parameter_summary.environment is required")
+    transport_constraint = environment.get("transport_constraint")
+    if transport_constraint is None:
+        raise KeyError("parameter_summary.environment.transport_constraint is required")
+    _ = transport_constraint.get("index")
+    _ = transport_constraint.get("black_carbon_weight")
+    energy_pivot = environment.get("energy_transport_pivot")
+    if energy_pivot is None:
+        raise KeyError("parameter_summary.environment.energy_transport_pivot is required")
+    _ = energy_pivot.get("local_energy_cost_usd_per_kwh")
+    _ = energy_pivot.get("energy_intensity_kwh_per_kg")
+    _ = energy_pivot.get("local_cost_per_kg_formula")
+    _ = energy_pivot.get("pivot_condition")

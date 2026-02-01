@@ -466,7 +466,7 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     # Validate parameter summary (Section 5)
     if not constants["parameter_summary"]:
         raise ValueError("constants.yaml parameter_summary cannot be empty")
-    for section in ["bom", "logistics", "isru_bootstrapping", "scenarios"]:
+    for section in ["materials", "transport", "isru", "colony", "environment"]:
         if section not in constants["parameter_summary"]:
             raise KeyError(f"Missing parameter_summary section: '{section}'")
 
@@ -509,6 +509,9 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         cost_per_kg = elev.get("cost_per_kg_usd", {})
         _ = cost_per_kg.get("initial")
         _ = cost_per_kg.get("mature")
+        elev_stream = elev.get("stream_model", {})
+        _ = elev_stream.get("enabled")
+        _ = elev_stream.get("constraint")
 
         rocket = scenario_params.get("rocket", {})
         fh_payload = rocket.get("falcon_heavy_payload_tli_t", {})
@@ -519,37 +522,93 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = starship_cost.get("upper")
         _ = starship_cost.get("target")
         _ = rocket.get("delta_v_leo_to_moon_kms")
+        rocket_payload = rocket.get("payload_logistic", {})
+        _ = rocket_payload.get("L_max_t")
+        _ = rocket_payload.get("L_ref_t")
+        _ = rocket_payload.get("k")
+        _ = rocket_payload.get("t0_year")
+        _ = rocket_payload.get("ref_year")
+        _ = rocket_payload.get("formula")
+        rocket_launch_rate = rocket.get("launch_rate", {})
+        _ = rocket_launch_rate.get("base_per_year")
+        _ = rocket_launch_rate.get("annual_growth_rate")
+        _ = rocket_launch_rate.get("max_per_year")
+        _ = rocket_launch_rate.get("start_year")
+        _ = rocket_launch_rate.get("formula")
+
+        arc_sel = scenario_params.get("arc_selection", {})
+        _ = arc_sel.get("simplified_single_arc")
+        _ = arc_sel.get("arc_rocket_id")
+        _ = arc_sel.get("arc_elevator_id")
+
+    isru_summary = constants["parameter_summary"]["isru"]["yields"]
+    _ = isru_summary["regolith_to_oxygen"]
+    _ = isru_summary["regolith_to_silicon"]
+    _ = isru_summary["regolith_to_aluminum"]
+    _ = isru_summary["regolith_to_slag"]
+    _ = isru_summary["tier3_combined_yield"]
+    tier12 = isru_summary["tier1_2_late_stage_yield"]
+    _ = tier12.get("min")
+    _ = tier12.get("max")
+
+    env = constants["parameter_summary"]["environment"]
+    transport_constraint = env.get("transport_constraint", {})
+    _ = transport_constraint.get("index")
+    _ = transport_constraint.get("black_carbon_weight")
+    pivot = env.get("energy_transport_pivot", {})
+    _ = pivot.get("local_energy_cost_usd_per_kwh")
+    _ = pivot.get("energy_intensity_kwh_per_kg")
+    _ = pivot.get("local_cost_per_kg_formula")
+    _ = pivot.get("pivot_condition")
+
+    # Validate cost parameters
+    costs = constants.get("costs", {})
+    if costs:
+        elevator_costs = costs.get("elevator", {})
+        _ = elevator_costs.get("initial")
+        _ = elevator_costs.get("mature")
+        _ = elevator_costs.get("fixed_per_trip")
+
+        rocket_costs = costs.get("rocket", {})
+        falcon = rocket_costs.get("falcon_heavy", {})
+        _ = falcon.get("per_kg")
+        _ = falcon.get("fixed_per_launch")
+        starship = rocket_costs.get("starship", {})
+        _ = starship.get("per_kg_initial")
+        _ = starship.get("per_kg_target")
+        _ = starship.get("fixed_per_launch")
+        rocket_decay = rocket_costs.get("cost_decay", {})
+        _ = rocket_decay.get("base_year")
+        _ = rocket_decay.get("base_cost_usd_per_kg")
+        _ = rocket_decay.get("annual_decay_rate")
+        _ = rocket_decay.get("min_cost_usd_per_kg")
+        _ = rocket_decay.get("formula")
 
     # Validate implementation details
     impl = constants["implementation_details"]
-    if "wbs_tasks" not in impl or not impl["wbs_tasks"]:
-        raise ValueError("implementation_details.wbs_tasks cannot be empty")
+    if (
+        "tasks" not in impl
+        or "wbs_tasks" not in impl["tasks"]
+        or not impl["tasks"]["wbs_tasks"]
+    ):
+        raise ValueError("implementation_details.tasks.wbs_tasks cannot be empty")
     for section in [
-        "handling_capacity",
-        "isru_yields",
-        "bom_mapping",
-        "linearization_guidance",
-        "additional_parameters",
+        "tasks",
+        "logistics",
+        "materials",
+        "modeling",
     ]:
         if section not in impl:
             raise KeyError(f"Missing implementation_details section: '{section}'")
 
     # Touch implementation detail parameters for audit/validation
-    handling = impl["handling_capacity"]
+    handling = impl["logistics"]["handling_capacity"]
     _ = handling["excavator_efficiency_t_per_hour_per_ton"]
     _ = handling["handling_t_per_month_per_ton_excavator"]
+    _ = handling.get("tied_to_tasks")
+    _ = handling.get("note")
 
-    yields = impl["isru_yields"]
-    _ = yields["regolith_to_oxygen"]
-    _ = yields["regolith_to_silicon"]
-    _ = yields["regolith_to_aluminum"]
-    _ = yields["regolith_to_slag"]
-    _ = yields["tier3_combined_yield"]
-    tier12 = yields["tier1_2_late_stage_yield"]
-    _ = tier12.get("min")
-    _ = tier12.get("max")
-
-    bom_map = impl["bom_mapping"]
+    bom_map = impl["materials"]["bom_mapping"]
     _ = bom_map["total_demand_tons"]
     for category in bom_map.get("categories", []):
         _ = category.get("id")
@@ -561,68 +620,22 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = category.get("isru_share")
         _ = category.get("notes")
 
-    lin = impl["linearization_guidance"]
+    lin = impl["modeling"]["linearization_guidance"]
     _ = lin["total_mass_equation"]
     _ = lin["bottleneck_note"]
 
-    additional = impl["additional_parameters"]
-    arc_sel = additional["arc_selection"]
-    _ = arc_sel.get("simplified_single_arc")
-    _ = arc_sel.get("arc_rocket_id")
-    _ = arc_sel.get("arc_elevator_id")
-
-    elev_stream = additional["elevator_stream_model"]
-    _ = elev_stream.get("enabled")
-    _ = elev_stream.get("constraint")
-
-    rocket_payload = additional["rocket_payload_logistic"]
-    _ = rocket_payload.get("L_max_t")
-    _ = rocket_payload.get("L_ref_t")
-    _ = rocket_payload.get("k")
-    _ = rocket_payload.get("t0_year")
-    _ = rocket_payload.get("ref_year")
-    _ = rocket_payload.get("formula")
-
-    rocket_launch_rate = additional["rocket_launch_rate"]
-    _ = rocket_launch_rate.get("base_per_year")
-    _ = rocket_launch_rate.get("annual_growth_rate")
-    _ = rocket_launch_rate.get("max_per_year")
-    _ = rocket_launch_rate.get("start_year")
-    _ = rocket_launch_rate.get("formula")
-
-    rocket_cost = additional["rocket_cost_decay"]
-    _ = rocket_cost.get("base_year")
-    _ = rocket_cost.get("base_cost_usd_per_kg")
-    _ = rocket_cost.get("annual_decay_rate")
-    _ = rocket_cost.get("min_cost_usd_per_kg")
-    _ = rocket_cost.get("formula")
-
-    isru_boot = additional["isru_bootstrapping"]
-    _ = isru_boot.get("seed_input_source")
-    _ = isru_boot.get("mode")
-
-    task_duration = additional["task_duration"]
-    _ = task_duration.get("fixed_setup_time")
-    _ = task_duration.get("note")
-
-    handle_cfg = additional["handling_capacity"]
-    _ = handle_cfg.get("tied_to_tasks")
-    _ = handle_cfg.get("note")
-
-    inventory = additional["inventory_policy"]
-    _ = inventory.get("unlimited_prepositioning")
-    _ = inventory.get("note")
-
-    pivot = additional["energy_transport_pivot"]
-    _ = pivot.get("local_energy_cost_usd_per_kwh")
-    _ = pivot.get("energy_intensity_kwh_per_kg")
-    _ = pivot.get("local_cost_per_kg_formula")
-    _ = pivot.get("pivot_condition")
-
-    time_disc = additional["time_discretization"]
+    time_disc = impl["logistics"]["time_discretization"]
     _ = time_disc.get("steps_per_month")
     _ = time_disc.get("threshold_days")
     _ = time_disc.get("arrival_rule")
+
+    task_duration = impl["tasks"]["duration"]
+    _ = task_duration.get("fixed_setup_time")
+    _ = task_duration.get("note")
+
+    inventory = impl["logistics"]["inventory_policy"]
+    _ = inventory.get("unlimited_prepositioning")
+    _ = inventory.get("note")
 
     # Touch task_defaults
     task_defaults = constants["task_defaults"]
@@ -651,14 +664,14 @@ def load_model_data(
     scenario = settings.scenario.value
     seconds_per_day = constants["units"]["seconds_per_day"]
     ton_to_kg = constants["units"]["ton_to_kg"]
-    elevator_capacity_upper_tpy = constants["parameter_summary"]["logistics"][
-        "elevator_capacity_upper_tpy"
+    elevator_capacity_upper_tpy = constants["parameter_summary"]["transport"][
+        "capacities"
+    ]["elevator_capacity_upper_tpy"]
+    total_demand_tons = constants["parameter_summary"]["materials"]["bom"][
+        "total_demand_tons"
     ]
-    total_demand_tons = constants["parameter_summary"]["bom"]["total_demand_tons"]
     steps_per_year = constants["time"]["steps_per_year"]
-    time_disc = constants["implementation_details"]["additional_parameters"][
-        "time_discretization"
-    ]
+    time_disc = constants["implementation_details"]["logistics"]["time_discretization"]
     threshold_days = time_disc["threshold_days"]
     _ = time_disc.get("arrival_rule")
     _ = time_disc.get("steps_per_month")
@@ -715,7 +728,7 @@ def load_model_data(
 
     # Get tasks from implementation details and validate
     tasks = build_task_network_from_wbs(
-        constants["implementation_details"]["wbs_tasks"],
+        constants["implementation_details"]["tasks"]["wbs_tasks"],
         constants["parameter_summary"],
         constants["units"],
         constants["time"],
@@ -769,11 +782,11 @@ def get_phase_time_ranges(
     """
     Map scenario phases to time index ranges [start, end] (inclusive).
 
-    Uses parameter_summary.scenarios.timeline and time.start_year.
+    Uses parameter_summary.colony.phases.timeline and time.start_year.
     """
     start_year = constants["time"]["start_year"]
     steps_per_year = constants["time"]["steps_per_year"]
-    timeline = constants["parameter_summary"]["scenarios"]["timeline"]
+    timeline = constants["parameter_summary"]["colony"]["phases"]["timeline"]
 
     ranges: list[tuple[str, int, int]] = []
     for phase in timeline:
@@ -797,16 +810,14 @@ def get_tier_definitions(
     constants: ConfigTracker | dict[str, Any],
 ) -> list[dict[str, Any]]:
     """Return BOM tier definitions from parameter_summary."""
-    return constants["parameter_summary"]["bom"]["tiers"]
+    return constants["parameter_summary"]["materials"]["bom"]["tiers"]
 
 
 def get_rocket_launch_rate_max(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
     """Compute maximum rocket launches per time step using growth with cap."""
-    params = constants["implementation_details"]["additional_parameters"][
-        "rocket_launch_rate"
-    ]
+    params = constants["scenario_parameters"]["rocket"]["launch_rate"]
     base_per_year = float(params["base_per_year"])
     annual_growth_rate = float(params["annual_growth_rate"])
     max_per_year = float(params["max_per_year"])
@@ -830,9 +841,7 @@ def get_rocket_payload_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
     """Compute per-launch rocket payload (kg) using logistic growth."""
-    params = constants["implementation_details"]["additional_parameters"][
-        "rocket_payload_logistic"
-    ]
+    params = constants["scenario_parameters"]["rocket"]["payload_logistic"]
     L_max_t = float(params["L_max_t"])
     L_ref_t = float(params["L_ref_t"])
     k = float(params["k"])
@@ -856,9 +865,7 @@ def get_rocket_cost_usd_per_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
     """Compute rocket transport cost per kg using annual decay."""
-    params = constants["implementation_details"]["additional_parameters"][
-        "rocket_cost_decay"
-    ]
+    params = constants["costs"]["rocket"]["cost_decay"]
     base_year = float(params["base_year"])
     base_cost = float(params["base_cost_usd_per_kg"])
     annual_decay = float(params["annual_decay_rate"])
