@@ -11,57 +11,42 @@
 
 ### 2. 物流网络定义 (Logistics)
 *   **火箭运力 ($U_a$)**: 逻辑回归增长. 2050年单次 $L_{cap} \approx 100 \sim 150$ MT. 极限 $L_{max} \approx 250$ MT.
-*   **发射成本 ($c_{a,r,t}$)**: Wright's Law + Transcost. 2050年 $\approx 100 \sim 200$ USD/kg.
-*   **太空电梯容量**: 上限 $F_{elevator} = 179,000$ 吨/年.
+*   **发射成本 ($c_{a,r,t}$)**: Wright's Law + Transcost. 2050年 基准 $\approx 100,000$ USD/kg (保守估计).
+*   **太空电梯成本**: 2050年 $\approx 20,000$ USD/kg.
 *   **环境约束**: 加权排放指数 (WEI)，黑碳 (BC) 权重 500.
 
-### 3. 月面生产能力 (ISRU & Bootstrapping)
-*   **自举动力学**: $\dot{P} = \eta \phi P + \beta T_1$.
-*   **关键参数**:
-    *   $\eta$ (闭环率): $0.90 \sim 0.98$.
-    *   $\phi$ (再投资率): 初期 $0.6 \sim 0.8 \to 0.1$.
-    *   $\alpha$ (自增殖率): $\approx 0.2 \sim 0.4 \text{ year}^{-1}$.
-    *   $\beta$ (催化效率): $10 \sim 100$.
-    *   $\gamma$ (转化系数): Class 2 $\to$ Class 3, $\gamma \gg 1$.
+## 1. 产能增长模型 (Continuous Capacity Growth Model)
 
-### 4. 场景有效性 (Scenarios)
-*   **转折点**: 本地能源成本 < 运输成本 $\implies$ 本地主导.
-*   **时间线**:
-    *   **Phase I (2050-2060)**: 种子期 (依赖 $T_1, T_2$).
-    *   **Phase II (2060-2080)**: 爆发期 ($P_2, P_3$ 指数增长).
-    *   **Phase III (Mature)**: 自给期 ($T \to 0$).
+为了简化离散的任务调度复杂度，本模型采用**连续增长曲线 (Continuous Growth Curve)** 来近似月球基地的产能扩张。产能 $P(t)$ 定义为每年通过 ISRU 生产建设材料的能力 (吨/年)。
 
-## 1. 任务分解结构 (Work Breakdown Structure - WBS) & 依赖关系
+### 1.1 阶段 I：引导期 (Bootstrapping Phase)
+*   **特征**: 依赖地球补给，产能呈线性增长。此阶段月球仅仅是“接收端”，机器人负责组装来自地球的预制件。
+*   **时间跨度**: 初期 (2050 - ~2055/2060)。
+*   **数学模型**: 
+    $$P(t) = P_{earth} \cdot t + P_0$$
+*   **参数**:
+    *   $P_0$: 初始产能 (0 t/yr)。
+    *   $P_{earth}$: 地球发射支持下的产能增长率 (由运力瓶颈决定)。
+    *   **瓶颈**: 运力成本与地球发射频率。
 
-我们将 1 亿吨级的月球基地建设简化为以下核心任务模块的循环迭代。
+### 1.2 阶段 II：指数爆发期 (Self-Replication Phase)
+*   **特征**: 机器人开始建造机器人（利用月壤提取铝、铁、硅）。此时产能进入指数增长。
+*   **触发条件**: 当本地生产成本 < 地球运输成本，且具备完整的 ISRU 闭环能力。
+*   **数学模型**:
+    $$P(t) = P_{start\_II} \cdot e^{(\eta \cdot \alpha) (t - t_{start\_II})}$$
+*   **参数**:
+    *   $\beta$: 设备产能转化率 (Equipment Leverage) $= 50.0$ (t/y capacity per ton equipment).
+    *   $\eta$: 资源转化效率 (ISRU Efficiency) $= 0.90$.
+    *   $\alpha$: 机器人自我复制的增益常数 (Replication Factor, year$^{-1}$) $= 0.35$.
+    *   **控制论视角**: 这是一个正反馈回路。如果 $\eta \alpha > 1$，系统将产生爆发式增长。
 
-### 1.1 核心任务节点定义 (Task Nodes)
-
-| ID | 任务名称 | 描述 | 估计质量 (Earth/Tier 1+2) | 施工工作量 (Tier 3 Regolith) | 持续时间 (Setup) | 解锁能力 |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **T01** | `Site_Survey_Prep` | 选址、平整土地、信标布置 | 5t (Rovers/Beacons) | 500t (Regolith moving) | 3 Months | 允许后续大规模施工 |
-| **T02** | `Power_Gen_Phase1` | 部署首批核裂变堆 (1MW) | 60t (10x 6t modules) | 200t (Shielding/Berm) | 6 Months | Power: +1MW |
-| **T03** | `Landing_Pad_V1` | 烧结/硬化着陆场 (防止扬尘) | 10t (Sintering Bots) | 2,000t (Sintered Regolith) | 4 Months | Handling: +50t/month |
-| **T04** | `ISRU_Pilot_Plant` | 氧气/金属提取中试工厂 | 20t (Processors) | 100t (Foundation) | 6 Months | Production: +100t/yr |
-| **T05** | `Habitat_Module_A` | 核心加压居住舱 (20人) | 25t (Hard Shell) | 5,000t (Rad-Shielding) | 3 Months | Pop: +20 |
-| **T06** | `ISRU_Industrial` | 大规模工业工厂 (自复制级) | 150t (Tier 1/2 Mix) | 1,000t (Structure) | 12 Months | Production: +5,000t/yr |
-| **T07** | `Power_Gen_Phase2` | 太阳能/核能扩容 (100MW) | 2,000t (Panels/Cables) | 5,000t (Civil works) | 24 Months | Power: +100MW |
-| **T08** | `City_Block_Beta` | 大规模定居点建设 (模块化) | 500t (Int. Fittings) | 100,000t (ISRU Struct) | Continuous | Pop: +1000 |
-
-### 1.2 任务依赖图 (Predecessor Graph)
-
-```mermaid
-graph TD
-    T01[Site Prep] --> T02[Power Ph1]
-    T01 --> T03[Landing Pad]
-    T02 --> T04[ISRU Pilot]
-    T03 --> T04
-    T04 --> T05[Habitat A]
-    T04 --> T06[ISRU Industrial]
-    T06 --> T07[Power Ph2]
-    T06 --> T08[City Block]
-    T07 --> T08
-```
+### 1.3 阶段 III：环境极限期 (Saturation Phase)
+*   **特征**: 受限于月球南极采光面、散热极限或特定稀有元素（如挥发物）的枯竭。
+*   **数学模型** (修正后的逻辑斯谛方程):
+    $$\frac{dP}{dt} = r P \left( 1 - \frac{P}{K(A)} \right) - \phi(D)$$
+*   **参数**:
+    *   $K(A)$: 动态环境承载力 (Carrying Capacity)，随技术进步 $A$ 移动。
+    *   $\phi(D)$: 损耗项 (Depreciation)，代表宇宙射线损伤、月尘磨损导致的报废率。
 
 ## 2. 物流网络定义 (Logistics Network Parameters)
 
@@ -75,32 +60,19 @@ graph TD
 
 | 弧段 (Arc) | 起点 $\to$ 终点 | 典型载具 | 提前期 ($L_a$) | 单次载荷 ($U_a$) | 成本估算 ($C_{a,t}$) | 备注 |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| `Arc_Launch` | Earth $\to$ LLO | Starship (Heavy) | 5 Days | 150t | \$200/kg (2050) | 直飞月球轨道模式 |
+| `Arc_Launch` | Earth $\to$ LLO | Starship (Heavy) | 5 Days | 150t | \$100,000/kg (2050) | 直飞月球轨道模式 |
 | `Arc_Landing` | LLO $\to$ Moon | Starship HLS / Lander | 1 Day | 100t (Downmass) | Inc. in Launch | 着陆消耗大量 $\Delta v$ |
-| `Arc_Elevator` | Earth $\to$ Geo $\to$ Moon | Space Elevator | 7 Days | Cont. Flow | \$20/kg (Ops) | 高固定投入，低变动成本 |
+| `Arc_Elevator` | Earth $\to$ Geo $\to$ Moon | Space Elevator | 7 Days | Cont. Flow | \$20,000/kg (Ops) | 高固定投入，低变动成本 |
 | `Arc_ISRU_Log` | Moon $\to$ Moon | Surface Rovers | 0 Days | N/A | Local Energy | 本地短途运输 |
 
 *   **注**: 模型可简化为 `Earth -> Moon` 的单一等效弧段，Lead Time 取 **6 Days** (Rocket) 或 **14 Days** (Slow Cargo / Elevator).
 
-## 3. 生产与处理能力 (Production & Handling)
+## 3. 处理能力 (Handling Capacity)
 
-### 3.1 挖掘与处理 (Handling Capacity $H(t)$)
-*   **挖掘机效率**: 现代原型机 (如 NASA RASSOR, Lysander) 可达到 **10-30x 自身质量/小时** 的挖掘量。
-*   **保守假设**: 1吨月面挖掘设备 = 10吨/小时挖掘能力 = ~6,000吨/月 (考虑倒班与能源限制)。
-*   **公式**: $H(t) \approx 6000 \times M_{\text{Excavators}}(t)$。
-
-### 3.2 ISRU 产率 (Yields)
-基于 Molten Regolith Electrolysis (MRE) 技术：
-
-| 输入 (Input) | 输出 (Output) | 产率 (Mass Fraction) | 复杂度 (Tier) | 用途 |
-| :--- | :--- | :--- | :--- | :--- |
-| **1.0 kg Regolith** | **Oxygen ($O_2$)** | 0.40 kg | Tier 3 | 呼吸、推进剂 |
-| | **Silicon (Si)** | 0.20 kg | Tier 2/3 | 太阳能板、电子基板 |
-| | **Aluminum (Al)** | 0.10 kg | Tier 3 | 结构件、线缆 |
-| | **Iron/Ti/Slag** | 0.30 kg | Tier 3 | 建筑材料、配重 |
-
-*   **综合转化率**: 假设 Tier 3 建材 (Slag + Al + Fe) 综合产率为 **0.5 kg/kg Regolith**。
-*   **Tier 1/2 产出**: 极少量 (需极高能耗与额外设备)，初期忽略不计，后期 $\eta$ 提升后可达 5-10%。
+为了配合连续增长模型，处理能力 $H(t)$ (挖掘/移动/着陆场吞吐量) 被假定为与生产能力 $P(t)$ 线性相关。
+*   **假设**: 每 1 吨生产能力的维持，需要配比 $k_H$ 吨的处理能力。
+*   **公式**: $H(t) \approx k_H \cdot P(t)$。
+*   **挖掘机效率**: 1吨月面挖掘设备 = ~6,000吨/月 挖掘能力。
 
 ## 4. 全局 BOM 映射 (BOM Mapping)
 
@@ -118,6 +90,9 @@ graph TD
 4.  **高精设备 (High-Tech)**: 10%
     *   芯片、机器人、医疗设备、核反应堆芯。
     *   **来源**: 90% Earth (Tier 1)，10% ISRU (Tier 2 assembly)。
+5.  **水资源需求 (Water Demand)**:
+    *   人均需求: $0.5$ 吨/人/月 (包含循环损耗补充).
+    *   **来源**: 100% ISRU (Ice mining).
 
 **建模线性化建议 (Linearization for Optimization)**:
 *   $M_{total} = \sum W_i + \sum M_{i,r}$。
@@ -153,36 +128,36 @@ Model:
     *   $N_{rate}(t)$ acts as an integer decision variable or controlled parameter (e.g., Max 5000 launches/year).
 *   **Total Capacity**: $Total(t) = N_{rate}(t) \times L_{cap}(t)$.
 5. Wright’s Law Cost Curve
-Assumption: Time-Dependent Exponential Decay (per Eq 3.2 in text).
+Assumption: Time-Dependent Exponential Decay (Wright's Law).
 Parameters:
-$C_{start} = $200/kg$ (2050 Baseline).
-$C_{min} = $20/kg$ (Physical fuel limit).
-$\lambda_c = 0.01$ month$^{-1}$ (Halves every ~6 years).
-Formula: $Cost(t) = (200 - 20) \cdot e^{-0.01 t} + 20$.
-6. ISRU Bootstrapping (Seed Input)
-Assumption: Task-Based Capability Steps (Stepwise Function).
-Logic: We do not use a continuous differential equation for "Seed T1". Instead, specific Tasks (e.g., "Build T06 ISRU Plant") require a fixed input of Earth Mass ($M_{Earth}$). Upon completion, they increment the global state $P(t)$.
-T1 Definition: Defined in the BOM of each Task node (the earth_mass_t column).
-7. Task Duration
-Assumption: Fixed Duration (Metadata).
-Reasoning: While Eq 3.7 suggests dynamic duration ($W/V(t)$), solving for variable task durations in MILP is extremely computationally expensive. We assume fixed "Setup Time" (duration defined in WBS) but allow Dynamic Start Times ($u_{i,t}$).
+$C_{base} = $870,600/kg$ (2024 Baseline).
+$C_{min} = $20,000/kg$.
+$\lambda_c = 0.01$ month$^{-1}$.
+Formula: $Cost(t) = (C_{base} - C_{min}) \cdot e^{-\lambda t} + C_{min}$.
+6. ISRU Bootstrapping (Continuous Input)
+Assumption: Linear & Exponential Phases.
+Logic: We replace the "Stepwise Function" with a continuous flow model.
+*   **Phase I**: $\Delta P \propto \Delta M_{Earth}$. Global capacity rises linearly as machinery arrives.
+*   **Phase II**: $\Delta P \propto P(t)$. Global capacity rises exponentially as machinery replicates.
+*   Transition: Occurs when $P(t)$ reaches critical mass for self-replication (e.g., capable of producing Tier 2 components).
+
+7. Phase Durations
+Assumption: Endogenous Transition.
+Logic: We do not set fixed task durations (e.g., "6 months"). Instead, the duration of each phase is determined by the *Growth Rate*.
+*   $T_{Phase\_I} = P_{critical} / Rate_{shipping}$.
+*   $T_{Phase\_II} = \ln(K/P_{critical}) / (\eta \alpha)$.
+
 8. Handling Capacity ($H(t)$)
-Assumption: Tied to Tasks.
-Logic: $H(t)$ is a state variable increased by completing specific tasks (e.g., T03_Landing_Pad adds +50t/mo capacity). It is not a separate decision variable.
+Assumption: Proportional to Production.
+Logic: $H(t) = k \cdot P(t)$. We assume the ratio of "Diggers" to "Processors" remains optimal throughout the growth curve.
+
 9. Inventory Policies
-Assumption: Unlimited Pre-positioning.
-Logic: $I_{Moon}(t+1) = I_{Moon}(t) + Inflow - Outflow$. No upper bound constraint ($I_{max}$) is applied to storage, assuming lunar space is effectively infinite.
+Assumption: Continuous Flow (JIT Approximation).
+Logic: Since we model long-term capacity ($P(t)$), we assume material buffers ($I(t)$) are transient. The constraint is on *Flow Rate* rather than *Stockpile*.
+
 10. Energy vs. Transport Pivot
 Assumption: Pivot Condition = Cost Cross-over.
 Quantification: The pivot occurs when Local Production Cost < Transport Cost.
-Transport Cost: $Cost_{Trans}(t)$ (from curve above).
-Local Cost: Energy Cost ($\approx $0.10/kWh$) $\times$ Energy Intensity ($500 kWh/kg$ for metals) $\approx $50/kg$.
-Result: When Rocket Cost drops below $$50/kg$, or Elevator is built ($$20/kg$), the dynamic balance shifts.9. Inventory Policies
-Assumption: Unlimited Pre-positioning.
-Logic: $I_{Moon}(t+1) = I_{Moon}(t) + Inflow - Outflow$. No upper bound constraint ($I_{max}$) is applied to storage, assuming lunar space is effectively infinite.
-10. Energy vs. Transport Pivot
-Assumption: Pivot Condition = Cost Cross-over.
-Quantification: The pivot occurs when Local Production Cost < Transport Cost.
-Transport Cost: $Cost_{Trans}(t)$ (from curve above).
-Local Cost: Energy Cost ($\approx $0.10/kWh$) $\times$ Energy Intensity ($500 kWh/kg$ for metals) $\approx $50/kg$.
-Result: When Rocket Cost drops below $$50/kg$, or Elevator is built ($$20/kg$), the dynamic balance shifts.
+*   Transport Cost: $Cost_{Trans}(t)$ decreases via Wright's Law.
+*   Local Cost: Fixed Energy Cost ($\approx \$0.10/kWh \times 500 kWh/kg \approx \$50/kg$).
+*   **Result**: When Transport Cost < \$50/kg (e.g., Space Elevator era), Earth inputs might surge again, or conversely, if Transport > \$50/kg, ISRU is preferred. This dynamic decides the mix.

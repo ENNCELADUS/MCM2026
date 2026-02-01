@@ -2,12 +2,10 @@
 
 ## 1. 物理分析 (Physical Analysis)
 
-*   **系统架构**：这是一个**离散时间（Discrete-Time）**、**多货类（Multi-Commodity）**、**混合整数线性规划（MILP）**模型。
+*   **系统架构**：这是一个**混合系统动力学（System Dynamics）与网络流（Network Flow）**模型。
 *   **核心耦合**：
-    *   **上层（任务网）**：AON/RCPSP 任务网络，决定能力（Capacity）的阶跃式增长。
-    *   **下层（物流网）**：时空网络流（Time-Expanded Network），决定物资运输与分配，受限于上层提供的能力。
-*   **时间离散化**：时间步长 $\Delta t$（默认 1 个月），总时长 $T_{max}$。
-*   **物流守恒**：严格遵守质量守恒，物资从地球出发 -> 运输延迟 -> 月面缓冲区 -> handling 验收 -> 可用库存 -> 任务消耗。
+    *   **上层（产能演化）**：基于微分方程（或其离散化形式）的连续增长模型，决定月球基地的**生产能力 (P)**、**处理能力 (H)** 和 **承载力 (Pop)**。
+    *   **下层（物流网络）**：受制于能力约束的时空网络流，决定物资运输分配以维持或加速上层的增长。
 
 ---
 
@@ -19,131 +17,77 @@
 | 符号 | 代码对应 | 定义 |
 | :--- | :--- | :--- |
 | $t \in \mathcal{T}$ | `m.T` | 时间步索引 $[0, T_{horizon}-1]$ |
-| $n \in \mathcal{N}$ | `m.N` | 节点集合 (Earth Launch Sites, Earth Ports, Moon) |
-| $a \in \mathcal{A}$ | `m.A` | 弧段集合 (Rocket, Elevator, Transfer, Ground) |
-| $r \in \mathcal{R}$ | `m.R` | 物资资源集合 (Structure, Equipment, Fuel, etc.) |
-| $i \in \mathcal{I}$ | `m.I` | 任务集合 (WBS Tasks) |
-| $\mathcal{I}_V \subset \mathcal{I}$ | `m.I_V` | 能力构建任务集 (Capability Tasks) |
-| $\mathcal{I}_{nonV} \subset \mathcal{I}$ | `m.I_nonV` | 普通建设任务集 (Construction Tasks) |
+| $n \in \mathcal{N}$ | `m.N` | 节点集合 (Earth, Moon) |
+| $a \in \mathcal{A}$ | `m.A` | 弧段集合 (Rocket, Elevator) |
+| $r \in \mathcal{R}$ | `m.R` | 物资资源集合 (Tier 1/2/3) |
+| $\Phi \in \{I, II, III\}$ | - | 增长阶段集合 (Bootstrapping, Replication, Saturation) |
 
-### 参数 (Parameters)
+### 关键参数 (Parameters)
 | 符号 | 代码对应 | 定义 |
 | :--- | :--- | :--- |
-| $\Delta t$ | `delta_t` | 单步时长 (s) |
-| $L_a$ | `arc_lead[a]` | 弧段运输提前期 (steps) |
-| $cost_{a,t}$ | `arc_cost[a,t]` | 弧段 $a$ 在 $t$ 时刻的单位运输成本 ($/kg) |
-| $W_i$ | `W[i]` | 任务 $i$ 的总工作量 (kg) |
-| $M^{Earth}_{i,r}$ | `M_earth[i,r]` | 任务 $i$ 必需的地球物资需求总量 (kg) |
-| $M^{Moon}_{i,r}$ | `M_moon[i,r]` | 任务 $i$ 必需的月面物资需求总量 (kg) |
-| $M^{Flex}_{i,r}$ | `M_flex[i,r]` | 任务 $i$ 的弹性物资需求总量 (kg) |
-| $\Delta P_i, \Delta V_i, \dots$ | `delta_P[i]`, etc. | 任务 $i$ 完成后的能力增量 |
-| $d_{install}$ | `d_install` | 重资产安装调试延迟 (steps) |
-| $Rate^{Rocket}_{max}(t)$ | `rocket_launch_rate[t]` | 火箭最大发射频次限制 (launches/step) |
-| $Cap^{Rocket}(t)$ | `rocket_payload[t]` | 单枚火箭有效载荷 (kg) |
-| $Cap^{Elev}_{max}$ | `elevator_capacity_upper_kg_s` | 电梯系统运力上限 (kg/s) |
-| $H_0, V_0, P_0, \dots$ | `initial_capacities` | 初始能力水平 |
+| $\eta$ | `isru_efficiency` | ISRU 闭环转化效率 (每吨设施产出多少吨新设施/年) |
+| $\alpha$ | `replication_factor` | 自我复制因子 |
+| $K$ | `carrying_capacity` | 环境/能源承载力上限 (t/yr) |
+| $H_{ratio}$ | `handling_ratio` | 单位生产能力所需的配套处理能力 ($H \approx k \cdot P$) |
+| $Cost_{Trans}(t)$ | `arc_cost` | 地月运输成本 (随 Wright's Law 衰减) |
+| $Cost_{Local}$ | - | 本地生产边际成本 (能源 + 损耗) |
 
 ### 决策变量 (Decision Variables)
-| 符号 | 代码对应 | 类型 | 定义 |
-| :--- | :--- | :--- | :--- |
-| $x_{a,r,t}$ | `m.x[a,r,t]` | Continuous | $t$ 时刻进入弧段 $a$ 的物资 $r$ 流量 (kg) |
-| $y_{a,t}$ | `m.y[a,t]` | Integer | $t$ 时刻弧段 $a$ 启用的运输工具数量 (count) |
-| $N_{rate}(t)$ | `m.N_rate[t]` | Integer | $t$ 时刻的实际火箭发射总次数 |
-| $u_{i,t}$ | `m.u[i,t]` | Binary | 任务 $i$ 在 $t$ 时刻**是否已完成** (Cumulative status) |
-| $u^{done}_{i,t}$ | `m.u_done[i,t]` | Binary | 任务 $i$ **刚好在** $t$ 时刻完成 (Pulse) |
-| $z_{i,t}$ | `m.z[i,t]` | Binary | 任务 $i$ 在 $t$ 时刻是否正在进行 (Active) |
-| $v_{i,t}$ | `m.v[i,t]` | Continuous | 任务 $i$ 在 $t$ 时刻完成的工作量 (kg) |
-| $q^E_{i,r,t}, q^M_{i,r,t}$ | `m.q_E`, `m.q_M` | Continuous | 任务 $i$ 在 $t$ 时刻消耗的 地球/月面 物资 (kg) |
-| $Q_{r,t}$ | `m.Q[r,t]` | Continuous | 月面 ISRU 在 $t$ 时刻的产量 (kg) |
-| $A^E_{r,t}$ | `m.A_E[r,t]` | Continuous | 月面在 $t$ 时刻验收 (Handling) 的地球物资量 (kg) |
-| $I^E_{n,r,t}, I^M_{r,t}$ | `m.I_E`, `m.I_M` | Continuous | 各节点库存水平 (kg) |
-| $B^E_{r,t}$ | `m.B_E[r,t]` | Continuous | 月面到货缓冲区库存 (kg) |
-| $P_t, V_t, H_t, \dots$ | `m.P`, `m.V`, ... | Continuous | $t$ 时刻的各项实际能力水平 (State) |
+| 符号 | 类型 | 定义 |
+| :--- | :--- | :--- |
+| $x_{a,r,t}$ | Continuous | 物流网络流量 (运输量) |
+| $P_t, H_t$ | Continuous | **状态变量**: $t$ 时刻的月面生产与处理能力 |
+| $I^M_{r,t}$ | Continuous | 月面物资库存 |
+| $\delta^{Growth}_t$ | Continuous | $t$ 时刻投入产能扩建的资源量 (Reinvestment) |
+| $\delta^{City}_t$ | Continuous | $t$ 时刻投入城市建设的资源量 (Consumption) |
 
 ---
 
 ## 3. 模型构建 (Model Formulation)
 
-### 3.1 任务网络与能力演化 (Level 1)
+### 3.1 产能演化动力学 (Capacity Dynamics)
 
-#### 任务完成逻辑
-*   **状态关联**：$u_{i,t} = \sum_{\tau=0}^t u^{done}_{i,\tau}$ (累积完成状态)
-*   **唯一完成**：$\sum_t u^{done}_{i,t} = 1$ (每个任务必须且只能完成一次)
-*   **全部完成**：$u_{i, T_{end}} \ge 1$ (所有任务必须在规划期结束前完成)
+模型不再通过离散任务 ($u_{i,t}$) 升级能力，而是遵循以下**状态转移方程**：
 
-#### 能力动态更新 (Capacity Evolution)
-能力值由**已完成**的任务累积决定，考虑安装延迟 $d_{install}$：
-$$
-\begin{aligned}
-P_t &= P_0 + \sum_{i \in \mathcal{I}} \Delta P_i \cdot u_{i, t-d_{install}} \\
-V_t &= V_0 + \sum_{i \in \mathcal{I}_V} \Delta V_i \cdot u_{i, t-d_{install}} \\
-H_t &= H_0 + \sum_{i \in \mathcal{I}} \Delta H_i \cdot u_{i, t-d_{install}} \\
-Pop_t &= Pop_0 + \sum_{i \in \mathcal{I}} \Delta Pop_i \cdot u_{i, t-d_{install}} \\
-Power_t &= Power_0 + \sum_{i \in \mathcal{I}} \Delta Power_i \cdot u_{i, t-d_{install}}
-\end{aligned}
-$$
-> 注：$V_t$ (Construction Capacity) 仅由 $\mathcal{I}_V$ (Capability Tasks) 提升，体现了工业基础的自我扩充 ($V \to V$)。
+#### 阶段 I：引导期 (Bootstrapping)
+在此阶段，产能增长完全依赖地球输入的“种子设施” ($M_{Earth}$)。
+$$ P_{t+1} = P_t + \beta \cdot \text{Inflow}^{Tier1}_{t} $$
+*   $\text{Inflow}^{Tier1}_{t}$：从地球运抵的高精设备量。
+*   $\beta$：单位设备转化系数。
 
----
+#### 阶段 II：指数爆发期 (Self-Replication)
+当具备本地闭环能力后，产能增长来源于**再投资** ($\delta^{Growth}$)。
+$$ P_{t+1} = P_t + \eta \cdot \delta^{Growth}_t $$
+约束：
+1.  **原料限制**：$\delta^{Growth}_t \le I^M_{Tier3, t}$ (需消耗本地建材)
+2.  **产能限制**：再投资量不能超过当前产能的剩余部分。
 
-### 3.2 物流与库存控制 (Level 2)
+#### 阶段 III：饱和期 (Saturation)
+引入环境阻尼项 $\phi(P)$：
+$$ P_{t+1} = P_t + \eta \cdot \delta^{Growth}_t - \text{Decay}(P_t) $$
+且 $P_t \le K$ (总上限)。
 
-#### 运输能力约束
-*   **火箭总发射限制**：$\sum_{a \in \text{Launch}} y_{a,t} \le N_{rate}(t)$ (全局发射场瓶颈)
-*   **弧段载荷限制**：
-    $$ \sum_r x_{a,r,t} \le Cap_a(t) \cdot y_{a,t} $$
-    *   对于 **Rocket** 弧段：$Cap_a(t) = Cap^{Rocket}(t)$ (随时间增长, logistic growth)
-    *   对于 **Elevator** 弧段：$Cap_a(t) = Cap^{Elev}_{Payload}$
-*   **电梯总通量限制**：$\sum_{a \in \text{Elev}} \sum_r x_{a,r,t} \le C_E(t) \cdot \Delta t$ (目前代码中 $C_E$ 为常数 $C_{E,0}$)
+### 3.2 供需平衡 (Supply & Demand)
 
-#### 库存平衡方程 (Inventory Balance)
-*   **一般节点** ($n \neq Moon$)：
-    $$ I^E_{n,r,t} = I^E_{n,r,t-1} + \sum_{a \to n} x_{a,r, t-L_a} - \sum_{a \leftarrow n} x_{a,r,t} $$
-*   **月面缓冲区** ($B^E$)：到达但未验收的货物
-    $$ B^E_{r,t} = B^E_{r,t-1} + \sum_{a \to Moon} x_{a,r, t-L_a} - A^E_{r,t} $$
-*   **月面地球物资库存** ($I^E_{Moon}$)：已验收货物
-    $$ I^E_{Moon,r,t} = I^E_{Moon,r,t-1} + A^E_{r,t} - \sum_i q^E_{i,r,t} $$
-*   **月面本地物资库存** ($I^M$)：ISRU 生产货物
-    $$ I^M_{r,t} = I^M_{r,t-1} + Q_{r,t} - \sum_i q^M_{i,r,t} $$
+#### 生产侧
+$$ \text{Total\_Output}_t \le P_t \cdot \Delta t $$
+产出被分配为两部分：
+$$ \text{Total\_Output}_t = \delta^{Growth}_t (\text{扩产}) + \delta^{City}_t (\text{城建}) $$
 
-#### 生产与验收能力约束
-*   **Handling Capacity** (接收/搬运/安装)：
-    $$ \sum_r A^E_{r,t} + \sum_{i \in \mathcal{I}_V} v_{i,t} \le H_t \cdot \Delta t $$
-    > 关键逻辑：Handling 能力同时用于**卸货** ($A^E$) 和**能力构建任务的施工** ($v$ for $I_V$)。
-*   **ISRU Production Capacity**：
-    $$ \sum_r Q_{r,t} \le P_t \cdot \Delta t $$
-*   **Construction Capacity**：
-    $$ \sum_{i \in \mathcal{I}_{nonV}} v_{i,t} \le V_t \cdot \Delta t $$
-    > 注：普通任务消耗 $V_t$，能力构建任务消耗 $H_t$。
+*   $\delta^{Growth}_t$：进入正反馈循环，加速下期 $P$ 增长。
+*   $\delta^{City}_t$：用于满足 10 万人城市的建设需求 (最终目标)。
 
----
+### 3.3 目标函数
 
-### 3.3 任务执行与资源耦合
+$$ \min \ \left( w_C \cdot \sum \text{TransportCost} + w_T \cdot T_{completion} \right) $$
 
-#### 工作量累计
-$$ \sum_{t} v_{i,t} = W_i $$
-同时受最大速率限制：$v_{i,t} \le Rate^{max}_i \cdot z_{i,t}$
+*   **Completion**: 定义为累积 $\sum \delta^{City}_t \ge 10^8$ (一亿吨城市建成) 的时刻。
+*   **Trade-off**:
+    *   早期多运设备 ($\uparrow$ Cost) $\to$ 缩短 Phase I $\to$ 早进入指数增长 $\to$ $\downarrow$ Time。
+    *   晚期多运成品 ($\uparrow$ Cost) $\to$ 直接增加 $\delta^{City}$。
 
-#### 物资-工作量 严格耦合 (Material Constraints)
-任务必须先获得物资分配，才能开展工作 (Work progress $\le$ Material Allocated)：
-$$ \sum_{\tau \le t} v_{i,\tau} \le \sum_r \sum_{\tau \le t} (q^E_{i,r,\tau} + q^M_{i,r,\tau}) $$
-> 隐含了 Flexible 物资的分配决策：无需显式变量 $k_{i,r}$，模型自动决定取 $q^E$ 还是 $q^M$ 以满足总需求。
-
-#### 紧前关系 (Precedence)
-如果任务 $j$ 是 $i$ 的紧前任务 ($j \in Pred(i)$)：
-*   **Prepositioning Enabled**：任务 $i$ 的**工作开展**必须在 $j$ 完成之后。
-    $$ \sum_{\tau \le t} v_{i,\tau} \le W_i \cdot u_{j,t} $$
-*   **Strict JIT**：不仅工作受限，任务 $i$ 的**物资**也不能在 $j$ 完成前到达 (Optional constraint)。
-
----
-
-### 3.4 目标函数 (Objective)
-
-$$ \min \ \left( w_C \cdot \text{TotalCost} + w_T \cdot T_{end} \right) $$
-
-其中：
-*   **TotalCost** = $\sum_t \sum_a \sum_r x_{a,r,t} \cdot cost_{a,t}$
-    *   $cost_{a,t}$ 包含随时间 $t$ 衰减的运费 (Wright's Law)。
-*   **TimeCost** = $w_T \cdot T_{end}$ (惩罚完工时间)。
-
-此目标函数驱动模型在“昂贵但快”（如早期高频发射）和“便宜但慢/需等待”（如等待技术成熟、等待 ISRU 扩产）之间寻找平衡。
+### 3.4 线性化处理 (optimization.py 实现注记)
+为了保留 MILP 的求解优势：
+1.  **分段线性化**: 将 Phase II 的指数增长 $P_{t+1} = (1+r)P_t$ 建模为线性约束。
+2.  **状态变量**: $P_t$ 作为显式连续变量。
+3.  **模式切换**: 引入 Binary 变量 $z_{PhaseII, t}$ 指示当前是否处于自我复制模式（通常当 $Cost_{Local} < Cost_{Trans}$ 时激活）。

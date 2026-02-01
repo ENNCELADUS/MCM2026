@@ -6,10 +6,10 @@
 # Time Parameters
 # -----------------------------------------------------------------------------
 time:
-  delta_t: 31536000  # 1 year in seconds (365 * 24 * 3600)
-  T_max: 100         # Maximum time horizon (years)
+  delta_t: 2628000   # 1 month in seconds (365 * 24 * 3600 / 12)
+  T_max: 1200         # Maximum time horizon (time steps)
   start_year: 2050   # Calendar year for t=0 (Phase I start)
-  steps_per_year: 1
+  steps_per_year: 12
 
 # -----------------------------------------------------------------------------
 # Unit Conversions
@@ -162,6 +162,7 @@ costs:
       base_year: 2024
       base_cost_usd_per_kg: 870600
       annual_decay_rate: 0.055
+      decay_rate_monthly: 0.01
       min_cost_usd_per_kg: 20000
 
 # -----------------------------------------------------------------------------
@@ -220,237 +221,57 @@ parameter_summary:
         - id: "tier_1"
           name: "precision_seed"
           class: 1
-          chi:
-            min: 0.99
-            max: 1.0
           share_initial: 0.15
-          share_final_max: 0.01
-          source_policy: "earth_only"
           resources: ["electronics"]
-          examples: ["chips", "sensors"]
         - id: "tier_2"
           name: "industrial_core"
           class: 2
-          chi:
-            min: 0.3
-            max: 0.7
           share_initial: 0.35
-          share_final: 0.04
-          source_policy: "mixed"
           resources: ["equipment", "life_support"]
-          examples: ["motors", "tools"]
         - id: "tier_3"
           name: "basic_resources"
           class: 3
-          chi:
-            min: 0.0
-            max: 0.1
           share_initial: 0.5
-          share_final_min: 0.95
-          source_policy: "isru_only"
           resources: ["structure", "water", "fuel"]
-          examples: ["structure", "oxygen", "water"]
   transport:
     capacities:
-      rocket_capacity:
-        growth_model: "logistic"
-        year_2050_single_launch_capacity_mt:
-          min: 100
-          max: 150
-        max_capacity_mt: 250
       elevator_capacity_fixed_tpy: 179000  # 固定 179000 t/year
-    cost_model:
-      launch_cost_model: "wrights_law_plus_transcost"
-      year_2050_cost_usd_per_kg:
-        min: 100000
-        max: 200000
-  isru:
-    bootstrapping:
-      eta:
-        min: 0.90
-        max: 0.98
-      phi:
-        initial:
-          min: 0.6
-          max: 0.8
-        mature: 0.1
-      alpha_per_year:
-        min: 0.2
-        max: 0.4
-      beta:
-        min: 10
-        max: 100
-      gamma:
-        note: "class2_to_class3"
-        magnitude: ">>1"
-      seed_input_source: "task_earth_mass"
-      mode: "stepwise_task_unlocks"
-    yields:
-      regolith_to_oxygen: 0.40
-      regolith_to_silicon: 0.20
-      regolith_to_aluminum: 0.10
-      regolith_to_slag: 0.30
-      tier3_combined_yield: 0.50
-      tier1_2_late_stage_yield:
-        min: 0.05
-        max: 0.10
   colony:
     target:
       population: 100000
-    phases:
-      pivot_condition: "local_energy_cost < transport_cost"
-      timeline:
-        - phase: "Phase I"
-          years:
-            start: 2050
-            end: 2060
-          description: "seed stage (T1,T2 dependent)"
-        - phase: "Phase II"
-          years:
-            start: 2060
-            end: 2080
-          description: "expansion stage (P2,P3 exponential growth)"
-        - phase: "Phase III"
-          years:
-            start: 2080
-          description: "mature self-sufficiency (T -> 0)"
-  environment:
-    transport_constraint:
-      index: "WEI"
-      black_carbon_weight: 500
-    energy_transport_pivot:
-      local_energy_cost_usd_per_kwh: 0.10
-      energy_intensity_kwh_per_kg: 500000
-      pivot_condition: "transport_cost < local_cost"
+    requirements:
+      water_per_capita_per_month: 0.5  # tons/person/month (assumption: 16-17 kg/day? High but simple)
 
 # -----------------------------------------------------------------------------
 # Implementation Details (from outline/assumptions/implementation_details.md)
 # -----------------------------------------------------------------------------
 implementation_details:
-  tasks:
-    wbs_tasks:
-      - id: "T01"
-        name: "Site_Survey_Prep"
-        task_type: "capability"
-        predecessors: []
-        earth_mass_t: 5
-        regolith_mass_t: 500
-        duration_months: 3
-        unlocks:
-          power_mw: 0
-          construction_t_per_month: 0
-          handling_t_per_month: 0
-          production_t_per_year: 0
-          population: 0
-      - id: "T02"
-        name: "Power_Gen_Phase1"
-        task_type: "capability"
-        predecessors: ["T01"]
-        earth_mass_t: 60
-        regolith_mass_t: 200
-        duration_months: 6
-        unlocks:
-          power_mw: 1
-          construction_t_per_month: 0
-          handling_t_per_month: 0
-          production_t_per_year: 0
-          population: 0
-      - id: "T03"
-        name: "Landing_Pad_V1"
-        task_type: "capability"
-        predecessors: ["T01"]
-        earth_mass_t: 10
-        regolith_mass_t: 2000
-        duration_months: 4
-        unlocks:
-          power_mw: 0
-          construction_t_per_month: 100
-          handling_t_per_month: 50
-          production_t_per_year: 0
-          population: 0
-      - id: "T04"
-        name: "ISRU_Pilot_Plant"
-        task_type: "capability"
-        predecessors: ["T02", "T03"]
-        earth_mass_t: 20
-        regolith_mass_t: 100
-        duration_months: 6
-        unlocks:
-          power_mw: 0
-          construction_t_per_month: 0
-          handling_t_per_month: 0
-          production_t_per_year: 100
-          population: 0
-      - id: "T05"
-        name: "Habitat_Module_A"
-        task_type: "construction"
-        predecessors: ["T04"]
-        earth_mass_t: 25
-        regolith_mass_t: 5000
-        duration_months: 3
-        unlocks:
-          power_mw: 0
-          construction_t_per_month: 0
-          handling_t_per_month: 0
-          production_t_per_year: 0
-          population: 20
-      - id: "T06"
-        name: "ISRU_Industrial_Bootstrapping"
-        task_type: "capability"
-        predecessors: ["T04"]
-        earth_mass_t: 5000            # "Seed" mass for self-replicating factory (~33 Starships)
-        regolith_mass_t: 50000        # Local material for initial machines
-        duration_months: 24           # Time to replicate to maturity
-        unlocks:
-          power_mw: 0
-          construction_t_per_month: 200000   # Initial construction capability upgrade
-          handling_t_per_month: 0
-          production_t_per_year: 2000000     # 2M tons/year (Bootstrapped Industry)
-          population: 0
-          handling_t_per_month: 2000         # Upgrade to handle next phase inputs (2000t/mo)
-      - id: "T07"
-        name: "Power_Gen_Phase2_Grid"
-        task_type: "capability"
-        predecessors: ["T06"]
-        earth_mass_t: 10000           # Massive solar/nuclear core components
-        regolith_mass_t: 200000
-        duration_months: 36
-        unlocks:
-          power_mw: 50000             # 50 GW (Industrial Scale)
-          construction_t_per_month: 10000000 # 10M tons/month (Swarm Construction)
-          handling_t_per_month: 50000 # Spaceport Upgrade (50,000 t/mo) to handle city components
-          production_t_per_year: 0
-          population: 0
-      - id: "T08"
-        name: "City_Construction_Main"
-        task_type: "construction"
-        predecessors: ["T06", "T07"]
-        earth_mass_t: 500000
-        regolith_mass_t: 100000000
-        duration_months: 240
-        unlocks:
-          power_mw: 0
-          construction_t_per_month: 0
-          handling_t_per_month: 0
-          production_t_per_year: 0
-          population: 100000
+  growth_model:
+    initial_state:
+      P_0: 0.1          # Production (t/y) approx 3500 t/y
+      H_ratio: 1.5      # Handling capacity buffer ratio
+      
+    phases:
+      # P(t) = P(t-1) + beta * Inflow_Tier1
+      bootstrapping:
+        beta_equipment_to_capacity: 50.0  # 1 ton Tier1 -> 50 t/y capacity (High leverage)
+        
+      # P(t) = P(t-1) + eta * delta_Growth - depreciation
+      replication:
+        eta_isru_efficiency: 0.90
+        alpha_replication_rate: 0.35      # 35% growth per year 
+        
+      # P(t) capped by K
+      saturation:
+        carrying_capacity_tpy: 50000000   # 50M t/y
+        decay_rate_phi: 0.05              # 5% annual depreciation
 
-    duration:
-      fixed_setup_time: true
-      note: "duration_months in WBS"
   logistics:
     handling_capacity:
       excavator_efficiency_t_per_hour_per_ton: 10
       handling_t_per_month_per_ton_excavator: 6000
-      tied_to_tasks: true
-      note: "increments from WBS unlocks"
     time_discretization:
-      steps_per_month: 1
       threshold_days: 15
-      arrival_rule: "lead_lt_threshold_same_month_else_next"
-    inventory_policy:
-      unlimited_prepositioning: true
-      note: "no upper bound on storage"
   materials:
     bom_mapping:
       total_demand_tons: 100000000
@@ -458,7 +279,6 @@ implementation_details:
         - id: "infrastructure"
           share: 0.40
           source_policy: "isru_only"
-          notes: "radiation shielding, landing pads, roads"
         - id: "structures"
           share: 0.30
           source_policy: "earth_then_isru"
@@ -472,10 +292,6 @@ implementation_details:
           source_policy: "earth_dominant"
           earth_share: 0.90
           isru_share: 0.10
-  modeling:
-    linearization_guidance:
-      total_mass_equation: "M_total = sum W_i + sum M_{i,r}"
-      bottleneck_note: "Tier1/2 transport is primary bottleneck"
 
 # -----------------------------------------------------------------------------
 # Optimization Bounds & Variable Domains
@@ -492,8 +308,8 @@ optimization:
 # -----------------------------------------------------------------------------
 objective:
   w_C: 1.0      # Cost weight
-  w_T: 1.0      # Time weight ($/month equivalent) - Scaled down for numerical stability
-
+  w_T: 10000      # Time weight ($/month equivalent) 
+  
 # -----------------------------------------------------------------------------
 # Solver Settings
 # -----------------------------------------------------------------------------

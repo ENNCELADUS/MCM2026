@@ -6,7 +6,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from utils import ConfigTracker
-    from config.settings import ModelSettings, TaskDefinition
+    from config.settings import ModelSettings
 
 
 @dataclass
@@ -48,7 +48,7 @@ class ModelData:
     nodes: list[Node]
     arcs: list[Arc]
     resources: list[Resource]
-    tasks: list[TaskDefinition]
+    growth_params: dict[str, Any]  # New growth model parameters
     settings: ModelSettings
     constants: ConfigTracker | dict[str, Any]
 
@@ -62,37 +62,28 @@ class ModelData:
 class StateVariables:
     """
     State variables at each time step t.
-
-    Corresponds to Section 2 of model.md.
     """
 
     T: int  # Number of time steps
     R: int  # Number of resource types
     N: int  # Number of nodes
     A: int  # Number of arcs
-    I: int  # Number of tasks
 
-    # Capacity states (evolve via task completion)
-    P: np.ndarray = field(default=None)  # (T,) ISRU production capacity
-    V: np.ndarray = field(default=None)  # (T,) Construction capacity
-    H: np.ndarray = field(default=None)  # (T,) Handling capacity
-    Pop: np.ndarray = field(default=None)  # (T,) Population capacity
-    Power: np.ndarray = field(default=None)  # (T,) Power capacity (MW)
+    # Capacity states (System Dynamics variables)
+    P: np.ndarray = field(default=None)  # (T,) ISRU production capacity [state]
+    H: np.ndarray = field(default=None)  # (T,) Handling capacity [state]
+    Pop: np.ndarray = field(default=None)  # (T,) Population capacity [state]
+    Power: np.ndarray = field(default=None)  # (T,) Power capacity [state]
 
     # Inventory states
     I_E: np.ndarray = field(default=None)  # (N, R, T) Earth-origin inventory at nodes
     I_M: np.ndarray = field(default=None)  # (R, T) Moon-origin inventory (Moon only)
     B_E: np.ndarray = field(default=None)  # (R, T) Arrival buffer at Moon
 
-    # Task states
-    u: np.ndarray = field(default=None)  # (I, T) Task completion indicator (binary)
-
     def __post_init__(self):
         """Initialize arrays if not provided."""
         if self.P is None:
             self.P = np.zeros(self.T)
-        if self.V is None:
-            self.V = np.zeros(self.T)
         if self.H is None:
             self.H = np.zeros(self.T)
         if self.Pop is None:
@@ -105,8 +96,6 @@ class StateVariables:
             self.I_M = np.zeros((self.R, self.T))
         if self.B_E is None:
             self.B_E = np.zeros((self.R, self.T))
-        if self.u is None:
-            self.u = np.zeros((self.I, self.T), dtype=int)
 
 
 # =============================================================================
@@ -118,28 +107,26 @@ class StateVariables:
 class DecisionVariables:
     """
     Decision variables for optimization.
-
-    Corresponds to Section 2 of model.md.
     """
 
     T: int
     R: int
     A: int
-    I: int
 
-    # Flow decisions
+    # Flow decisions (Logistics)
     x_E: np.ndarray = field(default=None)  # (A, R, T) Earth-origin flow on arcs
     y: np.ndarray = field(default=None)  # (A, T) Number of transport units dispatched
 
-    # Moon operations
+    # Moon operations (Supply/Demand)
     A_E: np.ndarray = field(default=None)  # (R, T) Acceptance from buffer to usable
     Q: np.ndarray = field(default=None)  # (R, T) ISRU production
 
-    # Task execution
-    q_E: np.ndarray = field(default=None)  # (I, R, T) Earth-origin material allocation
-    q_M: np.ndarray = field(default=None)  # (I, R, T) Moon-origin material allocation
-    v: np.ndarray = field(default=None)  # (I, T) Construction work done
-    k: np.ndarray = field(default=None)  # (I, R) Flexibility ratio (Earth vs Moon)
+    # Capacity Growth Flows (System Dynamics)
+    delta_Growth: np.ndarray = field(default=None)  # (T,) Reinvestment into P (kg/year)
+    delta_City: np.ndarray = field(default=None)    # (T,) Consumption for City (kg/year)
+    
+    # Phase control
+    z_PhaseII: np.ndarray = field(default=None)     # (T,) Binary: 1 if in Phase II (Replication)
 
     def __post_init__(self):
         """Initialize arrays if not provided."""
@@ -151,11 +138,9 @@ class DecisionVariables:
             self.A_E = np.zeros((self.R, self.T))
         if self.Q is None:
             self.Q = np.zeros((self.R, self.T))
-        if self.q_E is None:
-            self.q_E = np.zeros((self.I, self.R, self.T))
-        if self.q_M is None:
-            self.q_M = np.zeros((self.I, self.R, self.T))
-        if self.v is None:
-            self.v = np.zeros((self.I, self.T))
-        if self.k is None:
-            self.k = np.zeros((self.I, self.R))
+        if self.delta_Growth is None:
+            self.delta_Growth = np.zeros(self.T)
+        if self.delta_City is None:
+            self.delta_City = np.zeros(self.T)
+        if self.z_PhaseII is None:
+            self.z_PhaseII = np.zeros(self.T, dtype=int)

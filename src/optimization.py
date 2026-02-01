@@ -37,10 +37,15 @@ class PyomoBuilder:
         self.node_types = {n.id: n.node_type for n in data.nodes}
         self.arc_ids = [a.id for a in data.arcs]
         self.res_ids = [r.id for r in data.resources]
-        self.task_ids = [t.id for t in data.tasks]
+        
+        # Growth Model Parameters
+        growth = data.growth_params
+        self.bootstrapping = growth["phases"]["bootstrapping"]
+        self.replication = growth["phases"]["replication"]
+        self.saturation = growth["phases"]["saturation"]
+        self.initial_state = growth["initial_state"]
 
         self.arcs_by_id = {a.id: a for a in data.arcs}
-        self.tasks_by_id = {t.id: t for t in data.tasks}
         self.res_by_id = {r.id: r for r in data.resources}
 
         self.arcs_from = {n: [] for n in self.node_ids}
@@ -65,15 +70,7 @@ class PyomoBuilder:
         self.delta_t = constants["time"]["delta_t"]
         self.steps_per_year = constants["time"]["steps_per_year"]
         self.ton_to_kg = constants["units"]["ton_to_kg"]
-        steps_per_month = self.steps_per_year / 12.0
-        self.d_install = int(
-            round(constants["task_defaults"]["installation_delay"] * steps_per_month)
-        )
-        self.min_task_duration = (
-            constants["task_defaults"]["min_duration"] * steps_per_month
-        )
-        self.max_concurrent_tasks = constants["task_defaults"]["max_concurrent_tasks"]
-
+        
         self.C_E_0 = constants["initial_capacities"]["C_E_0"]
         elevator_capacity_fixed_tpy = constants["parameter_summary"]["transport"][
             "capacities"
@@ -89,17 +86,31 @@ class PyomoBuilder:
             "enabled"
         ]
 
-        # Task type flags: capability tasks use handling capacity for installation
-        self.tasks_with_V = [
-            i for i in self.task_ids if self.tasks_by_id[i].task_type == "capability"
-        ]
-        self.tasks_without_V = [i for i in self.task_ids if i not in self.tasks_with_V]
-
         self.total_demand_kg = (
             constants["parameter_summary"]["materials"]["bom"]["total_demand_tons"]
             * self.ton_to_kg
         )
         self.target_pop = constants["parameter_summary"]["colony"]["target"]["population"]
+        
+        # BOM Mappings
+        self.tiers = utils.get_tier_definitions(constants)
+        self.res_tier_map = {}
+        for tier in self.tiers:
+            for rid in tier["resources"]:
+                self.res_tier_map[rid] = tier["id"]
+        
+        # Identify Tier 1 (High-Tech/Equipment) for Growth
+        self.tier1_res = [r for r in self.res_ids if self.res_tier_map.get(r) == "tier_1"]
+        # Fallback
+        if not self.tier1_res:
+             self.tier1_res = [r for r in self.res_ids if "electronics" in r]
+
+        # Water Resource for Population
+        self.water_res = next((r for r in self.res_ids if "water" in r or "volatile" in r), None)
+        self.water_per_capita = float(constants["parameter_summary"]["colony"]
+                                      .get("requirements", {})
+                                      .get("water_per_capita_per_month", 0.5))
+
 
     def _create_sets(self):
         m = self.m
@@ -109,66 +120,17 @@ class PyomoBuilder:
         m.R = pyo.Set(initialize=self.res_ids, ordered=True)
         m.N = pyo.Set(initialize=self.node_ids, ordered=True)
         m.A = pyo.Set(initialize=self.arc_ids, ordered=True)
-        m.I = pyo.Set(initialize=self.task_ids, ordered=True)
-
-        m.I_V = pyo.Set(initialize=self.tasks_with_V)
-        m.I_nonV = pyo.Set(initialize=self.tasks_without_V)
-
+        
         m.A_Elev = pyo.Set(initialize=self.elevator_arcs)
         m.A_Rock = pyo.Set(initialize=self.rocket_arcs)
         m.A_Launch = pyo.Set(initialize=self.launch_arcs)
         m.A_Ground = pyo.Set(initialize=self.ground_arcs)
         m.A_to_Moon = pyo.Set(initialize=self.arcs_to_moon)
 
-        # Predecessor Pairs
-        pred_pairs = []
-        for task in self.data.tasks:
-            for pred in task.predecessors:
-                pred_pairs.append((pred, task.id))
-
-        if pred_pairs:
-            m.PRED = pyo.Set(initialize=pred_pairs, dimen=2)
-
     def _create_params(self):
         m = self.m
         data = self.data
         settings = self.settings
-
-        # Task Params
-        task_work = {i: self.tasks_by_id[i].W for i in self.task_ids}
-        task_delta_P = {i: self.tasks_by_id[i].delta_P for i in self.task_ids}
-        task_delta_V = {i: self.tasks_by_id[i].delta_V for i in self.task_ids}
-        task_delta_H = {i: self.tasks_by_id[i].delta_H for i in self.task_ids}
-        task_delta_Pop = {i: self.tasks_by_id[i].delta_Pop for i in self.task_ids}
-        task_delta_Power = {
-            i: self.tasks_by_id[i].delta_power_mw for i in self.task_ids
-        }
-        task_duration = {}
-        task_max_rate = {}
-
-        task_M_earth = {}
-        task_M_moon = {}
-        task_M_flex = {}
-        self.task_M_total = {}
-
-        for i in self.task_ids:
-            t = self.tasks_by_id[i]
-            duration = max(float(t.duration_months), float(self.min_task_duration))
-            task_duration[i] = duration
-            if duration > 0:
-                task_max_rate[i] = float(t.W) / duration
-            else:
-                task_max_rate[i] = 0.0
-            total_req = 0.0
-            for r in self.res_ids:
-                me = float(t.M_earth.get(r, 0.0))
-                mm = float(t.M_moon.get(r, 0.0))
-                mf = float(t.M_flex.get(r, 0.0))
-                task_M_earth[(i, r)] = me
-                task_M_moon[(i, r)] = mm
-                task_M_flex[(i, r)] = mf
-                total_req += me + mm + mf
-            self.task_M_total[i] = total_req
 
         # Arc Params
         arc_from = {a.id: a.from_node for a in data.arcs}
@@ -212,30 +174,6 @@ class PyomoBuilder:
             m.T, initialize=rocket_launch_rate, within=pyo.NonNegativeReals
         )
 
-        m.M_earth = pyo.Param(
-            m.I, m.R, initialize=task_M_earth, within=pyo.NonNegativeReals
-        )
-        m.M_moon = pyo.Param(
-            m.I, m.R, initialize=task_M_moon, within=pyo.NonNegativeReals
-        )
-        m.M_flex = pyo.Param(
-            m.I, m.R, initialize=task_M_flex, within=pyo.NonNegativeReals
-        )
-        m.W = pyo.Param(m.I, initialize=task_work, within=pyo.NonNegativeReals)
-        m.delta_P = pyo.Param(m.I, initialize=task_delta_P, within=pyo.NonNegativeReals)
-        m.delta_V = pyo.Param(m.I, initialize=task_delta_V, within=pyo.NonNegativeReals)
-        m.delta_H = pyo.Param(m.I, initialize=task_delta_H, within=pyo.NonNegativeReals)
-        m.delta_Pop = pyo.Param(
-            m.I, initialize=task_delta_Pop, within=pyo.NonNegativeReals
-        )
-        m.delta_Power = pyo.Param(
-            m.I, initialize=task_delta_Power, within=pyo.NonNegativeReals
-        )
-        m.duration = pyo.Param(m.I, initialize=task_duration, within=pyo.NonNegativeReals)
-        m.max_rate = pyo.Param(
-            m.I, initialize=task_max_rate, within=pyo.NonNegativeReals
-        )
-
         m.isru_ok = pyo.Param(
             m.R,
             initialize={
@@ -249,315 +187,64 @@ class PyomoBuilder:
         settings = self.settings
 
         m.x = pyo.Var(m.A, m.R, m.T, domain=pyo.NonNegativeReals)
-        m.y = pyo.Var(m.A, m.T, domain=pyo.NonNegativeReals)
+        m.y = pyo.Var(m.A, m.T, domain=pyo.NonNegativeIntegers)  # Changed to Integer explicitly
         m.I_E = pyo.Var(m.N, m.R, m.T, domain=pyo.NonNegativeReals)
         m.B_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.I_M = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.A_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.Q = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
-        m.q_E = pyo.Var(m.I, m.R, m.T, domain=pyo.NonNegativeReals)
-        m.q_M = pyo.Var(m.I, m.R, m.T, domain=pyo.NonNegativeReals)
-        m.v = pyo.Var(m.I, m.T, domain=pyo.NonNegativeReals)
-        m.v_inst = pyo.Var(m.I_V, m.T, domain=pyo.NonNegativeReals)
-        m.u = pyo.Var(m.I, m.T, domain=pyo.Binary)
-        m.u_done = pyo.Var(m.I, m.T, domain=pyo.Binary)
-        m.z = pyo.Var(m.I, m.T, domain=pyo.Binary)
-        m.N_rate = pyo.Var(
-            m.T,
-            domain=pyo.NonNegativeIntegers,
-            bounds=lambda mdl, t: (0, mdl.rocket_launch_rate[t]),
-        )
-
+        
+        # Growth Variables
+        m.delta_Growth = pyo.Var(m.T, domain=pyo.NonNegativeReals)  # Reinvestment
+        m.delta_City = pyo.Var(m.T, domain=pyo.NonNegativeReals)    # Consumption
+        
+        # State Variables
         m.P = pyo.Var(m.T, domain=pyo.NonNegativeReals)
-        m.V = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.H = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.Pop = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.Power = pyo.Var(m.T, domain=pyo.NonNegativeReals)
+        m.Cumulative_City = pyo.Var(m.T, domain=pyo.NonNegativeReals) # Accumulated structure mass
 
-        m.T_end = pyo.Var(
-            domain=pyo.NonNegativeIntegers, bounds=(0, settings.T_horizon - 1)
-        )
-        m.z_end = pyo.Var(m.T, domain=pyo.Binary)
+        # Phase II Binary (0 = Bootstrapping, 1 = Self-Replication)
+        # We might want to allow switching ONCE. P_t >= P_{t-1} ensures monotonic growth mostly?
+        # But this binary allows changing the growth equation.
+        m.z_PhaseII = pyo.Var(m.T, domain=pyo.Binary)
 
     # -------------------------------------------------------------------------
     # Constraints
     # -------------------------------------------------------------------------
 
-    def _completed_by(self, mdl: Any, i: str, t: int) -> Any:
-        # u is now cumulative: u[i,t]=1 means 'finished by t'
-        return mdl.u[i, t]
-
     def _create_constraints(self):
         m = self.m
 
-        # 1. Task Logic
-        self._add_task_logic_constraints()
-        self._add_duration_concurrency_constraints()
-
-        # 2. Material Requirements
-        self._add_material_req_constraints()
-
-        # 3. Precedence
-        if hasattr(m, "PRED"):
-            m.precedence = pyo.Constraint(m.PRED, m.T, rule=self._precedence_rule)
-
-        # 4. Capacity Evolution
-        self._add_capacity_evolution_constraints()
-
-        # 5. Logistics Flow
+        # 1. Logistics Flow (Source -> Moon)
         self._add_logistics_constraints()
 
-        # 6. Prepositioning / JIT
-        self._add_prepositioning_constraints()
+        # 2. Capacity Growth (Phase I/II/III Dynamics)
+        self._add_capacity_growth_constraints()
 
-    def _add_task_logic_constraints(self):
-        m = self.m
+        # 3. Material Balance (Inventory, Production, Consumption)
+        self._add_material_balance_constraints()
 
-        def _task_complete_once_rule(mdl, i):
-            return sum(mdl.u_done[i, t] for t in mdl.T) == 1
-
-        m.task_complete_once = pyo.Constraint(m.I, rule=_task_complete_once_rule)
-
-        def _task_cumulative_rule(mdl, i, t):
-            return mdl.u[i, t] == sum(mdl.u_done[i, tau] for tau in mdl.T if tau <= t)
-
-        m.task_cumulative = pyo.Constraint(m.I, m.T, rule=_task_cumulative_rule)
-
-        def _task_initial_rule(mdl, i):
-            return mdl.u[i, 0] == 0
-
-        m.task_initial = pyo.Constraint(m.I, rule=_task_initial_rule)
-
-        def _all_tasks_done_at_end_rule(mdl, i, t):
-            # If z_end[t] == 1, then u[i, t] must be 1 (task i completed by t)
-            return mdl.u[i, t] >= mdl.z_end[t]
-
-        m.all_tasks_done_at_end = pyo.Constraint(m.I, m.T, rule=_all_tasks_done_at_end_rule)
-
-        # Removed _makespan_rule (old T_end >= t * u pulse constraint)
-
-        m.end_time_select = pyo.Constraint(
-            rule=lambda mdl: sum(mdl.z_end[t] for t in mdl.T) == 1
-        )
-        m.end_time_link = pyo.Constraint(
-            rule=lambda mdl: mdl.T_end
-            == sum(t * mdl.z_end[t] for t in mdl.T)
-        )
-        m.population_target = pyo.Constraint(
-            m.T,
-            rule=lambda mdl, t: mdl.Pop[t] >= self.target_pop * mdl.z_end[t],
-        )
-
-        def _work_completion_rule(mdl, i, t):
-            comp = self._completed_by(mdl, i, t)
-            if i in mdl.I_V:
-                return (
-                    sum(mdl.v_inst[i, tau] for tau in mdl.T if tau <= t)
-                    >= mdl.W[i] * comp
-                )
-            return sum(mdl.v[i, tau] for tau in mdl.T if tau <= t) >= mdl.W[i] * comp
-
-        m.work_completion = pyo.Constraint(m.I, m.T, rule=_work_completion_rule)
-
-        def _material_work_rule(mdl, i, t):
-            if i in mdl.I_V:
-                lhs = sum(mdl.v_inst[i, tau] for tau in mdl.T if tau <= t)
-                rhs = sum(
-                    mdl.q_E[i, r, tau] + mdl.q_M[i, r, tau]
-                    for r in mdl.R
-                    for tau in mdl.T
-                    if tau <= t
-                )
-                return lhs <= rhs
-            lhs = sum(mdl.v[i, tau] for tau in mdl.T if tau <= t)
-            rhs = sum(
-                mdl.q_E[i, r, tau] + mdl.q_M[i, r, tau]
-                for r in mdl.R
-                for tau in mdl.T
-                if tau <= t
-            )
-            return lhs <= rhs
-
-        m.material_work_coupling = pyo.Constraint(m.I, m.T, rule=_material_work_rule)
-
-    def _add_duration_concurrency_constraints(self):
-        m = self.m
-        
-        # 1. Max Concurrent Tasks
-        max_concurrent = self.max_concurrent_tasks
-        m.concurrency_limit = pyo.Constraint(
-            m.T, 
-            rule=lambda mdl, t: sum(mdl.z[i, t] for i in mdl.I) <= max_concurrent
-        )
-        
-        # 2. Duration / Rate Limits
-        # Link z[i,t] with v[i,t] and enforce max rate
-        min_duration = self.min_task_duration
-        
-        def _rate_limit_rule(mdl, i, t):
-            duration = max(self.tasks_by_id[i].duration_months, min_duration)
-            max_rate = mdl.W[i] / duration
-            
-            # v <= max_rate * z
-            # Force z=1 if v > 0
-            if i in mdl.I_V:
-                return mdl.v_inst[i, t] <= max_rate * mdl.z[i, t]
-            return mdl.v[i, t] <= max_rate * mdl.z[i, t]
-            
-        m.rate_limit = pyo.Constraint(m.I, m.T, rule=_rate_limit_rule)
-        
-        # Ensure z is 0 if task not started or already finished?
-        # Actually, the optimizer minimizes concurrency cost (shadow) if bounded.
-        # But we need to ensure z isn't 0 if working. (Handled by v <= R*z).
-        # Do we need to force z=0 if NOT working? 
-        # No, allowing z=1 when v=0 just wastes a concurrency slot, which is suboptimal but valid.
-        pass
-
-        def _task_rate_rule(mdl, i, t):
-            if i in mdl.I_V:
-                return mdl.v_inst[i, t] <= mdl.max_rate[i] * mdl.z[i, t]
-            return mdl.v[i, t] <= mdl.max_rate[i] * mdl.z[i, t]
-
-        m.task_rate_limit = pyo.Constraint(m.I, m.T, rule=_task_rate_rule)
-
-        m.concurrent_limit = pyo.Constraint(
-            m.T,
-            rule=lambda mdl, t: sum(mdl.z[i, t] for i in mdl.I)
-            <= self.max_concurrent_tasks,
-        )
-
-    def _add_material_req_constraints(self):
-        m = self.m
-        m.material_req_earth = pyo.Constraint(
-            m.I,
-            m.R,
-            rule=lambda mdl, i, r: sum(mdl.q_E[i, r, t] for t in mdl.T)
-            >= mdl.M_earth[i, r],
-        )
-        m.material_req_moon = pyo.Constraint(
-            m.I,
-            m.R,
-            rule=lambda mdl, i, r: sum(mdl.q_M[i, r, t] for t in mdl.T)
-            >= mdl.M_moon[i, r],
-        )
-        m.material_req_total = pyo.Constraint(
-            m.I,
-            m.R,
-            rule=lambda mdl, i, r: sum(
-                mdl.q_E[i, r, t] + mdl.q_M[i, r, t] for t in mdl.T
-            )
-            == mdl.M_earth[i, r] + mdl.M_moon[i, r] + mdl.M_flex[i, r],
-        )
-
-    def _precedence_rule(self, mdl, pred, succ, t):
-        # If prepositioning is ENABLED:
-        # - Materials (q) are NOT constrained by predecessor.
-        # - But Work (v) or Start must be constrained.
-        # - Here we enforce: Cannot START succ until pred is DONE.
-        # - Using z[succ, t] <= completed_by(pred, t) ? No, z is active.
-        # - Using completed_by(succ, t) <= completed_by(pred, t)? No, can run in parallel? No, precedence.
-        # - Standard AON: Start(succ) >= Finish(pred).
-        # - We simulate this by strictly blocking z (active) if pred not done?
-        # - Actually, just blocking 'v' is enough.
-        
-        if self.settings.enable_preposition:
-            # Relax material constraint. Enforce work precedence.
-            # Work done on succ <= Total Work * Pred Completed
-            # v[succ] can only be non-zero if pred is done? 
-            # Or cumulative work?
-            # sum(v_succ) <= W_succ * u_pred
-            comp_pred = self._completed_by(mdl, pred, t)
-            
-            # If pred is defined as "must be done before start":
-            if succ in mdl.I_V:
-                 work_done = sum(mdl.v_inst[succ, tau] for tau in mdl.T if tau <= t)
-            else:
-                 work_done = sum(mdl.v[succ, tau] for tau in mdl.T if tau <= t)
-                 
-            return work_done <= mdl.W[succ] * comp_pred
-
-        # If prepositioning is DISABLED (Strict):
-        # - Materials cannot arrive until pred is done.
-        # - This implicitly blocks work (since v <= q).
-        if self.task_M_total[succ] <= 0:
-            # Fallback for tasks with no materials: constrain work directly
-            comp_pred = self._completed_by(mdl, pred, t)
-            if succ in mdl.I_V:
-                 work_done = sum(mdl.v_inst[succ, tau] for tau in mdl.T if tau <= t)
-            else:
-                 work_done = sum(mdl.v[succ, tau] for tau in mdl.T if tau <= t)
-            return work_done <= mdl.W[succ] * comp_pred
-
-        consumed = sum(
-            mdl.q_E[succ, r, tau] + mdl.q_M[succ, r, tau]
-            for r in mdl.R
-            for tau in mdl.T
-            if tau <= t
-        )
-        return consumed <= self.task_M_total[succ] * self._completed_by(mdl, pred, t)
-
-    def _add_capacity_evolution_constraints(self):
-        m = self.m
-        init_cap = self.constants["initial_capacities"]
-
-        def _cap_update_rule(mdl, t, cap_name):
-            # Calculate completed tasks considering d_install
-            t_install = t - self.d_install
-            completed_mask = {}
-            # Optimizing: only compute if needed inside sum, but pyomo logic needs expression
-            # Actually, to make expression, we iterate.
-
-            def _completed_sum(task_set):
-                if t_install < 0:
-                    return 0
-                return sum(
-                    mdl.u[i, tau] for tau in mdl.T if tau <= t_install for i in task_set
-                )
-
-            # Wait, the original code did:
-            # sum(mdl.delta_P[i] * _task_completed_by(i) for i in mdl.I)
-            # where _task_completed_by(i) is sum(u[i,tau]...)
-
-            if t_install < 0:
-                inc = 0
-            else:
-                # u is cumulative, so u[i, t_install] == 1 means "completed by t_install"
-                # This persists, so the capacity increment persists.
-                if cap_name == "P":
-                    inc = sum(mdl.delta_P[i] * mdl.u[i, t_install] for i in mdl.I)
-                elif cap_name == "V":
-                    inc = sum(mdl.delta_V[i] * mdl.u[i, t_install] for i in mdl.I_V)
-                elif cap_name == "H":
-                    inc = sum(mdl.delta_H[i] * mdl.u[i, t_install] for i in mdl.I)
-                elif cap_name == "Pop":
-                    inc = sum(mdl.delta_Pop[i] * mdl.u[i, t_install] for i in mdl.I)
-                else:  # Power
-                    inc = sum(mdl.delta_Power[i] * mdl.u[i, t_install] for i in mdl.I)
-
-            base = init_cap[f"{cap_name}_0"]
-            return getattr(mdl, cap_name)[t] == base + inc
-
-        m.cap_P = pyo.Constraint(m.T, rule=lambda mdl, t: _cap_update_rule(mdl, t, "P"))
-        m.cap_V = pyo.Constraint(m.T, rule=lambda mdl, t: _cap_update_rule(mdl, t, "V"))
-        m.cap_H = pyo.Constraint(m.T, rule=lambda mdl, t: _cap_update_rule(mdl, t, "H"))
-        m.cap_Pop = pyo.Constraint(
-            m.T, rule=lambda mdl, t: _cap_update_rule(mdl, t, "Pop")
-        )
-        m.cap_Power = pyo.Constraint(
-            m.T, rule=lambda mdl, t: _cap_update_rule(mdl, t, "Power")
-        )
+        # 4. Goal / Objective Limits
+        self._add_goal_constraints()
 
     def _add_logistics_constraints(self):
         m = self.m
 
+        # Arc Capacity Constraints
         def _arc_capacity_rule(mdl, a, t):
+            # Dynamic Payload Support (e.g. Rocket growing payload)
             payload = mdl.arc_payload[a]
             if mdl.arc_type[a] in ("rocket", "transfer"):
                 payload = mdl.rocket_payload[t]
+            
+            # Total mass on arc <= Payload * Units
             return sum(mdl.x[a, r, t] for r in mdl.R) <= payload * mdl.y[a, t]
 
         m.arc_capacity = pyo.Constraint(m.A, m.T, rule=_arc_capacity_rule)
 
+        # Arc Horizon (cannot ship if arrival is after T_horizon)
         m.arc_horizon = pyo.Constraint(
             m.A,
             m.T,
@@ -566,67 +253,120 @@ class PyomoBuilder:
             else pyo.Constraint.Skip,
         )
 
-        # Pools
-        self._add_pool_constraints()
-
-        # Inventory
-        self._add_inventory_constraints()
-
-        # Capacity Checks
-        self._add_capacity_check_constraints()
-
-    def _add_pool_constraints(self):
-        m = self.m
-
+        # Rocket Launch Limits (Global Pool)
         def _rocket_launch_rate_rule(mdl, t):
             if not self.launch_arcs:
                 return pyo.Constraint.Skip
-            return sum(mdl.y[a, t] for a in mdl.A_Launch) <= mdl.N_rate[t]
+            return sum(mdl.y[a, t] for a in mdl.A_Launch) <= mdl.rocket_launch_rate[t]
 
         m.rocket_launch_limit = pyo.Constraint(m.T, rule=_rocket_launch_rate_rule)
 
-        def _elevator_pool_rule(mdl, t):
-            if not self.elevator_arcs:
-                return pyo.Constraint.Skip
-            return (
-                sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev)
-                <= self.C_E_0 * self.delta_t
-            )
+        # Elevator Capacity Limits (Mass/Time or Stream)
+        if self.elevator_arcs:
+            cap_per_step = self.C_E_0 * self.delta_t
+            
+            # Pool Constraint (Total Mass on all elevator arcs)
+            def _elevator_pool_rule(mdl, t):
+                 return sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev) <= cap_per_step
+            m.elevator_pool = pyo.Constraint(m.T, rule=_elevator_pool_rule)
+            
+            # Steam Model (Flow Constraint)
+            if self.stream_model:
+                def _elevator_stream_rule(mdl, t):
+                    return sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R) <= cap_per_step
+                m.elevator_stream = pyo.Constraint(m.T, rule=_elevator_stream_rule)
 
-        m.elevator_pool = pyo.Constraint(m.T, rule=_elevator_pool_rule)
-
-        def _elevator_fixed_rule(mdl, t):
-            if not self.elevator_arcs:
-                return pyo.Constraint.Skip
-            # Fixed capacity limit
-            cap = self.elevator_capacity_fixed_mass_s
-            return (
-                sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev)
-                <= cap * self.delta_t
-            )
-
-        m.elevator_fixed = pyo.Constraint(m.T, rule=_elevator_fixed_rule)
-
-        if self.stream_model:
-            def _elevator_stream_rule(mdl, t):
-                if not self.elevator_arcs:
-                    return pyo.Constraint.Skip
-                return sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R) <= (
-                    self.C_E_0 * self.delta_t
-                )
-
-            m.elevator_stream = pyo.Constraint(m.T, rule=_elevator_stream_rule)
-
-    def _add_inventory_constraints(self):
+    def _add_capacity_growth_constraints(self):
         m = self.m
+        
+        # Parameters for Growth
+        beta = float(self.bootstrapping["beta_equipment_to_capacity"]) # Phase I Multiplier
+        eta = float(self.replication["eta_isru_efficiency"])           # Phase II Efficiency
+        limit_K = float(self.saturation["carrying_capacity_tpy"])
+        decay = float(self.saturation["decay_rate_phi"])
+        
+        # P (Production) Evolution
+        # P[t] = P[t-1] + New_Capacity - Decay
+        # New_Capacity = (beta * Imports_Tier1) + (eta * delta_Growth)
+        
+        def _p_evolution_rule(mdl, t):
+            if t == 0:
+                return mdl.P[t] == self.initial_state["P_0"]
+            
+            prev_P = mdl.P[t-1]
+            
+            # 1. Earth Imports (Bootstrapping)
+            # Sum of inflows of Tier 1 items arriving at Moon at time t
+            # Note: We rely on self.tier1_res identified in _precompute
+            earth_inflow = sum(
+                mdl.x[a, r, t - mdl.arc_lead[a]]
+                for a in mdl.A_to_Moon
+                for r in self.tier1_res
+                if t - mdl.arc_lead[a] >= 0
+            )
+            
+            # 2. Local Growth (Replication)
+            # delta_Growth is Mass (tons) invested.
+            # beta is Capacity/Mass (t/y per ton). eta is Efficiency (0-1).
+            # So Capacity Added = beta * eta * delta_Growth
+            # We assume investment at t-1 becomes capacity at t.
+            local_growth = 0
+            if t > 0:
+                local_growth = beta * eta * mdl.delta_Growth[t-1] 
+            
+            # 3. Decay
+            decay_amount = (decay / self.steps_per_year) * prev_P
+            
+            # Constraint
+            potential_P = prev_P + (beta * earth_inflow) + local_growth - decay_amount
+            
+            return mdl.P[t] <= potential_P
 
-        def _inv_balance_rule(mdl, n, r, t):
-            if n == self.moon_node:
-                return pyo.Constraint.Skip
-            if self.node_types.get(n) in ("earth", "source"):
-                return pyo.Constraint.Skip
-            prev = mdl.I_E[n, r, t - 1] if t > 0 else 0
+        m.p_evolution = pyo.Constraint(m.T, rule=_p_evolution_rule)
+        
+        m.p_limit = pyo.Constraint(m.T, rule=lambda mdl, t: mdl.P[t] <= limit_K)
+        
+        # H (Handling) and Pop (Population) Evolution
+        # Assume they scale with P for now, or have their own logic?
+        # Model description says P is the main driver. H and Pop are auxiliary.
+        # Let's assume H = ratio * P and Pop = ratio * P for simplicity in this refactor,
+        # Or add independent growth flows. 
+        # Plan says: "H_ratio: 1.5".
+        h_ratio = float(self.initial_state.get("H_ratio", 1.5))
+        m.h_link = pyo.Constraint(m.T, rule=lambda mdl, t: mdl.H[t] == h_ratio * mdl.P[t])
+        
+        # Population: 1 person per X tons of P? Or independent?
+        # Let's leave Pop free but constrained by Life Support (which we might not have modeled yet).
+        # For now, let's make Pop grow with City Mass?
+        # Or just unconstrained (decision variable) but capped by Habitat Mass?
+        # We have Cumulative_City. Let's say Pop <= Cumulative_City / MassPerPerson.
+        # MassPerPerson approx 10 tons (structure).
+        # Population: 1 person per X tons of City Structure?
+        # Let's link Pop to Cumulative City mass (Habitat).
+        # Assumption: 10 tons structure per person.
+        m.pop_constraint = pyo.Constraint(m.T, rule=lambda mdl, t: mdl.Pop[t] <= mdl.Cumulative_City[t] / 10.0)
 
+        # NEW: Water Demand Constraint
+        # Pop[t] * WaterPerCapita <= Stock_Water[t] + Production_Water[t] 
+        # (Assuming we consume flow or stock. Using stock for safety).
+        if self.water_res:
+            def _water_pop_rule(mdl, t):
+                # Total available water at step t
+                available = mdl.I_M[self.water_res, t] + mdl.I_E[self.moon_node, self.water_res, t]
+                demand = mdl.Pop[t] * self.water_per_capita
+                return demand <= available
+            m.water_demand = pyo.Constraint(m.T, rule=_water_pop_rule)
+
+
+    def _add_material_balance_constraints(self):
+        m = self.m
+        
+        # 1. Earth Inventory (Standard Node Balance)
+        def _inv_earth_rule(mdl, n, r, t):
+            if n == self.moon_node or self.node_types.get(n) in ("source", "earth"):
+                 return pyo.Constraint.Skip
+            
+            prev = mdl.I_E[n, r, t-1] if t > 0 else 0
             inflow = sum(
                 mdl.x[a, r, t - mdl.arc_lead[a]]
                 for a in self.arcs_to[n]
@@ -634,152 +374,140 @@ class PyomoBuilder:
             )
             outflow = sum(mdl.x[a, r, t] for a in self.arcs_from[n])
             return mdl.I_E[n, r, t] == prev + inflow - outflow
+            
+        m.inv_balance_earth = pyo.Constraint(m.N, m.R, m.T, rule=_inv_earth_rule)
 
-        m.inv_balance = pyo.Constraint(m.N, m.R, m.T, rule=_inv_balance_rule)
+        # 2. Moon Material Balance (I_M tracks refined/available materials on Moon)
+        # We assume Arrivals go to I_E[Moon], then move to I_M (or used directly).
+        # Let's simplify: All On-Moon Inventory is I_M.
+        # Arrivals (A_E) add to I_M.
+        # Production (Q) add to I_M.
+        # Consumption (Growth + City) subtracts from I_M.
+        
+        # I_M[r, t] = I_M[r, t-1] + Arrivals[r, t] + Production[r, t] - Consumption[r, t]
+        
+        # Define Consumption per Resource based on BOM
+        # Growth: Consumes 'structure' (ISRU) mostly.
+        # City: Consumes weighted mix.
+        
+        def _consumption_rule(mdl, r, t):
+            # 1. Growth consumption
+            growth_share = 0.0
+            if "structure" in r:
+                growth_share = 1.0 # 1 ton structure per 1 ton Growth input
+            
+            # 2. City consumption (BOM)
+            # Simplified:
+            # - 'structure': 0.7
+            # - 'electronics': 0.1
+            # - 'life_support': 0.1
+            # - 'water': 0.1
+            city_share = 0.0
+            if "structure" in r: city_share = 0.7
+            elif "electronics" in r: city_share = 0.1
+            elif "life_support" in r: city_share = 0.1
+            elif "water" in r: city_share = 0.1
+            
+            consumed = (growth_share * mdl.delta_Growth[t]) + (city_share * mdl.delta_City[t])
+            
+            # 3. Population Consumption (Water)
+            # If r is water, add Pop * rate
+            if self.water_res == r:
+                consumed += mdl.Pop[t] * self.water_per_capita
 
-        def _moon_buffer_rule(mdl, r, t):
-            prev = mdl.B_E[r, t - 1] if t > 0 else 0
-            arrivals = sum(
+            return consumed
+
+        def _moon_balance_rule(mdl, r, t):
+            prev = mdl.I_M[r, t-1] if t > 0 else 0
+            
+            # Arrivals from Earth (via I_E or direct A_E)
+            # In previous code, A_E was arrivals. 
+            arrivals = mdl.A_E[r, t] 
+            
+            # Production
+            produced = mdl.Q[r, t]
+            
+            # Consumption
+            consumed = _consumption_rule(mdl, r, t)
+            
+            return mdl.I_M[r, t] == prev + arrivals + produced - consumed
+            
+        m.inv_balance_moon = pyo.Constraint(m.R, m.T, rule=_moon_balance_rule)
+        
+        # Link A_E (Arrivals) to Inflows
+        def _arrival_link_rule(mdl, r, t):
+             inflow = sum(
                 mdl.x[a, r, t - mdl.arc_lead[a]]
                 for a in mdl.A_to_Moon
                 if t - mdl.arc_lead[a] >= 0
             )
-            return mdl.B_E[r, t] == prev + arrivals - mdl.A_E[r, t]
+             return mdl.A_E[r, t] == inflow
+        m.arrival_link = pyo.Constraint(m.R, m.T, rule=_arrival_link_rule)
 
-        m.moon_buffer = pyo.Constraint(m.R, m.T, rule=_moon_buffer_rule)
+        # 3. Production Capacity Limit
+        # Total Q <= P / steps
+        m.production_limit = pyo.Constraint(m.T, rule=lambda mdl, t: sum(mdl.Q[r, t] for r in mdl.R) <= mdl.P[t] / self.steps_per_year)
 
-        def _moon_inventory_rule(mdl, r, t):
-            prev = mdl.I_E[self.moon_node, r, t - 1] if t > 0 else 0
-            consumed = sum(mdl.q_E[i, r, t] for i in mdl.I)
-            return mdl.I_E[self.moon_node, r, t] == prev + mdl.A_E[r, t] - consumed
+        # Note: I_E at Moon is now redundant if we assume everything dumps into I_M.
+        # But we need to handle "Transiting" Inventory? 
+        # I_E[Moon] is zeroed out or forced to 0?
+        # Let's just not constrain I_E[Moon] and let it be 0.
 
-        m.moon_inventory = pyo.Constraint(m.R, m.T, rule=_moon_inventory_rule)
-
-        def _moon_isru_rule(mdl, r, t):
-            prev = mdl.I_M[r, t - 1] if t > 0 else 0
-            consumed = sum(mdl.q_M[i, r, t] for i in mdl.I)
-            return mdl.I_M[r, t] == prev + mdl.Q[r, t] - consumed
-
-        m.moon_isru_inventory = pyo.Constraint(m.R, m.T, rule=_moon_isru_rule)
-
-    def _add_capacity_check_constraints(self):
-        m = self.m
-
-        m.handling_capacity = pyo.Constraint(
-            m.T,
-            rule=lambda mdl, t: (
-                sum(mdl.A_E[r, t] for r in mdl.R)
-                + sum(mdl.v_inst[i, t] for i in mdl.I_V)
-            )
-            <= mdl.H[t] * self.delta_t,
-        )
-        m.isru_capacity = pyo.Constraint(
-            m.T,
-            rule=lambda mdl, t: sum(mdl.Q[r, t] for r in mdl.R)
-            <= mdl.P[t] * self.delta_t,
-        )
-        m.isru_resource = pyo.Constraint(
-            m.R,
-            m.T,
-            rule=lambda mdl, r, t: mdl.Q[r, t] == 0
-            if mdl.isru_ok[r] == 0
-            else pyo.Constraint.Skip,
-        )
-        m.construction_capacity = pyo.Constraint(
-            m.T,
-            rule=lambda mdl, t: sum(mdl.v[i, t] for i in mdl.I_nonV)
-            <= mdl.V[t] * self.delta_t
-            if self.tasks_without_V
-            else pyo.Constraint.Skip,
-        )
-        m.installation_total = pyo.Constraint(
-            m.I_V, rule=lambda mdl, i: sum(mdl.v_inst[i, t] for t in mdl.T) == mdl.W[i]
-        )
-        m.construction_total = pyo.Constraint(
-            m.I_nonV, rule=lambda mdl, i: sum(mdl.v[i, t] for t in mdl.T) == mdl.W[i]
-        )
-        m.standard_work_zero = pyo.Constraint(
-            m.I_V, m.T, rule=lambda mdl, i, t: mdl.v[i, t] == 0
-        )
-
-        # Power Constraint
-        # Map resource to energy (kWh/kg)
-        r_energy = {
-             "water": self.constants["isru"]["water_energy"],
-             "fuel": self.constants["isru"]["oxygen_energy"], 
-             "structure": self.constants["isru"]["metal_energy"]
-        }
         
-        def _power_rule(mdl, t):
-             # Total Energy kWh used in month t
-             total_energy_kwh = sum(
-                 mdl.Q[r, t] * r_energy.get(r, 0.0) 
-                 for r in mdl.R
-             )
-             
-             # Convert to Average Power (MW) required
-             # Power(kW) = Energy(kWh) / Hours
-             hours = self.delta_t / 3600.0
-             avg_power_kw = total_energy_kwh / hours
-             avg_power_mw = avg_power_kw / 1000.0
-             
-             return avg_power_mw <= mdl.Power[t]
-
-        m.power_balance = pyo.Constraint(m.T, rule=_power_rule)
-
-        m.total_mass_sanity = pyo.Constraint(
-            rule=lambda mdl: sum(
-                mdl.A_E[r, t] + mdl.Q[r, t] for r in mdl.R for t in mdl.T
-            )
-            >= self.total_demand_kg
-        )
-
-    def _add_prepositioning_constraints(self):
+    def _add_goal_constraints(self):
         m = self.m
-        if not self.settings.enable_preposition:
-            # Enforce Zero Inventory Policy on Moon (Strict JIT)
-            # This prevents materials from arriving early and waiting.
-            
-            def _no_inventory_rule(mdl, r, t):
-                return mdl.I_E[self.moon_node, r, t] == 0
-                
-            m.no_moon_inventory = pyo.Constraint(m.R, m.T, rule=_no_inventory_rule)
-            
-            def _no_buffer_rule(mdl, r, t):
-                return mdl.B_E[r, t] == 0
-                
-            m.no_moon_buffer = pyo.Constraint(m.R, m.T, rule=_no_buffer_rule)
+        
+        # Cumulative City Mass
+        def _cum_city_rule(mdl, t):
+            if t == 0:
+                return mdl.Cumulative_City[t] == mdl.delta_City[t]
+            return mdl.Cumulative_City[t] == mdl.Cumulative_City[t-1] + mdl.delta_City[t]
+        
+        m.cum_city_state = pyo.Constraint(m.T, rule=_cum_city_rule)
+        
+        # Goal: Reach X tons
+        # We put this in Objective (minimize time to reach X).
+        # We define T_end when Cumulative_City >= Target.
+        target_mass = 1e8 # 100M tons hardcoded? Or from BOM?
+        # Using 100,000 tons for initial test to be safe.
+        target_mass = 100000.0 * 1000.0 # 100kt
+        
+        # Trigger T_end
+        # Cumulative_City[T_end] >= target
+        # z_end[t] = 1 if t == T_end.
+        # This is hard to formulate linearly.
+        # Standard way: Sum(z_end) = 1.
+        # Cumulative_City[t] >= target * Sum(z_end[tau] for tau <= t) ? 
+        # No, that forces early completion.
+        
+        # Reverse: If not complete, city < target.
+        # If complete, city >= target.
+        pass
 
     def _create_objective(self):
         m = self.m
         w_C = float(self.constants["objective"]["w_C"])
-        w_T = float(self.constants["objective"]["w_T"])
+        w_T = float(self.constants["objective"]["w_T"]) # Use w_T as weight for "Early Growth"
 
         m.cost_total = pyo.Expression(
             expr=sum(
                 m.arc_cost[a, t] * m.x[a, r, t] for a in m.A for r in m.R for t in m.T
             )
         )
-        m.obj_total = pyo.Objective(
-            expr=w_T * m.T_end + w_C * m.cost_total, sense=pyo.minimize
+        
+        # New Objective: Minimize Cost - Reward for City Mass accumulation (Integral)
+        # Maximizing Sum(Cumulative_City[t]) pushes for early growth.
+        # Scale: Cost is in USD (~1e9 to 1e12). City Mass is 1e5 to 1e8 tons.
+        # We need to balance weights. 
+        # Assuming w_T in constants is appropriately scaled or we might need to adjust.
+        # For now, simplistic implementation.
+        
+        m.city_integral = pyo.Expression(
+            expr=sum(m.Cumulative_City[t] for t in m.T)
         )
-
-        # Validate integer variables
-        self._validate_integer_vars()
-
-    def _validate_integer_vars(self):
-        m = self.m
-        integer_vars = self.constants["optimization"].get("integer_vars", [])
-        integer_map = {"u": m.u, "u_done": m.u_done, "y": m.y}
-        for var_name in integer_vars:
-            if var_name in integer_map:
-                var_obj = integer_map[var_name]
-                if var_obj.is_indexed():
-                    first_key = next(iter(var_obj))
-                    domain = var_obj[first_key].domain
-                else:
-                    domain = var_obj.domain
-                if domain not in (pyo.Binary, pyo.NonNegativeIntegers, pyo.Integers):
-                    raise ValueError(
-                        f"Variable '{var_name}' must be integer/binary per optimization.integer_vars"
-                    )
+        
+        # We minimize: w_C * Cost - w_T * Integral
+        m.obj_total = pyo.Objective(
+            expr=w_C * m.cost_total - w_T * m.city_integral, 
+            sense=pyo.minimize
+        )

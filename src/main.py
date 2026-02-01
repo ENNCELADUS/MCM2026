@@ -91,6 +91,11 @@ Examples:
         action="store_true",
         help="Build model but do not solve",
     )
+    parser.add_argument(
+        "--sanity-check",
+        action="store_true",
+        help="Run post-solve feasibility sanity checks",
+    )
 
     parser.add_argument(
         "--verbose",
@@ -158,17 +163,19 @@ def run_pipeline(
     constants_path: Path | str,
     dry_run: bool = False,
     verbose: bool = False,
+    sanity_check: bool = False,
 ) -> dict:
     """
     Run the complete optimization pipeline.
 
-    ALL PARAMETERS ARE REQUIRED except dry_run/verbose.
+    ALL PARAMETERS ARE REQUIRED except dry_run/verbose/sanity_check.
 
     Args:
         settings: Model settings (REQUIRED)
         constants_path: Path to constants YAML file (REQUIRED)
         dry_run: If True, build but don't solve
         verbose: Enable verbose output
+        sanity_check: Run post-solve feasibility checks
 
     Returns:
         Solution dictionary
@@ -219,7 +226,7 @@ def run_pipeline(
             print(f"  - Nodes: {len(model.data.nodes)}")
             print(f"  - Arcs: {len(model.data.arcs)} (filtered by scenario)")
             print(f"  - Resources: {len(model.data.resources)}")
-            print(f"  - Tasks: {len(model.data.tasks)}")
+            print(f"  - Resources: {len(model.data.resources)}")
 
         # ---------------------------------------------------------------------
         # Step 3: Build Optimization Model
@@ -253,6 +260,25 @@ def run_pipeline(
                 print(f"  - Total Cost: ${result['total_cost']:.2e}")
                 print(f"  - Project Duration: {result['T_end']} years")
                 print(f"  - Solution Time: {(result.get('solution_time') or 0.0):.1f}s")
+        if sanity_check and result["objective_value"] is not None:
+            report = model.sanity_check()
+            print("\n[Sanity Check]")
+            print(
+                "  - Total mass delivered: "
+                f"{report['total_mass']:.3e} (target: {report['total_demand']:.3e})"
+            )
+            print(
+                "  - Population at end: "
+                f"{report['population_at_end']:.3e} (target: {report['target_pop']:.3e})"
+            )
+            if settings.scenario == ScenarioType.E_ONLY:
+                print(f"  - Rocket trips total: {report['rocket_trips']:.3e}")
+            print(f"  - Max constraint violation: {report['max_violation']:.3e}")
+            for item in report["top_violations"]:
+                print(
+                    f"  - {item['name']}: max {item['max_violation']:.3e}, "
+                    f"count>tol {item['count']}, worst {item['worst_index']}"
+                )
 
         # ---------------------------------------------------------------------
         # Step 5: Export Results
@@ -292,6 +318,7 @@ def main() -> int:
             constants_path=constants_path,
             dry_run=args.dry_run,
             verbose=args.verbose,
+            sanity_check=args.sanity_check,
         )
 
         if result["status"] in ("OPTIMAL", "FEASIBLE", "DRY_RUN"):

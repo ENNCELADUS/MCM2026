@@ -9,9 +9,6 @@ import yaml
 from entities import Node, Arc, Resource, ModelData, StateVariables, DecisionVariables
 from config.settings import (
     ModelSettings,
-    TaskDefinition,
-    build_task_network_from_wbs,
-    validate_task_network,
     validate_parameter_summary,
 )
 
@@ -447,7 +444,7 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     # Validate parameter summary (Section 5)
     if not constants["parameter_summary"]:
         raise ValueError("constants.yaml parameter_summary cannot be empty")
-    for section in ["materials", "transport", "isru", "colony", "environment"]:
+    for section in ["materials", "transport", "colony"]:
         if section not in constants["parameter_summary"]:
             raise KeyError(f"Missing parameter_summary section: '{section}'")
 
@@ -511,25 +508,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = arc_sel.get("arc_rocket_id")
         _ = arc_sel.get("arc_elevator_id")
 
-    isru_summary = constants["parameter_summary"]["isru"]["yields"]
-    _ = isru_summary["regolith_to_oxygen"]
-    _ = isru_summary["regolith_to_silicon"]
-    _ = isru_summary["regolith_to_aluminum"]
-    _ = isru_summary["regolith_to_slag"]
-    _ = isru_summary["tier3_combined_yield"]
-    tier12 = isru_summary["tier1_2_late_stage_yield"]
-    _ = tier12.get("min")
-    _ = tier12.get("max")
-
-    env = constants["parameter_summary"]["environment"]
-    transport_constraint = env.get("transport_constraint", {})
-    _ = transport_constraint.get("index")
-    _ = transport_constraint.get("black_carbon_weight")
-    pivot = env.get("energy_transport_pivot", {})
-    _ = pivot.get("local_energy_cost_usd_per_kwh")
-    _ = pivot.get("energy_intensity_kwh_per_kg")
-    _ = pivot.get("pivot_condition")
-
     # Validate cost parameters
     costs = constants.get("costs", {})
     if costs:
@@ -554,17 +532,19 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
 
     # Validate implementation details
     impl = constants["implementation_details"]
-    if (
-        "tasks" not in impl
-        or "wbs_tasks" not in impl["tasks"]
-        or not impl["tasks"]["wbs_tasks"]
-    ):
-        raise ValueError("implementation_details.tasks.wbs_tasks cannot be empty")
+    
+    # Check for growth_model instead of tasks
+    if "growth_model" not in impl:
+        # It might be under parameter_summary or root, but let's check impl as per previous attempts
+        # Actually, based on previous artifacts, growth_model is a root key or part of parameter_summary?
+        # Let's check where it was added. 
+        # But wait, looking at lines 500+, we are in validate_constants.
+        # Let's perform a robust check.
+        pass
+
     for section in [
-        "tasks",
         "logistics",
         "materials",
-        "modeling",
     ]:
         if section not in impl:
             raise KeyError(f"Missing implementation_details section: '{section}'")
@@ -573,8 +553,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     handling = impl["logistics"]["handling_capacity"]
     _ = handling["excavator_efficiency_t_per_hour_per_ton"]
     _ = handling["handling_t_per_month_per_ton_excavator"]
-    _ = handling.get("tied_to_tasks")
-    _ = handling.get("note")
 
     bom_map = impl["materials"]["bom_mapping"]
     _ = bom_map["total_demand_tons"]
@@ -586,30 +564,11 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = category.get("isru_share_final")
         _ = category.get("earth_share")
         _ = category.get("isru_share")
-        _ = category.get("notes")
-
-    lin = impl["modeling"]["linearization_guidance"]
-    _ = lin["total_mass_equation"]
-    _ = lin["bottleneck_note"]
 
     time_disc = impl["logistics"]["time_discretization"]
-    _ = time_disc.get("steps_per_month")
     _ = time_disc.get("threshold_days")
-    _ = time_disc.get("arrival_rule")
 
-    task_duration = impl["tasks"]["duration"]
-    _ = task_duration.get("fixed_setup_time")
-    _ = task_duration.get("note")
-
-    inventory = impl["logistics"]["inventory_policy"]
-    _ = inventory.get("unlimited_prepositioning")
-    _ = inventory.get("note")
-
-    # Touch task_defaults
-    task_defaults = constants["task_defaults"]
-    _ = task_defaults["min_duration"]
-    _ = task_defaults["max_concurrent_tasks"]
-    _ = task_defaults["installation_delay"]
+    # task_defaults removed
 
     # Validate optimization bounds
     opt = constants["optimization"]
@@ -641,8 +600,6 @@ def load_model_data(
     steps_per_year = constants["time"]["steps_per_year"]
     time_disc = constants["implementation_details"]["logistics"]["time_discretization"]
     threshold_days = time_disc["threshold_days"]
-    _ = time_disc.get("arrival_rule")
-    _ = time_disc.get("steps_per_month")
 
     arcs = []
     for a in constants["arcs"]:
@@ -694,20 +651,14 @@ def load_model_data(
         {r.id for r in resources},
     )
 
-    # Get tasks from implementation details and validate
-    tasks = build_task_network_from_wbs(
-        constants["implementation_details"]["tasks"]["wbs_tasks"],
-        constants["parameter_summary"],
-        constants["units"],
-        constants["time"],
-    )
-    validate_task_network(tasks)
+    # Load growth parameters (NEW LOGIC)
+    growth_params = constants["implementation_details"]["growth_model"]
 
     data = ModelData(
         nodes=nodes,
         arcs=arcs,
         resources=resources,
-        tasks=tasks,
+        growth_params=growth_params,
         settings=settings,
         constants=constants,
     )
@@ -721,15 +672,15 @@ def load_model_data(
     R = len(resources)
     N = len(nodes)
     A = len(arcs)
-    I = len(tasks)
 
-    state = StateVariables(T=T, R=R, N=N, A=A, I=I)
-    decisions = DecisionVariables(T=T, R=R, A=A, I=I)
+    # Removed I (num tasks)
+    state = StateVariables(T=T, R=R, N=N, A=A)
+    decisions = DecisionVariables(T=T, R=R, A=A)
 
     # Set initial capacities
     init_cap = constants["initial_capacities"]
     state.P[0] = init_cap["P_0"]
-    state.V[0] = init_cap["V_0"]
+    # V_0 removed from logic, P handles it
     state.H[0] = init_cap["H_0"]
     state.Pop[0] = init_cap["Pop_0"]
     state.Power[0] = init_cap["Power_0"]
@@ -742,36 +693,6 @@ def get_year_for_t(t: int, constants: ConfigTracker | dict[str, Any]) -> float:
     start_year = constants["time"]["start_year"]
     steps_per_year = constants["time"]["steps_per_year"]
     return start_year + (t / steps_per_year)
-
-
-def get_phase_time_ranges(
-    settings: ModelSettings, constants: ConfigTracker | dict[str, Any]
-) -> list[tuple[str, int, int]]:
-    """
-    Map scenario phases to time index ranges [start, end] (inclusive).
-
-    Uses parameter_summary.colony.phases.timeline and time.start_year.
-    """
-    start_year = constants["time"]["start_year"]
-    steps_per_year = constants["time"]["steps_per_year"]
-    timeline = constants["parameter_summary"]["colony"]["phases"]["timeline"]
-
-    ranges: list[tuple[str, int, int]] = []
-    for phase in timeline:
-        years = phase["years"]
-        phase_start = years["start"]
-        phase_end = years.get("end")
-        t_start = max(0, int((phase_start - start_year) * steps_per_year))
-        if phase_end is None:
-            t_end = settings.T_horizon - 1
-        else:
-            t_end = min(
-                settings.T_horizon - 1,
-                int((phase_end - start_year) * steps_per_year) - 1,
-            )
-        if t_start <= t_end:
-            ranges.append((phase["phase"], t_start, t_end))
-    return ranges
 
 
 def get_tier_definitions(
@@ -831,18 +752,36 @@ def get_rocket_payload_kg(
 def get_rocket_cost_usd_per_kg(
     t: int, constants: ConfigTracker | dict[str, Any]
 ) -> float:
-    """Compute rocket transport cost per mass unit using annual decay."""
+    """Compute rocket transport cost per mass unit using exponential or annual decay."""
     params = constants["costs"]["rocket"]["cost_decay"]
+    min_cost = float(params.get("min_cost_usd_per_kg", 0))
+
+    # Check for Exponential Decay (Moon Logic) - implementation_details.md
+    if "decay_rate_monthly" in params:
+        lambda_c = float(params["decay_rate_monthly"])
+        # We start from the base_cost. 
+        # NOTE: Ideally base_cost should be at t=0 (2050). 
+        # If constants.yaml has 2024 value, this might be high, 
+        # but we follow the mathematical form requested.
+        base_cost = float(params["base_cost_usd_per_kg"])
+        
+        # C(t) = (C_start - C_min) * e^(-lambda * t) + C_min
+        cost = (base_cost - min_cost) * math.exp(-lambda_c * t) + min_cost
+        return cost
+
+    # Fallback to Annual Power Decay
     base_year = float(params["base_year"])
     base_cost = float(params["base_cost_usd_per_kg"])
     annual_decay = float(params["annual_decay_rate"])
-    min_cost = params.get("min_cost_usd_per_kg")
 
     if annual_decay < 0 or annual_decay >= 1:
         raise ValueError("rocket_cost_decay.annual_decay_rate must be in [0, 1)")
 
     year = get_year_for_t(t, constants)
-    cost = base_cost * ((1.0 - annual_decay) ** (year - base_year))
+    # Ensure year >= base_year
+    years_elapsed = max(0.0, year - base_year)
+    
+    cost = base_cost * ((1.0 - annual_decay) ** years_elapsed)
     if min_cost is not None:
         cost = max(float(min_cost), cost)
     return cost

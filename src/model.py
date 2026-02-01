@@ -98,45 +98,9 @@ class MoonLogisticsModel:
     # Level 1: Capability Transition Equations (Eq. 3.1.A)
     # -------------------------------------------------------------------------
 
-    def update_capabilities(self, t: int) -> None:
-        """
-        Update capability states at time t based on task completions.
-
-        Implements equations from Section 3.1 (A):
-            P(t) = P_0 + Σ ΔP_i · u_{i,t-d_i}
-            V(t) = V_0 + Σ ΔV_i · u_{i,t-d_i}
-            etc.
-        """
-        if self.data is None or self.state is None:
-            raise RuntimeError("Model data not loaded. Call load_data() first.")
-
-        init_cap = self.constants["initial_capacities"]
-        steps_per_month = self.constants["time"]["steps_per_year"] / 12.0
-        d_default = int(
-            round(self.constants["task_defaults"]["installation_delay"] * steps_per_month)
-        )
-
-        P_increment = 0.0
-        V_increment = 0.0
-        H_increment = 0.0
-        Pop_increment = 0
-        Power_increment = 0.0
-
-        for i, task in enumerate(self.data.tasks):
-            # Check if task was completed d steps ago
-            t_check = t - d_default
-            if t_check >= 0 and self.state.u[i, t_check] == 1:
-                P_increment += task.delta_P
-                V_increment += task.delta_V
-                H_increment += task.delta_H
-                Pop_increment += task.delta_Pop
-                Power_increment += task.delta_power_mw
-
-        self.state.P[t] = init_cap["P_0"] + P_increment
-        self.state.V[t] = init_cap["V_0"] + V_increment
-        self.state.H[t] = init_cap["H_0"] + H_increment
-        self.state.Pop[t] = init_cap["Pop_0"] + Pop_increment
-        self.state.Power[t] = init_cap["Power_0"] + Power_increment
+    # -------------------------------------------------------------------------
+    # Level 1: Capability Transition Equations (REMOVED - Continuous Growth)
+    # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
     # Section 5: Parameter Summary Helpers
@@ -145,10 +109,6 @@ class MoonLogisticsModel:
     def _year_for_t(self, t: int) -> float:
         """Convert discrete time index t to calendar year."""
         return utils.get_year_for_t(t, self.constants)
-
-    def _phase_time_ranges(self) -> list[tuple[str, int, int]]:
-        """Map scenario phases to time index ranges."""
-        return utils.get_phase_time_ranges(self.settings, self.constants)
 
     def _tier_definitions(self) -> list[dict[str, Any]]:
         """Return BOM tier definitions from parameter_summary."""
@@ -247,18 +207,14 @@ class MoonLogisticsModel:
 
             result = solver.solve(model, tee=True, load_solutions=False)
             
-            # Check termination condition
             term = result.solver.termination_condition
             status_str = str(result.solver.status)
             
-            # Safe check for optimal/feasible
             is_ok = False
             if term == TerminationCondition.optimal:
                 is_ok = True
             elif term == TerminationCondition.feasible:
                 is_ok = True
-            # Some solvers (like HiGHS via appsi) might report differently, 
-            # but standard Pyomo interface usually normalizes this.
             
             if not is_ok:
                 return (
@@ -276,11 +232,11 @@ class MoonLogisticsModel:
             model.solutions.load_from(result)
 
             try:
-                T_end_val = int(round(pyo.value(model.T_end)))
+                # T_end removed from model, assume T_horizon if successful
+                T_end_val = self.settings.T_horizon 
                 total_obj = float(pyo.value(model.obj_total))
                 total_cost = float(pyo.value(model.cost_total))
             except (ValueError, TypeError):
-                # Fallback if evaluation fails
                 T_end_val = -1
                 total_obj = 0.0
                 total_cost = 0.0
@@ -297,15 +253,11 @@ class MoonLogisticsModel:
                 term,
             )
 
-        # Infeasible handling: increase horizon first, then relax V0 epsilon
+        # Simple Horizon Loop (Removed complex task-based adaptation)
         horizon_step = int(solver_cfg.get("horizon_step_months", 12))
         horizon_attempts = int(solver_cfg.get("horizon_max_attempts", 0))
-        v0_scale = float(solver_cfg.get("v0_scale_factor", 10.0))
-        v0_attempts = int(solver_cfg.get("v0_adjust_attempts", 2))
         T_max = int(self.constants["time"]["T_max"])
-
         original_T = self.settings.T_horizon
-        original_v0 = float(self.constants["initial_capacities"]["V_0"])
 
         def _rebuild_for_horizon(new_horizon: int) -> None:
             self.settings.T_horizon = new_horizon
@@ -334,38 +286,107 @@ class MoonLogisticsModel:
                 break
             current_horizon += horizon_step
 
-        # Horizon exhausted: compute minimum epsilon for V_0 based on workload
-        total_work = sum(float(task.W) for task in self.data.tasks if task.delta_V <= 0)
-        if total_work > 0 and current_horizon > 0:
-            min_v0 = total_work / (current_horizon * self.constants["time"]["delta_t"])
-        else:
-            min_v0 = original_v0
-
-        v0_value = max(original_v0, min_v0)
-        self.constants["initial_capacities"]["V_0"] = v0_value
-        _rebuild_for_horizon(current_horizon)
-        result, term = _solve_single_objective()
-        if term not in (
-            TerminationCondition.infeasible,
-            TerminationCondition.infeasibleOrUnbounded,
-        ):
-            return result
-
-        # If still infeasible, scale epsilon cautiously
-        for _ in range(v0_attempts):
-            v0_value *= v0_scale
-            self.constants["initial_capacities"]["V_0"] = v0_value
-            _rebuild_for_horizon(current_horizon)
-            result, term = _solve_single_objective()
-            if term not in (
-                TerminationCondition.infeasible,
-                TerminationCondition.infeasibleOrUnbounded,
-            ):
-                return result
-
-        # Restore original V_0 if still infeasible
-        self.constants["initial_capacities"]["V_0"] = original_v0
         return result
+
+    def sanity_check(self, tol: float = 1e-6, top_n: int = 8) -> dict[str, Any]:
+        """
+        Run a post-solve feasibility sanity check and report max violations.
+
+        Returns:
+            Dictionary with aggregate metrics and top constraint violations.
+        """
+        self._require_pyomo()
+        if self._model is None:
+            raise RuntimeError("No model available. Call build_model/solve first.")
+
+        m = self._model
+
+        def _iter_constraint_data(con):
+            if con.is_indexed():
+                return con.values()
+            return [con]
+
+        def _max_violation(con):
+            max_v = 0.0
+            count = 0
+            worst_idx = None
+            for c in _iter_constraint_data(con):
+                if not c.active:
+                    continue
+                val = pyo.value(c.body)
+                v = 0.0
+                if c.equality:
+                    target = pyo.value(c.lower)
+                    v = abs(val - target)
+                else:
+                    lb = c.lower
+                    ub = c.upper
+                    if lb is not None:
+                        lb_val = pyo.value(lb)
+                        if val < lb_val:
+                            v = max(v, lb_val - val)
+                    if ub is not None:
+                        ub_val = pyo.value(ub)
+                        if val > ub_val:
+                            v = max(v, val - ub_val)
+                if v > max_v:
+                    max_v = v
+                    worst_idx = c.index()
+                if v > tol:
+                    count += 1
+            return max_v, count, worst_idx
+
+        violations = []
+        max_overall = 0.0
+        for con in m.component_objects(pyo.Constraint, active=True):
+            max_v, count, worst_idx = _max_violation(con)
+            max_overall = max(max_overall, max_v)
+            violations.append(
+                {
+                    "name": con.name,
+                    "max_violation": max_v,
+                    "count": count,
+                    "worst_index": worst_idx,
+                }
+            )
+
+        violations_sorted = sorted(
+            violations, key=lambda item: item["max_violation"], reverse=True
+        )
+        top_violations = violations_sorted[:top_n]
+
+        total_demand = (
+            self.constants["parameter_summary"]["materials"]["bom"]["total_demand_tons"]
+            * self.constants["units"]["ton_to_kg"]
+        )
+        total_mass = sum(
+            pyo.value(m.A_E[r, t] + m.Q[r, t]) for r in m.R for t in m.T
+        )
+        target_pop = self.constants["parameter_summary"]["colony"]["target"]["population"]
+        
+        t_end = len(m.T) - 1
+        population_at_end = pyo.value(m.Pop[t_end])
+        
+        # New Metric: Cumulative City Mass
+        if hasattr(m, "Cumulative_City"):
+             cum_city_at_end = pyo.value(m.Cumulative_City[t_end])
+        else:
+             cum_city_at_end = 0.0
+
+        rocket_trips = 0.0
+        if hasattr(m, "A_Rock") and len(m.A_Rock) > 0:
+            rocket_trips = sum(pyo.value(m.y[a, t]) for a in m.A_Rock for t in m.T)
+
+        return {
+            "total_mass": total_mass,
+            "total_demand": total_demand,
+            "population_at_end": population_at_end,
+            "target_pop": target_pop,
+            "cum_city_mass": cum_city_at_end,
+            "max_violation": max_overall,
+            "top_violations": top_violations,
+            "rocket_trips": rocket_trips,
+        }
 
     # -------------------------------------------------------------------------
     # Result Extraction
@@ -373,30 +394,10 @@ class MoonLogisticsModel:
 
     def get_schedule(self) -> dict[str, list[tuple[int, int]]]:
         """
-        Extract task schedule from solution.
-
-        Returns:
-            Dictionary mapping task_id to (start_month, end_month)
+        DEPRECATED: Extract task schedule. (Continuous Growth uses flow rate).
+        Returns empty dict.
         """
-        if self._model is None and self.state is None:
-            raise RuntimeError("No solution available.")
-
-        schedule: dict[str, list[tuple[int, int]]] = {}
-        if self._model is not None:
-            m = self._model
-            for task_id in m.I:
-                completion = [t for t in m.T if pyo.value(m.u[task_id, t]) >= 0.5]
-                if completion:
-                    end_t = int(completion[0])
-                    schedule[task_id] = [(0, end_t)]
-            return schedule
-
-        for i, task in enumerate(self.data.tasks):
-            completion_times = np.where(self.state.u[i, :] == 1)[0]
-            if len(completion_times) > 0:
-                end_t = completion_times[0]
-                schedule[task.id] = [(0, end_t)]
-        return schedule
+        return {}
 
     def get_flow_plan(self) -> dict[str, np.ndarray]:
         """
