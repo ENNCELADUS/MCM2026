@@ -65,8 +65,13 @@ class PyomoBuilder:
         self.delta_t = constants["time"]["delta_t"]
         self.steps_per_year = constants["time"]["steps_per_year"]
         self.ton_to_kg = constants["units"]["ton_to_kg"]
-        self.d_install = constants["task_defaults"]["installation_delay"]
-        self.min_task_duration = constants["task_defaults"]["min_duration"]
+        steps_per_month = self.steps_per_year / 12.0
+        self.d_install = int(
+            round(constants["task_defaults"]["installation_delay"] * steps_per_month)
+        )
+        self.min_task_duration = (
+            constants["task_defaults"]["min_duration"] * steps_per_month
+        )
         self.max_concurrent_tasks = constants["task_defaults"]["max_concurrent_tasks"]
 
         self.C_E_0 = constants["initial_capacities"]["C_E_0"]
@@ -244,7 +249,7 @@ class PyomoBuilder:
         settings = self.settings
 
         m.x = pyo.Var(m.A, m.R, m.T, domain=pyo.NonNegativeReals)
-        m.y = pyo.Var(m.A, m.T, domain=pyo.NonNegativeIntegers)
+        m.y = pyo.Var(m.A, m.T, domain=pyo.NonNegativeReals)
         m.I_E = pyo.Var(m.N, m.R, m.T, domain=pyo.NonNegativeReals)
         m.B_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.I_M = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
@@ -379,7 +384,7 @@ class PyomoBuilder:
         m = self.m
         
         # 1. Max Concurrent Tasks
-        max_concurrent = self.constants["task_defaults"]["max_concurrent_tasks"]
+        max_concurrent = self.max_concurrent_tasks
         m.concurrency_limit = pyo.Constraint(
             m.T, 
             rule=lambda mdl, t: sum(mdl.z[i, t] for i in mdl.I) <= max_concurrent
@@ -387,7 +392,7 @@ class PyomoBuilder:
         
         # 2. Duration / Rate Limits
         # Link z[i,t] with v[i,t] and enforce max rate
-        min_duration = self.constants["task_defaults"]["min_duration"]
+        min_duration = self.min_task_duration
         
         def _rate_limit_rule(mdl, i, t):
             duration = max(self.tasks_by_id[i].duration_months, min_duration)

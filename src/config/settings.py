@@ -84,7 +84,7 @@ class TaskDefinition:
         M_moon: Material requirements from Moon (REQUIRED, can be empty dict)
         M_flex: Flexible material requirements (REQUIRED, can be empty dict)
         W: Construction workload in kg (REQUIRED, >= 0)
-        duration_months: Task setup duration in months (REQUIRED, >= 0)
+        duration_months: Task setup duration in model time steps (derived from months)
         delta_P: ISRU capacity increment (REQUIRED, >= 0)
         delta_V: Construction capacity increment (REQUIRED, >= 0)
         delta_H: Handling capacity increment (REQUIRED, >= 0)
@@ -175,7 +175,7 @@ class ModelSettings:
 
     Attributes:
         scenario: Active transport scenario (REQUIRED)
-        T_horizon: Planning horizon in months (REQUIRED, > 0)
+        T_horizon: Planning horizon in years/time steps (REQUIRED, > 0)
         enable_learning_curve: Whether to apply learning curves (REQUIRED)
         enable_preposition: Allow material pre-positioning (REQUIRED)
         solver_timeout: Maximum solver time in seconds (REQUIRED, > 0)
@@ -355,6 +355,9 @@ def build_task_network_from_wbs(
     ton_to_kg = units["ton_to_kg"]
     delta_t = time["delta_t"]
     steps_per_year = time["steps_per_year"]
+    seconds_per_year = steps_per_year * delta_t
+    seconds_per_month = seconds_per_year / 12.0
+    steps_per_month = steps_per_year / 12.0
 
     tiers = parameter_summary["materials"]["bom"]["tiers"]
     tier1 = next((t for t in tiers if t["class"] == 1), None)
@@ -403,13 +406,14 @@ def build_task_network_from_wbs(
             M_moon[res] = M_moon.get(res, 0.0) + tier3_each
 
         unlocks = task["unlocks"]
-        delta_P = (unlocks["production_t_per_year"] * ton_to_kg) / (
-            steps_per_year * delta_t
-        )
-        delta_H = (unlocks["handling_t_per_month"] * ton_to_kg) / delta_t
-        delta_V = (unlocks.get("construction_t_per_month", 0.0) * ton_to_kg) / delta_t
+        delta_P = (unlocks["production_t_per_year"] * ton_to_kg) / seconds_per_year
+        delta_H = (unlocks["handling_t_per_month"] * ton_to_kg) / seconds_per_month
+        delta_V = (
+            unlocks.get("construction_t_per_month", 0.0) * ton_to_kg
+        ) / seconds_per_month
         delta_Pop = unlocks["population"]
         delta_power_mw = unlocks["power_mw"]
+        duration_steps = task["duration_months"] * steps_per_month
 
         tasks.append(
             TaskDefinition(
@@ -420,7 +424,7 @@ def build_task_network_from_wbs(
                 M_moon=M_moon,
                 M_flex={},
                 W=regolith_mass_kg,
-                duration_months=task["duration_months"],
+                duration_months=duration_steps,
                 delta_P=delta_P,
                 delta_V=delta_V,
                 delta_H=delta_H,

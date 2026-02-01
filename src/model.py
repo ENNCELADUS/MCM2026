@@ -111,7 +111,10 @@ class MoonLogisticsModel:
             raise RuntimeError("Model data not loaded. Call load_data() first.")
 
         init_cap = self.constants["initial_capacities"]
-        d_default = self.constants["task_defaults"]["installation_delay"]
+        steps_per_month = self.constants["time"]["steps_per_year"] / 12.0
+        d_default = int(
+            round(self.constants["task_defaults"]["installation_delay"] * steps_per_month)
+        )
 
         P_increment = 0.0
         V_increment = 0.0

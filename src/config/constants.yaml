@@ -6,10 +6,10 @@
 # Time Parameters
 # -----------------------------------------------------------------------------
 time:
-  delta_t: 2592000  # 1 month in seconds (30 * 24 * 3600)
-  T_max: 1200       # Maximum time horizon (months, 100 years, 2050-2150)
-  start_year: 2050  # Calendar year for t=0 (Phase I start)
-  steps_per_year: 12
+  delta_t: 31536000  # 1 year in seconds (365 * 24 * 3600)
+  T_max: 100         # Maximum time horizon (years)
+  start_year: 2050   # Calendar year for t=0 (Phase I start)
+  steps_per_year: 1
 
 # -----------------------------------------------------------------------------
 # Unit Conversions
@@ -31,26 +31,8 @@ network:
     earth_port_name_template: "Galactic Harbour {h} - Earth Port"
   launch_sites:
     known:
-      - id: "Launch_01"
-        name: "Alaska Launch Site"
-      - id: "Launch_02"
-        name: "California Launch Site"
-      - id: "Launch_03"
-        name: "Texas Launch Site"
-      - id: "Launch_04"
-        name: "Florida Launch Site"
-      - id: "Launch_05"
-        name: "Virginia Launch Site"
-      - id: "Launch_06"
-        name: "Kazakhstan Launch Site"
-      - id: "Launch_07"
-        name: "French Guiana Launch Site"
-      - id: "Launch_08"
-        name: "Satish Dhawan Launch Site"
-      - id: "Launch_09"
-        name: "Taiyuan Launch Site"
-      - id: "Launch_10"
-        name: "Mahia Peninsula Launch Site"
+      - id: "Launch_Agg"
+        name: "Aggregate Earth Launch Site"
   arcs:
     elevator:
       lead_time_days: 7
@@ -161,7 +143,7 @@ scenario_parameters:
       start_year: 2050
   arc_selection:
     simplified_single_arc: false
-    arc_rocket_id: "Launch_01_to_Moon_R"
+    arc_rocket_id: "Launch_Agg_to_Moon_R"
     arc_elevator_id: "E_port_H1_to_Moon_E"
 
 # -----------------------------------------------------------------------------
@@ -193,9 +175,9 @@ costs:
 # Initial Capacity Parameters (at t=0)
 # -----------------------------------------------------------------------------
 initial_capacities:
-  P_0: 0.0      # ISRU production (kg/s)
-  V_0: 0.0001   # Construction/assembly (kg/s) - epsilon > 0
-  H_0: 0.01    # Handling/receiving (kg/s) - minimal initial
+  P_0: 0.01     # ISRU production (kg/s)
+  V_0: 0.05     # Construction/assembly (kg/s)
+  H_0: 0.1      # Handling/receiving (kg/s)
   Pop_0: 0      # Population capacity (persons)
   Power_0: 0.0  # Power capacity (MW)
   
@@ -510,7 +492,6 @@ optimization:
   integer_vars:
     - "u"
     - "u_done"
-    - "y"
     - "N_rate"
 
 # -----------------------------------------------------------------------------
