@@ -1,65 +1,83 @@
-将随机的“不完美”解构为稳态可用性（Availability）、动态性能减损（Degradation）以及离散灾难损失（Catastrophic Loss）。
-以下是针对这三类干扰的具体建模方案、参数建议及权威文献支撑：
-### 1. 系统性风险 (Systemic Risk): 电梯效率波动
-- **物理含义**：系缆摆动 (Tether Sway) 导致爬升器必须减速以抑制振动。
-- **建模**：引入效率系数 $\eta(t) \in [0, 1]$，服从截断正态分布 (Truncated Normal Distribution)。
-  $$C_{Elevator}(t) = C_{Max} \times \eta(t)$$
-- **影响**：这是一条持续的、全局的减速曲线，直接降低每月的有效运输通量。
+# Task 2: Variations under Imperfect Conditions - Strategic Scenario Plan
 
-### 2. 间断性风险 (Intermittent Risk): 电梯故障停运
-- **物理含义**：设备损坏 (Breakdown) 或微陨石导致系缆需紧急维修，导致运力在一段时间内完全归零。
-- **建模**：基于泊松过程 (Poisson Process) 的跳跃模型。
-  - 故障发生时刻 $t_{fail}$ 服从泊松分布。
-  - 一旦触发故障，运力 $C_E(t)=0$ 持续 $T_{repair}$ 个月。
-- **影响**：这是时间轴上的“深坑”，会造成物流积压和产能闲置，可能导致关键任务节点延误。
+## 1. Strategic Context: "The Stability Imperative"
 
-### 3. 局部性风险 (Local Risk): 火箭发射失败
-- **物理含义**：单次发射任务失败 (Loss of Mission)。
-- **建模**：伯努利试验 (Bernoulli Trial)。
-  - 对每一批次的发射任务 $N_{launch}$，成功次数 $K \sim Binomial(N_{launch}, P_{success})$。
-  - 若失败，该次载荷物资归零，成本翻倍（惩罚用于重发或赔偿），但时间轴不直接停止（假设有备用窗口）。
-- **影响**：主要冲击预算成本，对总工期影响较小（除非连续大规模失败）。
+**Backstory (2050-2100):**
+The year is 2050. The "Lunar Industrial Gateway" has secured initial funding, promising a 100,000-person colony by 2096. However, the MCM Agency (Moon Colony Management) faces skepticism from the Global Space Council. Historical data from the "Starship Era" (2020s) and early elevator tether tests suggests that *average* performance is a dangerous metric. A system that works 100% of the time on paper often fails in reality due to "Long-Tail" risks—a single week of tether vibration or a launch pad explosion can cascade into years of delay.
 
-参考文献列表 (References for your MCM Thesis)
-NASA Technical Reports Server (NTRS). (2013). Space Transportation System Availability Requirement and Its Influencing Attributes Relationships. Document ID: 20130012504.
-Knapman, J. M. (2019). The Multi-stage Space Elevator Update. International Space Elevator Consortium (ISEC).
-Kuzuno, R., et al. (2010). Climber Motion Optimization for the Tethered Space Elevator. Acta Astronautica, 66(9), 1373-1379.
-NASA Technical Reports Server (NTRS). (2010). Life Support with Failures and Variable Supply. Document ID: 20100036365.
-Federal Aviation Administration (FAA). (2005). Guide to Probability of Failure Analysis for New Expendable Launch Vehicles.
-NewSpace Economy. (2023). Space Shuttle Launch Probability Analysis: Understanding History So We Can Predict the Future.
+**The Stakeholders:**
+*   **MCM Agency Directors**: Focused on the *deadline* (2096). They need to know the probability of missing it.
+*   **Infrastructure Partners (Elevator Co. & Rocket Fleet)**: Need operational envelopes—what failure rates are survivable?
+*   **Investors**: Demanding a "Failure Cliff" analysis—at what point does the project become a sunk cost?
 
-## 实验
-进行了 5,000 次蒙特卡洛模拟 (Monte Carlo Simulation)
+**The Core Question:**
+"In a world of friction, entropy, and statistical failure, does our logistics chain bend, or does it break?"
 
-图 1: 时间与成本的双重风险直方图 (Dual Risk Histogram)
-- 左图 (Time)：展示了工期的概率分布。
-  - 右偏分布 (Right-Skewed)：分布不是对称的钟形，而是拖着一条长长的尾巴。这说明虽然平均工期（Mean）只比理想值延误了约 15 年，但存在“运气极差”导致工期翻倍的长尾风险 (Tail Risk)。
-- 右图 (Cost)：展示了成本的概率分布。
-  - 波动性更大：成本的分布比时间更“胖”。这是因为火箭故障虽然不怎么拖慢时间，但极其烧钱。
-- 结论：在不完美条件下，项目不再是一个固定的数字，而是一个置信区间。我们需要预留 20% 的时间缓冲和 30% 的预算缓冲。
-图 2: 龙卷风图 (Tornado Diagram) —— 谁是罪魁祸首？
-- 解读：我们通过敏感性分析（OAT）对比了各因素对总工期的影响幅度。
-- 核心发现：
-  - 顶部宽条 (Elevator Breakdown/Sway)：条形极长。说明电梯系统的不稳定性是致命伤。因为电梯是物流大动脉，它一停，月球的 ISRU 工厂就断粮，整个工程停摆。
-  - 底部窄条 (Rocket Failure)：条形极短。说明火箭失败只是皮外伤。它是局部事件，不会引发连锁反应。
-- 结论：系统的鲁棒性取决于电梯的稳定性，而非火箭的成功率。
-图 3: 3D 风险地形图 (Global Risk Landscape)
-- 解读：展示了工期随“电梯效率”和“故障率”变化的曲面。
-- 关键特征：风险悬崖 (The Failure Cliff)。
-  - 注意看曲面右上角，地面不是平滑上升的，而是呈现出阶梯状 (Stepped) 和 陡峭上升。
-  - 这意味着系统存在临界阈值 (Threshold)。当故障率低于 8% 时，系统还能自我调节；一旦超过这个点，维修队列堆积，工期会呈指数级爆炸。
-- 结论：我们必须将系统控制在“悬崖边缘”的安全一侧。
+## 2. Mathematical Framework: The Stochastic Layer
 
-4. 解决方案：关键路径保护策略 (Mitigation Strategy)
-针对上述风险，我们提出了一种改进的调度算法：关键路径保护策略 (Critical Path Protection, CPP)。
-算法逻辑
-- Naive 策略 (笨办法)：当运力因故障减半时，所有任务（无论是建主城还是种花草）都按比例减少物资供应。
-  - 结果：大家一起饿肚子，关键节点被拖慢，导致整体延误。
-- CPP 策略 (我们的优化)：
-  - 第一步：动态识别 AON 网络中的关键路径（如：炼钢厂 $\to$ 重工 $\to$ 主城 $\to$ 能源堆）。
-  - 第二步：当系统处于“运力危机”（效率<80%）时，强行提升关键任务的优先级，优先满足它们的物资需求，暂时牺牲非关键任务（如生态园、备用仓库）。
-图 4: 蒙特卡洛飓风图 (Hurricane Plot) —— 策略的胜利
-- 解读：
-  - 灰色线条 (Naive)：像一把散开的扫把，线条发散严重。说明在面对故障时，这种策略极其不稳定，方差极大。
-  - 红色线条 (Protected)：像一束聚焦的激光，线条紧密收敛。说明无论运气多差，这种策略都能把工期控制在一个很窄的范围内。
-- 结论：我们无法消除物理上的故障（运气），但可以通过数学上的调度（管理）来消除不确定性。该策略将工期的标准差（风险）降低了 80% 以上。
+We introduce a "chaos layer" on top of the deterministic optimization model.
+
+*   **Category I: Availability (The "On/Off" Risk)**
+    *   *Concept*: Facilities aren't always running. Elevators need maintenance; lunar factories clog with dust.
+    *   *Math*: Two-state Markov Process ($State \in \{Operational, Repair\}$).
+    *   *Impact*: Reduces effective time $T_{eff} = T_{total} \times A$.
+
+*   **Category II: Degradation (The "Friction" Risk)**
+    *   *Concept*: Working, but poorly. Tether swaying (Coriolis) forces slower climbs; bad weather delays launches.
+    *   *Math*: Stochastic Penalty Factor $\Phi_{real} = \Phi_{ideal} \times (1 - f_{penalty})$.
+    *   *Impact*: Reduces effective throughput capacity.
+
+*   **Category III: Catastrophe (The "Loss" Risk)**
+    *   *Concept*: Total loss of cargo. Rocket explosion or micrometeroid impact.
+    *   *Math*: Bernoulli Trials ($X \sim B(n, p)$).
+    *   *Impact*: Random subtraction of accumulated mass (negative shock).
+
+## 3. Key Deliverables (The Evidence)
+
+1.  **Monte Carlo Timeline Analysis**:
+    *   *Output*: A histogram of completion dates.
+    *   *Goal*: Show the "Long Tail". PROOF that the *mean* completion time is much worse than the *perfect* time.
+
+2.  **Tornado Sensitivity Diagram**:
+    *   *Output*: A ranking of variables (e.g., "Rocket Launch Rate" vs. "Elevator Downtime").
+    *   *Goal*: Identify the "Critical Path" of risk. (Hypothesis: Elevator reliability matters more than rocket cost).
+
+3.  **The "Failure Cliff" (3D Landscape)**:
+    *   *Output*: A 3D surface plot ($X$=Failure Rate, $Y$=Repair Time, $Z$=Project Duration).
+    *   *Goal*: Find the tipping point where the colony *never* finishes because maintenance consumes all capacity.
+
+## 4. Implementation Roadmap (Code Modules)
+
+To support this narrative, we need to add the following modules to the codebase:
+
+*   **`src/simulation/stochastic_engine.py`**:
+    *   Wraps the existing `optimization.py` logic.
+    *   Runs $N$ iterations (e.g., 1000 runs).
+    *   Injects random variables into `capacity` and `cost` parameters before each run.
+
+*   **`src/analysis/sensitivity.py`**:
+    *   systematically perturbs single variables ($\pm 10\%$) to generate data for the Tornado diagram.
+
+*   **`src/visualization/risk_plots.py`**:
+    *   Generates the Probability Distributions and 3D Landscapes.
+
+---
+*(Detailed Parameter Models preserved below for implementation reference)*
+
+### Appendix: Modeling Details
+
+**第一类：系统可用性模型 (System Availability Model)**
+*   **公式**: $A = \frac{MTBF}{MTBF + MTTR}$
+*   **参数**:
+    *   Space Elevator: $MTBF \approx 5000h$, $MTTR \approx 200h$ $\Rightarrow A \approx 96\%$
+    *   ISRU: $MTBF \approx 1000h$, $MTTR \approx 48h$ $\Rightarrow A \approx 95\%$
+
+**第二类：动态性能减损模型 (Performance Degradation Model)**
+*   **公式**: $\Phi_{eff} = \Phi_{ideal} \cdot (1 - f_{sway})$
+*   **参数**: $f_{sway} \sim Uniform(0.1, 0.25)$ (Coriolis effect damping)
+
+**第三类：离散损失与损坏模型 (Discrete Loss & Damage Model)**
+*   **公式**: $M_{eff} = \sum L_{cap} \cdot X_i \cdot (1 - \gamma)$
+*   **参数**:
+    *   Launch Success $P_s \approx 0.98$ (Mature Chemical Rockets)
+    *   Cargo Yield $\gamma \approx 0.01$ (Micrometeoroid shielding loss)
