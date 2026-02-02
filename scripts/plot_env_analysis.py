@@ -46,10 +46,36 @@ def load_env_data(result_path: Path) -> Tuple[pd.DataFrame, dict]:
     return df, summary
 
 
+def _infer_goal_year_from_material(result_path: Path) -> float | None:
+    material_path = result_path / "material_timeseries.csv"
+    if not material_path.exists():
+        return None
+
+    material = pd.read_csv(material_path)
+    if "cumulative_city_tons" not in material or "year" not in material:
+        return None
+
+    cumulative = material["cumulative_city_tons"]
+    if cumulative.empty:
+        return None
+
+    target = cumulative.max()
+    if not np.isfinite(target) or target <= 0:
+        return None
+
+    goal_mask = cumulative >= (target - 1e-6)
+    if not goal_mask.any():
+        return None
+
+    goal_idx = goal_mask.idxmax()
+    return float(material.loc[goal_idx, "year"])
+
+
 def plot_debt_crossover(
     df: pd.DataFrame,
     summary: dict,
     output_path: Path,
+    result_path: Path,
 ) -> None:
     """
     Plot 1: Environmental Debt Crossover
@@ -68,10 +94,20 @@ def plot_debt_crossover(
     aggressive = active["D_total_aggressive"] / 1e9  # Convert to billions
     conservative = active["D_total_conservative"] / 1e9
 
+    conservative_plot = conservative
+    goal_year = _infer_goal_year_from_material(result_path)
+    if goal_year is not None:
+        cap_mask = years >= goal_year
+        if cap_mask.any():
+            cap_idx = cap_mask.idxmax()
+            cap_value = conservative.loc[cap_idx]
+            conservative_plot = conservative.copy()
+            conservative_plot.loc[cap_mask] = cap_value
+
     # Plot lines
     ax.plot(years, aggressive, "b-", linewidth=2, label="Front-Loaded Bootstrapping")
     ax.plot(
-        years, conservative, "r--", linewidth=2, label="Conservative (Elevator-Only)"
+        years, conservative_plot, "r--", linewidth=2, label="Conservative (Elevator-Only)"
     )
 
     # Mark crossover point
@@ -94,8 +130,8 @@ def plot_debt_crossover(
     ax.fill_between(
         years,
         aggressive,
-        conservative,
-        where=aggressive > conservative,
+        conservative_plot,
+        where=aggressive > conservative_plot,
         alpha=0.2,
         color="red",
         label="Aggressive > Conservative",
@@ -103,8 +139,8 @@ def plot_debt_crossover(
     ax.fill_between(
         years,
         aggressive,
-        conservative,
-        where=aggressive <= conservative,
+        conservative_plot,
+        where=aggressive <= conservative_plot,
         alpha=0.2,
         color="green",
         label="Aggressive ≤ Conservative",
@@ -395,6 +431,58 @@ def plot_pareto_frontier(
     print(f"  Saved: pareto_frontier.png")
 
 
+def _assemble_two_panel(
+    output_path: Path,
+    top_name: str,
+    bottom_name: str,
+    output_name: str,
+    title: str,
+) -> None:
+    top_path = output_path / top_name
+    bottom_path = output_path / bottom_name
+
+    if not top_path.exists() or not bottom_path.exists():
+        return
+
+    top_img = plt.imread(top_path)
+    bottom_img = plt.imread(bottom_path)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    axes[0].imshow(top_img)
+    axes[0].axis("off")
+    axes[1].imshow(bottom_img)
+    axes[1].axis("off")
+    fig.tight_layout()
+    fig.savefig(output_path / output_name)
+    plt.close(fig)
+    print(f"  Saved: {output_name}")
+
+
+def plot_consolidated_figures(output_path: Path) -> None:
+    """Combine related plots into consolidated two-panel story figures."""
+    _assemble_two_panel(
+        output_path,
+        "debt_crossover.png",
+        "payback_sensitivity.png",
+        "investment_case.png",
+        "Investment Case",
+    )
+    _assemble_two_panel(
+        output_path,
+        "debt_exchange.png",
+        "decoupling.png",
+        "global_impact.png",
+        "Global Impact",
+    )
+    _assemble_two_panel(
+        output_path,
+        "pareto_frontier.png",
+        "robustness_heatmap.png",
+        "tradeoff_robustness.png",
+        "Trade-off & Robustness",
+    )
+
+
 def main():
     """Generate all environmental analysis plots."""
     import argparse
@@ -427,12 +515,13 @@ def main():
     df, summary = load_env_data(args.result_path)
 
     # Generate all plots
-    plot_debt_crossover(df, summary, output_path)
+    plot_debt_crossover(df, summary, output_path, args.result_path)
     plot_decoupling(df, output_path)
     plot_debt_exchange(df, output_path)
     plot_payback_sensitivity(summary, output_path)
     plot_robustness_heatmap(summary, output_path)
     plot_pareto_frontier(summary, output_path)
+    plot_consolidated_figures(output_path)
 
     print(f"\nAll plots generated successfully!")
 

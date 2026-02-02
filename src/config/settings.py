@@ -41,6 +41,7 @@ class ModelSettings:
     T_horizon: int
     enable_learning_curve: bool
     enable_preposition: bool
+    enable_env: bool = False  # Environmental shadow pricing
     solver_timeout: int = 3600
     mip_gap: float = 0.01
     output_dir: Path = field(default_factory=lambda: Path("results"))

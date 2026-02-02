@@ -1,0 +1,15 @@
+{
+  "scenario": "20260203_010435",
+  "crossover_year": 2077.427764197565,
+  "completion_year": 2099.4166666666665,
+  "total_D_E_aggressive": 8873141591.631674,
+  "total_D_M": 7999999999.999983,
+  "total_debt_aggressive": 16873141591.631657,
+  "total_D_E_conservative": 803163937.3570802,
+  "total_D_M_conservative": 28161447957.473476,
+  "total_debt_conservative": 28964611894.830555,
+  "debt_savings": 12091470303.198898,
+  "rocket_cost_per_ton_usd": 775.0,
+  "elevator_cost_per_ton_usd": 25.0,
+  "moon_cost_per_ton_usd": 100.0
+}

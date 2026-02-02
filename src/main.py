@@ -132,6 +132,11 @@ Examples:
         default=None,
         help="Number of Monte Carlo runs for risk analysis (default: from config)",
     )
+    parser.add_argument(
+        "--env",
+        action="store_true",
+        help="Enable environmental shadow pricing (Model IV) in objective function",
+    )
 
     return parser.parse_args()
 
@@ -175,6 +180,7 @@ def create_settings(args: argparse.Namespace) -> ModelSettings:
         T_horizon=args.horizon,
         enable_learning_curve=not args.no_learning_curve,
         enable_preposition=not args.no_preposition,
+        enable_env=args.env,
         solver_timeout=args.timeout,
         mip_gap=args.gap,
         output_dir=output_dir,

@@ -159,55 +159,91 @@ def simulate_conservative_baseline(
     df: pd.DataFrame, params: EnvironmentParams
 ) -> pd.DataFrame:
     """
-    Simulate conservative baseline: elevator-only strategy with delayed ISRU.
+    Simulate conservative baseline: "Struggling Plan" (Elevator-Only).
 
-    The key insight is that WITHOUT early rocket seeding:
-    - ISRU bootstrap is delayed by bootstrap_delay_years
-    - Capacity growth is slower (capacity_growth_penalty)
-    - More Earth transport is needed to compensate for reduced ISRU
-    - This leads to LONGER project timeline and MORE total emissions
+    Instead of simply shifting the aggressive curve, we model a fundamentally
+    different growth trajectory defined by:
+    - No initial rocket pulse -> severely delayed bootstrapping.
+    - Reliance on trickling elevator supply -> very slow growth rate (r).
+    - Long-term dependency on Earth imports -> high cumulative elevator debt.
 
-    The crossover happens because the aggressive strategy:
-    - Has HIGH early emissions (rockets)
-    - But enables FAST ISRU growth
-    - Eventually total emissions are LOWER than conservative
-
-    Returns a modified DataFrame with conservative scenario columns.
+    Models P_cons(t) as a logistic function:
+       P(t) = K / (1 + A * exp(-r * (t - t0)))
+    Where r is significantly smaller than the aggressive case.
     """
     # Copy original data
     df_cons = df.copy()
 
-    # Delay ISRU production
-    delay_steps = int(params.bootstrap_delay_years * 12)  # 12 steps/year
+    # 1. Model Conservative Production Curve (Synthetic Logistic)
+    # Get simulation time (years)
+    years = df["year"].values
+    t_start = years[0]
 
-    # Conservative scenario: slower ISRU growth means we need MORE elevator transport
-    # to achieve the same total mass delivery over a LONGER time horizon.
+    # Logistic Parameters
+    K = df["isru_production_tons"].max()  # Same max capacity
+    if K <= 0: K = 8e7 # Fallback if max is 0
 
-    # Shift ISRU production by delay and apply growth penalty
-    isru_delayed = df["isru_production_tons"].shift(delay_steps, fill_value=0.0)
-    isru_scaled = isru_delayed * params.capacity_growth_penalty
+    # Conservative Growth Rate (r)
+    # Aggressive r ~ 0.35 (alpha). Conservative is heavily penalized.
+    r_cons = 0.35 * params.capacity_growth_penalty
 
-    # The key: conservative scenario needs to transport MORE from Earth
-    # because ISRU is producing less.
-    isru_deficit = df["isru_production_tons"] - isru_scaled
-    isru_deficit = isru_deficit.clip(lower=0)
+    # Conservative Delay (t0_shift)
+    # Moves the inflection point later
+    delay_years = params.bootstrap_delay_years
+    t_inflection = t_start + delay_years + 10.0 # +10y for natural slow startup
 
-    # This deficit must be made up by additional elevator transport
-    # (since conservative = elevator-only)
-    additional_elevator = isru_deficit
+    # Calculate A for logistic
+    # P(t_start) ~ small epsilon
+    # K / (1 + A) = epsilon -> A ~ K/epsilon
+    A = 1000.0
 
-    # Conservative: elevator = original elevator + additional to compensate ISRU deficit
-    df_cons["elevator_arrivals_tons"] = (
-        df["elevator_arrivals_tons"] + additional_elevator
-    )
+    # Generate P_cons(t) - Monthly Production Rate
+    # Note: Logistic gives Total Annual Capacity P(t). Monthly prod = P(t)/12.
+    # We adjust the formula to act as cumulative adoption or just rate?
+    # Let's model the Production Rate directly.
 
-    # No rockets in conservative scenario
+    # Conservative ISRU profile
+    # Calculate vector of production (tons/month assumed similar scale to input)
+    # Use simple scaling relative to max aggressive output to ensure comparability
+    max_agg_prod = df["isru_production_tons"].max()
+
+    # Create mask for delay period
+    delay_mask = (years - t_start) < delay_years
+    
+    # Normalized logistic curve [0, 1] starting AFTER delay
+    # We want sigmoid(0) ~ small number, sigmoid(15) ~ 0.5
+    # norm_time should start at 0 after delay
+    valid_time = (years - t_start - delay_years)
+    
+    # Sigmoid centered at 15 years post-delay
+    # t=0 -> exp(-r*-15) = exp(large pos) -> 1/(1+large) ~ 0
+    sigmoid = 1 / (1 + np.exp(-r_cons * (valid_time - 15)))
+
+    # Scale to demand
+    isru_cons = max_agg_prod * sigmoid
+    
+    # Zero out production during delay 
+    isru_cons[delay_mask] = 0.0
+
+    # Apply to dataframe
+    df_cons["isru_production_tons"] = isru_cons
+
+    # 2. Calculate Supply Deficit
+    # Total Demand = Aggressive Supply (assuming demand is fixed by project goals)
+    total_supply_agg = df["isru_production_tons"] + df["earth_arrivals_tons"]
+
+    # Deficit = Target Supply - Conservative ISRU
+    supply_deficit = total_supply_agg - isru_cons
+    supply_deficit = supply_deficit.clip(lower=0)
+
+    # 3. Fill Deficit with Elevator Transport
+    # Conservative scenario uses NO rockets.
     df_cons["rocket_arrivals_tons"] = 0.0
 
-    # ISRU is reduced/delayed
-    df_cons["isru_production_tons"] = isru_scaled
+    # Everything else comes from Elevator
+    df_cons["elevator_arrivals_tons"] = supply_deficit
 
-    # Update earth arrivals (elevator only)
+    # Update total earth arrivals
     df_cons["earth_arrivals_tons"] = df_cons["elevator_arrivals_tons"]
 
     return df_cons

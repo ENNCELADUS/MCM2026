@@ -612,7 +612,72 @@ class PyomoBuilder:
 
         m.city_integral = pyo.Expression(expr=sum(m.Rewardable_City[t] for t in m.T))
 
-        # We minimize: w_C * Cost - w_T * Integral
+        # ---------------------------------------------------------------------
+        # Environmental Shadow Pricing (Model IV) - Added when --env flag is set
+        # ---------------------------------------------------------------------
+        env_penalty_expr = 0
+        if self.settings.enable_env:
+            env_cfg = self.constants.get("environment", {})
+
+            # Rocket emission cost per ton payload ($ / ton)
+            rocket_emissions = env_cfg.get("rocket_emissions", {})
+            strat_weights = env_cfg.get("stratospheric_weights", {})
+            rocket_cost_per_ton = (
+                strat_weights.get("w_CO2", 0.05) * rocket_emissions.get("e_CO2", 3100)
+                + strat_weights.get("w_BC", 500) * rocket_emissions.get("e_BC", 0.6)
+                + strat_weights.get("w_Al2O3", 100) * rocket_emissions.get("e_Al2O3", 15)
+                + strat_weights.get("w_NOx", 50) * rocket_emissions.get("e_NOx", 2.5)
+            )
+
+            # Elevator emission cost per ton (much lower)
+            elev_cfg = env_cfg.get("elevator_emissions", {})
+            ci_grid = elev_cfg.get("CI_grid_kg_CO2_per_kWh", 0.05)
+            energy_per_ton = elev_cfg.get("energy_per_ton_kWh", 500)
+            elevator_cost_per_ton = strat_weights.get("w_CO2", 0.05) * ci_grid * energy_per_ton
+
+            # Lunar disturbance cost per ton ISRU
+            moon_cfg = env_cfg.get("moon_disturbance", {})
+            epsilon_reg = moon_cfg.get("epsilon_reg", 0.5)
+            epsilon_sens = moon_cfg.get("epsilon_sens", 10.0)
+            sens_fraction = moon_cfg.get("sens_fraction", 0.05)
+            moon_cost_per_ton = epsilon_reg + sens_fraction * epsilon_sens
+
+            # Get shadow price weight (lambda_env)
+            # Default to 1.0 so that the values above are used directly
+            w_env = float(self.constants.get("objective", {}).get("w_env", 1.0))
+
+            # D_E: Earth Atmospheric Debt (rockets + elevators)
+            # Sum over rocket arcs: rocket_cost_per_ton * sum_r(x[a,r,t])
+            d_E_expr = sum(
+                rocket_cost_per_ton * m.x[a, r, t]
+                for a in self.rocket_arcs
+                for r in m.R
+                for t in m.T
+            ) + sum(
+                elevator_cost_per_ton * m.x[a, r, t]
+                for a in self.elevator_arcs
+                for r in m.R
+                for t in m.T
+            )
+
+            # D_M: Moon Surface Debt (ISRU production)
+            # Sum over all ISRU-producible resources: moon_cost_per_ton * Q[r,t]
+            d_M_expr = sum(
+                moon_cost_per_ton * m.Q[r, t]
+                for r in m.R
+                for t in m.T
+                if self.res_by_id[r].isru_producible
+            )
+
+            # Store expressions for reporting
+            m.D_E = pyo.Expression(expr=d_E_expr)
+            m.D_M = pyo.Expression(expr=d_M_expr)
+
+            env_penalty_expr = w_env * (d_E_expr + d_M_expr)
+
+        # We minimize: w_C * Cost - w_T * Integral + env_penalty
         m.obj_total = pyo.Objective(
-            expr=w_C * m.cost_total - w_T * m.city_integral, sense=pyo.minimize
+            expr=w_C * m.cost_total - w_T * m.city_integral + env_penalty_expr,
+            sense=pyo.minimize,
         )
+
