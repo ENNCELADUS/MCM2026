@@ -1,0 +1,10 @@
+{
+  "delta_T_years": 1.2,
+  "delta_C_usd": 89062392927.74133,
+  "delta_C_billion_usd": 89.1,
+  "W_gate_tons": 500000,
+  "annual_replenishment_tons": 175200.0,
+  "total_water_transport_tons": 10854969.0,
+  "transport_cost_usd": 69062392927.74133,
+  "F_ISRU_usd": 20000000000.0
+}

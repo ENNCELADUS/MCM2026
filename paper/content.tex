@@ -393,7 +393,7 @@ The hybrid model specifically addresses the ``Cold Start'' problem inherent in l
 
 \subsubsection{Bootstrapping and Mass Sourcing Evolution}
 
-Our model validates the \textbf{System Bootstrapping Effect} as the definitive factor in mission success. Upon reaching the 100,000-person capacity, 80.0% of the 100-million-ton cumulative material requirement is sourced directly via lunar In-Situ Resource Utilization. This high localization rate fundamentally reduces the project’s long-term dependency on the Earth-to-Moon transport corridor.
+Our model validates the \textbf{System Bootstrapping Effect} as the definitive factor in mission success. Upon reaching the 100,000-person capacity, 80.0\% of the 100-million-ton cumulative material requirement is sourced directly via lunar In-Situ Resource Utilization. This high localization rate fundamentally reduces the project’s long-term dependency on the Earth-to-Moon transport corridor.
 
 \begin{figure}[htbp]
 \centering
@@ -450,7 +450,7 @@ Following the implementation of the stochastic variables, we present a multi-dim
 
 The first dimension of our results focuses on the temporal sensitivity of the bootstrapping process. By injecting a standardized 50,000-ton material loss at different points in the project lifecycle, we observe the resulting increment in the total completion time $\Delta T$.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\linewidth]{figures/risk_impulse_response.png}
     \caption{The Butterfly Effect of Bootstrap Latency. The Impulse Response Curve illustrates that a failure in the initial ``Seeding Phase'' (2050--2052) generates a disproportionate impact ($\Delta T \approx 0.03$ years per event) compared to later phases. The exponential decay of sensitivity confirms that the mission's risk is strictly front-loaded.}
@@ -463,7 +463,7 @@ The results (Figure \ref{fig:impulse_response}) demonstrate a clear decaying sen
 
 The overall mission stability is evaluated through 1,000 Monte Carlo iterations to stress-test the deterministic baseline of 25.4 years (Completion Year 2075.4).
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=\linewidth]{figures/risk_prob_dist.png}
     \caption{Probability Distributions of Duration and Cost. (Left) The completion time distribution is tightly clustered (Mean 2077.4 years), indicating high schedule reliability. (Right) The total cost distribution is bounded with a mean of \$1.21 Trillion, validating the financial feasibility of the hybrid model even under pessimistic failure rates.}
@@ -476,7 +476,7 @@ The probability density function (Figure \ref{fig:risk_dist}) reveals a robust s
 
 Finally, we investigate the ``self-healing'' properties of our hybrid logistics model. By simulating a period of severe tether swaying (where $\eta$ drops significantly), we observe the dynamic reallocation of cargo between the transport modes.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
     \centering
     \includegraphics[width=0.9\linewidth]{figures/risk_elasticity.png}
     \caption{Elasticity of Transport Redundancy. During a simulated Space Elevator degradtion (red zone), the rocket fleet (purple) automatically surges to compensate for the lost throughput. This dynamic substitution ensures that critical Tier 1/2 material flows are maintained despite infrastructure degradation.}
@@ -507,7 +507,7 @@ Crucially, the decision variable for the logistics system is not the gross deman
 \begin{equation}
 \ell(t) = (1-\eta_{bio})[C_{dom}(t) + C_{ag}(t)] + (1-\eta_{ind})C_{ind}(t) + \lambda W(t)
 \end{equation}
-This formulation reveals that even with high recycling efficiency ($\eta \to 0.98$), the colony experiences a persistent inventory bleed that necessitates continuous external replenishment.
+This formulation reveals that even with high recycling efficiency ($\eta \to 0.96$), the colony experiences a persistent inventory bleed that necessitates continuous external replenishment.
 
 \subsubsection{Inventory Dynamics and Inhabitation Gate}
 The evolution of the available water inventory $W(t)$ is governed by the conservation law:
@@ -548,65 +548,228 @@ where $z \in \{0,1\}$ is the binary decision variable for ISRU deployment.
 \subsection{Simulation Results and Sensitivity Analysis}
 
 \subsubsection{Hydrological Surge and Inventory Strategy}
-The simulation results, depicted in Figure \ref{fig:consumption_profile}, delineate the hydrological lifecycle. The system remains in a low-consumption state during the initial robotic phase. However, as the timeline approaches the habitation target, the requirement for $W_{gate}$ triggers a massive logistic demand, necessitating a diversion of elevator capacity from structural materials to water.
+The simulation results, depicted in Figure \ref{fig:water_dynamics}, delineate the hydrological lifecycle and strategic planning. Panel (a) shows that the system remains in a low-consumption state during the initial robotic phase. However, as the timeline approaches the habitation target, the requirement for $W_{gate}$ triggers a massive logistic demand, necessitating a diversion of elevator capacity from structural materials to water.
 
-\begin{figure}[H]
+Comparison of inventory accumulation policies in Panel (b) indicates that a \textbf{Pre-emptive Strategy} is strictly dominant. By gradually accumulating $W_{gate}$ during periods of slack elevator capacity (2056-2076), the system avoids a ``Logistical Stall'' at the critical inhabitation juncture.
+
+\begin{figure}[htbp]
 \centering
-[Image of a stacked line graph. X-axis: Year (2050 to 2100). Y-axis: Daily Water Turnover (Tons/Day).
-The graph shows three colored regions:
-1. Grey (Industrial): Flat and low from 2050 to 2090.
-2. Green (Agricultural): A massive surge starting in 2090 as biospheres are "charged."
-3. Blue (Domestic): A step-function increase in 2096 as 100,000 people move in.
-Prompt: Professional scientific plot showing the transition of water usage from construction-centric to life-support-centric in a lunar colony.]
-\caption{Evolution of Hydrological Turnover: Industrial, Agricultural, and Domestic Streams}
-\label{fig:consumption_profile}
-\end{figure}
-
-Comparison of inventory accumulation policies (Figure \ref{fig:inventory_strategy}) indicates that a \textbf{Pre-emptive Strategy} is strictly dominant. By gradually accumulating $W_{gate}$ during periods of slack elevator capacity (2070-2090), the system avoids a "Logistical Stall" at the critical inhabitation juncture.
-
-\begin{figure}[H]
-\centering
-[Image of a line graph comparing two inventory curves. X-axis: Year. Y-axis: Cumulative Water Inventory (Tons).
-Curve A (Reactive): Remains at zero until 2095, then spikes vertically, failing to meet the target inhabitation date.
-Curve B (Pre-emptive): Starts rising gradually in the 2070s, utilizing spare elevator capacity to reach the 500,000-ton threshold exactly by 2096.
-Prompt: Logistics simulation graph showing water inventory accumulation strategies for a space elevator delivery system.]
-\caption{Comparison of Water Inventory Accumulation Strategies}
-\label{fig:inventory_strategy}
+\includegraphics[width=\textwidth]{figures/water_dynamics.png}
+\caption{Water Dynamics Analysis. (a) Evolution of Hydrological Turnover showing the distinct phases of water consumption: low-volume industrial demand during construction, followed by a massive surge in agricultural and domestic demand upon inhabitation in 2076. (b) Comparison of Water Inventory Accumulation Strategies: the Pre-emptive strategy (green) utilizes spare transport capacity to fill the 500,000-ton reservoir before habitation, whereas a reactive approach (red) would cause a catastrophic delay.}
+\label{fig:water_dynamics}
 \end{figure}
 
 \subsubsection{Quantification of Logistical Latency}
-The "Butterfly Effect" of capacity displacement is quantified in Figure \ref{fig:bootstrapping_slopes}. The requirement to transport the bulk inventory $W_{gate}$ via Earth-Moon transfer displaces approximately 6\% of the potential robotic seed mass during the growth phase.
-
-\begin{figure}[H]
-\centering
-[Image of two growth curves on a single plot. X-axis: Time (Years). Y-axis: Total Lunar Infrastructure Mass (Log scale).
-Curve 1 (Baseline): Pure construction without water requirements, reaching 100M tons at Year 45.9.
-Curve 2 (Water-Corrected): Shows a slight downward deviation (lower slope) as water transport displaces robotic multipliers.
-The horizontal gap between the two curves is labeled "Additional Timeline: 2.1 Years."
-Prompt: High-level mathematical modeling plot showing how the growth rate of a self-replicating lunar colony is retarded by the mass requirements of life support.]
-\caption{Visualization of Growth Retardation: The theoretical \textbf{Additional Timeline is 2.1 Years}.}
-\label{fig:bootstrapping_slopes}
-\end{figure}
-
-This displacement results in a dampening of the exponential growth coefficient, causing a cumulative \textbf{Additional Timeline of 2.1 years}. This delay is not merely a transport lag but a systemic retardation of industrial self-replication.
+The ``Butterfly Effect'' of capacity displacement is quantified in Figure \ref{fig:water_impact}(a). The requirement to transport the bulk inventory $W_{gate}$ via Earth-Moon transfer displaces approximately 6\% of the potential robotic seed mass during the growth phase. This displacement results in a dampening of the exponential growth coefficient, causing a cumulative \textbf{Additional Timeline of 1.2 years}. This delay is not merely a transport lag but a systemic retardation of industrial self-replication.
 
 \subsubsection{Cost Impact and Payload Reconfiguration}
-The categorization of payloads (Figure \ref{fig:payload_mix}) confirms the shift from high-value "Seeds" to high-volume "Sustenance."
+The categorization of payloads in Figure \ref{fig:water_impact}(b) confirms the shift from high-value ``Seeds'' to high-volume ``Sustenance.''
 
-\begin{figure}[H]
+\begin{figure}[htbp]
 \centering
-Image containing two pie charts side-by-side.
-Pie Chart A (Construction Phase 2050-2095): Dominantly Tier 1 Robotics (30%), Tier 2 Machinery (40%), Tier 3 Structural Mass (25%), and a small sliver of Seed Water (5%).
-Pie Chart B (Maintenance Phase post-2096): Water Replenishment (42% - assuming no ISRU), Food/Supplies (25%), Maintenance Parts (20%), and Science/Expansion (13%).
-Prompt: Pie charts representing the change in payload types for a lunar transportation network from the build phase to the inhabited phase.]
-\caption{Payload Composition Analysis: Construction vs. Maintenance Phases}
-\label{fig:payload_mix}
+\includegraphics[width=\textwidth]{figures/water_impact.png}
+\caption{Water Impact Analysis. (a) Visualization of Growth Retardation: the water transport requirement introduces a 1.2-year delay ($\Delta T$) in achieving the 100-million-ton infrastructure target. (b) Payload Composition Analysis: Construction Phase (2050-2075) is dominated by industrial capital goods, while Maintenance Phase (post-2076) shows water replenishment and life support consumables constituting 67\% of logistics volume.}
+\label{fig:water_impact}
 \end{figure}
 
-The financial analysis yields an \textbf{Additional Cost of \$12.8 Billion} for the inaugural year. This expenditure is largely attributed to the setup costs of the pre-emptive ISRU infrastructure ($F_{ISRU}$). However, sensitivity analysis suggests that without this local extraction capability, the recurring annual transport costs would render the colony economically insolvent within a decade. Thus, the \$12.8B investment represents a necessary premium for long-term sustainability.
+The financial analysis yields an \textbf{Additional Cost of \$89.1 Billion} over the project lifecycle. This significant expenditure is driven by two factors: the increased capital requirement for high-capacity ISRU infrastructure ($F_{ISRU} = \$20.0\text{B}$) and the substantial logistic burden of maintaining a hydrological inventory against higher agricultural demands ($w_{ag} = 100 \text{ kg/cap/day}$) and conservative recycling efficiencies ($\eta_{bio} = 0.96$). Sensitivity analysis confirms that without pre-emptive ISRU extraction, the recurring annual replenishment of 175,200 tons would be economically prohibitive. Thus, the \$89.1B investment represents a critical foundational cost for ensuring biological viability.
+
+
 
 % % 参考文献
 \bibliographystyle{unsrt} % 选择数字引用样式
 \bibliography{team.bib}
+
+\newpage
+\appendix
+% 隐藏附录的章节标题，并居中，设置字号
+
+\begin{center}
+    \Large \textbf{Report on Use of AI Tools}
+\end{center}
+
+\addcontentsline{toc}{section}{Report on Use of AI Tools}
+
+% ----------------------------------------------------------------------
+% ENTRY 1: OpenAI ChatGPT-5.2 (Translation Use Case)
+% ----------------------------------------------------------------------
+\noindent \textbf{1. OpenAI ChatGPT (Dec 11, 2025 version, GPT-5.2)}
+
+\vspace{0.3cm}
+
+\noindent \textbf{Query:}
+
+\begin{quote}
+translate this entire problem statement into Chinese.
+\end{quote}
+
+\vspace{0.5cm}
+
+\noindent \textbf{Query:}
+
+\begin{quote}
+What are the primary environmental impacts on Earth's atmosphere associated with launching 100 million tons of payload using heavy chemical rockets versus operating a Space Elevator system? Please list 3 key points for each to help draft the environmental impact section of my report.
+\end{quote}
+
+\noindent \textbf{Output:}
+
+\begin{quote}
+\textbf{Heavy Chemical Rockets (100 Mt total payload)}
+\begin{enumerate}
+    \item Massive CO$_2$, H$_2$O, black carbon, and alumina emissions in the stratosphere, enhancing radiative forcing and ozone depletion.
+    \item Frequent launches inject soot directly into upper atmosphere, disproportionately increasing global warming relative to ground emissions.
+    \item Local impacts: launch-site air pollution, acoustic shock, and deposition of exhaust residues affecting regional ecosystems.
+\end{enumerate}
+
+\textbf{Space Elevator System}
+\begin{enumerate}
+    \item Near-zero direct atmospheric emissions during operation; payload transport powered electrically.
+    \item Environmental impact shifts to ground-based power generation (dependent on energy mix).
+    \item Minimal atmospheric disturbance due to absence of repeated high-energy launches.
+\end{enumerate}
+\end{quote}
+
+\vspace{0.5cm}
+
+\noindent \textbf{Query:}
+
+\begin{quote}
+I need to estimate the water requirements for a Moon Colony of 100,000 people.
+\begin{enumerate}
+    \item What is the average daily water consumption per person on the International Space Station?
+    \item What is the current efficiency of water recycling systems?
+    \item Based on a recycling rate of 96\%, calculate the total makeup water (new water) required per year for the colony.
+\end{enumerate}
+\end{quote}
+
+\noindent \textbf{Output:}
+
+\begin{quote}
+Estimating the water requirements for a lunar colony is a massive undertaking in logistics. For context, while a person on Earth might use \textbf{80--100 gallons} of water a day, space-faring systems are designed for extreme lean operations.
+
+Here are the specific metrics you need for your estimation based on current NASA and ISS standards.
+
+\textbf{1. Average Daily Consumption on the ISS}
+
+On the International Space Station, water is strictly rationed to minimize ``up-mass'' (the weight of supplies launched from Earth).
+
+\begin{itemize}
+    \item \textbf{Total Daily Use:} Approximately \textbf{1 gallon (3.78 liters)} per person.
+    \item \textbf{Breakdown:} This includes drinking water, food rehydration, and medical/hygiene needs (such as brushing teeth).
+    \item \textbf{Note:} Because there are no showers on the ISS, hygiene water is significantly lower than it would be in a permanent lunar colony.
+\end{itemize}
+
+\textbf{2. Current Recycling Efficiency}
+
+As of 2026, recycling systems have reached a major technical milestone.
+
+\begin{itemize}
+    \item \textbf{98\% Recovery Rate:} NASA's Environmental Control and Life Support System (ECLSS) recently achieved a \textbf{98\% water recovery rate}.
+    \item \textbf{The Technology:} This was made possible by the \textbf{Brine Processor Assembly (BPA)}, which extracts the last bits of water from urine brine---a byproduct that previously had to be discarded.
+\end{itemize}
+
+\hrulefill
+
+\textbf{3. Calculation for a Moon Colony (100,000 People)}
+
+Using your specified \textbf{96\% recycling rate} and the ISS standard of \textbf{1 gallon per person/day}, here is the projected makeup water requirement:
+
+\textbf{Given Parameters:}
+\begin{itemize}
+    \item \textbf{Population:} 100,000 people
+    \item \textbf{Daily Consumption per Person:} 1 gallon
+    \item \textbf{Recycling Efficiency:} 96\% (Loss rate = 4\%)
+\end{itemize}
+
+\textbf{Step-by-Step Calculation:}
+\begin{enumerate}
+    \item \textbf{Total Daily Consumption:}
+    $100,000 \text{ people} \times 1 \text{ gallon/day} = 100,000 \text{ gallons/day}$
+    \item \textbf{Daily Makeup Water (New water needed to replace losses):}
+    $100,000 \text{ gallons/day} \times 0.04 = 4,000 \text{ gallons/day}$
+    \item \textbf{Annual Makeup Water:}
+    $4,000 \text{ gallons/day} \times 365 \text{ days/year} = 1,460,000 \text{ gallons/year}$
+\end{enumerate}
+
+\begin{center}
+    \fbox{
+        \begin{minipage}{0.9\textwidth}
+            \textbf{Summary:} For a colony of 100,000 people, you would need to source or transport \textbf{1.46 million gallons} of new water every year to maintain the cycle.
+        \end{minipage}
+    }
+\end{center}
+
+Would you like me to help you estimate the mass of this water in kilograms or calculate how many Starship-class cargo missions would be required to deliver it?
+\end{quote}
+
+% ----------------------------------------------------------------------
+% ENTRY 2: Google Gemini 3.0 Flash (Modeling/Coding Use Case)
+% ----------------------------------------------------------------------
+\noindent \textbf{2. Google Gemini (Dec 17, 2025 version, Gemini 3.0 Flash)}
+
+\vspace{0.3cm}
+
+\noindent \textbf{Query:}
+
+\begin{quote}
+Based on the problem data, write a Python script to estimate the number of years required to transport the 100 million metric tons of materials needed for the Moon Colony.
+
+Please calculate the time for two scenarios:
+\begin{enumerate}
+    \item Purely using the Space Elevator System (3 Galactic Harbours, each moving 179,000 tons/year).
+    \item Purely using Rockets (10 launch sites, assuming optimistic conditions of 150 tons payload and 1 launch per week per site).
+\end{enumerate}
+
+Calculate the specific years and visualize the comparison.
+\end{quote}
+
+\noindent \textbf{Output:}
+
+\begin{quote}
+Here is the Python code to estimate the transportation duration based on the provided throughput capacities.
+
+\begin{lstlisting}[language=Python]
+import matplotlib.pyplot as plt
+
+# Data from Problem Statement
+TOTAL_DEMAND = 100 * 10**6  # 100 million metric tons
+
+# Scenario 1: Space Elevator System
+# "Each Galactic Harbour will... move 179,000 metric tons... per year"
+SE_COUNT = 3
+SE_RATE_PER_HARBOUR = 179_000
+SE_TOTAL_RATE = SE_COUNT * SE_RATE_PER_HARBOUR
+
+# Scenario 2: Traditional Rockets (Estimation)
+# "10 rocket launch sites", "100-150 metric tons payload"
+ROCKET_SITES = 10
+ROCKET_PAYLOAD = 150  # Optimistic assumption
+ROCKET_FREQ_PER_YEAR = 52  # Assumption: 1 launch/week/site
+ROCKET_TOTAL_RATE = ROCKET_SITES * ROCKET_PAYLOAD * ROCKET_FREQ_PER_YEAR
+
+def get_years(total, rate):
+    return total / rate
+
+years_se = get_years(TOTAL_DEMAND, SE_TOTAL_RATE)
+years_rocket = get_years(TOTAL_DEMAND, ROCKET_TOTAL_RATE)
+
+print(f"--- Transportation Time Estimate ---")
+print(f"Target: {TOTAL_DEMAND/10**6} Million Tons")
+print(f"Space Elevators ({SE_TOTAL_RATE/1000}k tons/yr): {years_se:.1f} Years")
+print(f"Rockets (Est. {ROCKET_TOTAL_RATE/1000}k tons/yr): {years_rocket:.1f} Years")
+
+# Plotting the simplified estimate
+labels = ['Space Elevators\n(3 Harbours)', 'Rockets\n(10 Sites, 1/week)']
+values = [years_se, years_rocket]
+
+plt.figure(figsize=(7, 5))
+bars = plt.bar(labels, values, color=['#1f77b4', '#ff7f0e'])
+plt.ylabel('Years to Transport 100M Tons')
+plt.title('Estimated Transportation Duration')
+plt.bar_label(bars, fmt='%.1f Years')
+plt.show()
+\end{lstlisting}
+\end{quote}
+
 
 \end{document}

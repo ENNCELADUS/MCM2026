@@ -231,3 +231,33 @@ solver:
   horizon_max_attempts: 0
   v0_scale_factor: 10.0
   v0_adjust_attempts: 4
+
+# -----------------------------------------------------------------------------
+# Water Logistics Parameters (Model III / Task 3)
+# -----------------------------------------------------------------------------
+water:
+  population_target: 100000           # N (persons)
+  t_inhabit_year: 2076                # Year humans move in (post-construction)
+  
+  # Inhabitation Gate Threshold
+  W_gate_tons: 500000                 # Total required before move-in
+  W_eco_tons: 400000                  # Ecological charging (soil hydration, biospheres)
+  W_buf_tons: 100000                  # 3-month strategic safety buffer
+  
+  # Per-capita demand rates (kg/person/day)
+  demand:
+    w_dom_kg_per_cap_day: 20          # Domestic (drinking, sanitation, hygiene)
+    w_ag_kg_per_cap_day: 100           # Agricultural (irrigation, evapotranspiration)
+    kappa_t_water_per_t_product: 0.1  # Industrial water intensity (ton-water/ton-product)
+  
+  # Recycling efficiencies
+  recycling:
+    eta_bio: 0.96                     # Biological ECLSS recycling (domestic + ag)
+    eta_ind: 0.95                     # Industrial closed-loop recycling
+    lambda_leakage_annual: 0.001      # 0.1% annual structural leakage rate
+  
+  # ISRU Configuration
+  isru:
+    enabled: true
+    q_L_capacity_tpy: 50000           # Lunar polar ice extraction rate (tons/year)
+    F_ISRU_usd: 2.0e10                 # Fixed ISRU deployment cost ($20 Billion)
