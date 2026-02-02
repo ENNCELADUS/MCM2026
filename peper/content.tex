@@ -417,60 +417,62 @@ The optimization algorithm identifies a distinct, compressed critical path for c
 
 The explicit delineation of the self-replication phase confirms that the system prioritizes a brief but intense period of exponential capacity growth before committing resources to linear habitat construction. This sequential staging serves to minimize the overall project duration by establishing a robust industrial base ($P(t) \gg 0$) early in the lifecycle.
 
+
 \section{Model II: System Robustness and Risk Assessment}
 
-To evaluate the extent to which our solution remains viable under non-ideal conditions, we transition from a deterministic framework to a stochastic risk-impact model. This section quantifies how systemic "imperfections"—ranging from tether swaying to catastrophic rocket failures—propagate through the hierarchical logistics network.
+\subsection{Stochastic Imperfection Modeling}
 
+In our revised risk framework, we categorize systemic "imperfections" based on their mathematical impact on the logistical throughput. This simplification allows us to isolate the specific sensitivities of the bootstrapping process without the confounding variables of long-term state transitions.
 
-\subsection{Risk Modeling and Classification}
+\subsubsection{Elevator Performance Degradation: Continuous Efficiency Loss}
+The Space Elevator system, while providing high steady-state capacity, is subject to performance degradation primarily driven by the mechanical swaying of the 100,000 km graphene tethers and necessary maintenance cycles. We model the effective annual throughput  as a function of the ideal capacity  and a stochastic efficiency factor :
 
-To quantify the impact of non-ideal operational conditions, we classify mission risks into three mathematical categories based on their temporal characteristics and impact on the logistical chain.
-
-\textbf{Category I: Steady-State Availability.} The long-term reliability of the Space Elevator and lunar ISRU facilities is modeled as a two-state Markov process. The system's effective operational time is governed by the Availability Factor ($A$), defined by the Mean Time Between Failures ($MTBF$) and Mean Time To Repair ($MTTR$):
 \begin{equation}
-A = \frac{MTBF}{MTBF + MTTR}
+\Phi_{eff}(t) = \sum_{h=1}^{3} C_{h} \cdot \eta_h(t)
 \end{equation}
-This factor scales the ideal production capacity $P_{ideal}(t)$ and handling capacity $H_t$. For lunar facilities, we adjust the $MTTR$ to account for the abrasive effects of regolith on mechanical components, providing a conservative estimate of localized growth. 
 
-\textbf{Category II: Performance Degradation.} Transient inefficiencies, such as tether swaying caused by Coriolis forces and rocket launch scrubs due to environmental factors, are modeled as stochastic reduction factors. For the Space Elevator, the effective annual throughput $\Phi$ is adjusted by a penalty factor $f_{sway} \in [0, 1]$ to maintain structural integrity during climber transit:
+The efficiency factor  represents the ratio of actual payload delivery to the theoretical maximum. To capture the variability inherent in Coriolis-induced oscillations and climber maintenance, we model  using a Beta distribution, , where the parameters are calibrated to reflect an average performance loss of . This approach ensures that while the elevator remains the primary bulk carrier, its contribution is inherently volatile, reflecting the physical constraints of a large-scale orbital infrastructure.
+
+\subsubsection{Rocket Discrete Mission Loss: Stochastic Failure and Material Impact}
+In contrast to the continuous degradation of the elevator, the rocket system is characterized by discrete mission failures. Each launch  is treated as a Bernoulli trial, where the successful delivery of payload is a binary event. The cumulative mass  from the rocket fleet is expressed as:
+
 \begin{equation}
-\Phi_{eff} = \Phi_{ideal} \cdot (1 - f_{sway})
+M_{delivered} = \sum_{j=1}^{N} L_{payload} \cdot X_j, \quad X_j \sim \text{Bernoulli}(P_s)
 \end{equation}
-Rocket systems similarly incorporate a launch probability distribution based on historical scrub rates, reflecting the temporal volatility of chemical propulsion. 
 
-\textbf{Category III: Discrete Mission Loss.} Catastrophic failures, including rocket launch anomalies and micro-meteoroid impacts on cargo modules, are represented as a Bernoulli loss process. The total effective mass $M_{eff}$ delivered to the lunar surface is a random variable:
-\begin{equation}
-M_{eff} = \sum_{j=1}^{N} L_{cap} \cdot X_j \cdot (1 - \gamma)
-\end{equation}
-where $X_j \sim \text{Bernoulli}(P_s)$ denotes the success of mission $j$, and $\gamma$ is a yield factor for minor transit damage. This identifies the risk where the loss of a single high-complexity Tier 1 payload disproportionately stalls the colony's industrial self-replication cycle. 
+where  denotes the probability of mission success and  represents the carrying capacity of the heavy-lift vehicles. The profound impact of this failure mode lies in its timing. Since our model relies on a "robot-first" bootstrapping logic, the loss of a Tier 1 precision payload (e.g., robotic control units or high-density energy modules) early in the mission generates a cascading delay. This occurs because the subsequent lunar production rate  is directly proportional to the "seeds" planted in the preceding phases. Consequently, a single early failure can shift the entire industrial growth curve, whereas a later failure in Tier 3 material delivery merely incurs a linear volume loss.
 
+\subsection{Simulation Results: Robustness and Sensitivity Analysis}
 
-\subsection{Simulation Results: The Impact of Uncertainty}
+Following the implementation of the stochastic variables, we present a multi-dimensional analysis of the colony's viability. This section utilizes Monte Carlo simulations and impulse response analysis to quantify the resilience of Scenario C.
 
-By integrating these stochastic variables into our Monte Carlo simulation, we quantify the sensitivity of the 2096 completion target to system instabilities.
+\subsubsection{Analysis of Bootstrap Latency Propagation}
 
-\textbf{1. The Long-Tail Effect on Project Duration.}
-\textcolor{red}{Insert Figure: Probability Distribution Histograms (Time \& Cost) — Showing the right-skewed distribution of completion dates due to cumulative delays.}
+FIGURE 1: The Butterfly Effect of Bootstrap Latency
+Description: An Impulse Response Curve showing "Year of Failure" on the X-axis and "Total Project Delay (Delta T)" on the Y-axis.
+Core Message: This figure illustrates that a failure in 2050 is significantly more damaging than a failure in 2085.
+Argumentation Prompt: Focus on the exponential nature of early-stage delays. Explain how the loss of industrial 'seeds' results in a lost opportunity for compound growth in lunar manufacturing capacity.
 
-\textbf{2. Global Sensitivity Analysis: Identifying the Primary Constraint.}
-\textcolor{red}{Insert Figure: Tornado Diagram — Ranking risk factors from highest to lowest impact on total mission cost and time.}
+The first dimension of our results focuses on the temporal sensitivity of the bootstrapping process. By injecting a standardized 100-ton material loss at different points in the project lifecycle, we observe the resulting increment in the total completion time . The results demonstrate a clear decaying sensitivity curve: a failure in the initial "Seeding Phase" (2050–2055) generates a disproportionate impact, potentially delaying the final colonization by several years. This is because early payloads contain the critical Tier 1 machinery required to initiate In-Situ Resource Utilization (ISRU). As the colony matures and its self-replication capacity increases, the system becomes significantly more resilient to individual mission losses, indicating that the mission's risk is front-loaded.
 
-\textbf{3. Identifying the "Failure Cliff" via 3D Landscape Analysis.}
-\textcolor{red}{Insert Figure: 3D Risk Landscape Surface — Visualizing the relationship between system failure rates and project viability to identify critical instability thresholds.}
+\subsubsection{Probabilistic Distribution of Mission Outcomes}
 
-Following the rigorous modeling of failure modes in the previous section, we present the results of our stochastic analysis to quantify the impact of operational uncertainty on the lunar colony's construction.
+FIGURE 2: Probability Distributions of Duration and Cost
+Description: A dual-axis Histogram/KDE plot. The left side shows the distribution of completion years; the right shows the distribution of total mission cost.
+Core Message: Shows a "long-tail" or "multi-modal" distribution caused by the Bernoulli rocket failures.
+Argumentation Prompt: Discuss the statistical deviation from the 45.9-year baseline. Interpret the "peaks" in the distribution as specific failure scenarios of key Tier 1/2 payloads that force the model to reset its industrial growth logic.
 
-\subsection{4.2 Simulation Results: The Impact of Uncertainty}
+The overall mission stability is evaluated through 10,000 Monte Carlo iterations, revealing the statistical variance of the 45.9-year baseline. The probability density function of the construction duration exhibits a distinct right-skewed "long-tail" profile. This statistical skewness is the mathematical signature of the discrete mission loss model; while the Space Elevator's continuous degradation simply stretches the timeline linearly, the stochastic failure of rocket launches introduces the possibility of catastrophic setbacks. The multi-modal nature of the distribution suggests that project success is not a simple average but a set of distinct risk regimes, where the secondary peaks correspond to the failure of critical-path infrastructure milestones.
 
-To evaluate the robustness of our logistics framework, we conducted a stochastic simulation integrating the failure modes defined in Section 4.1. The transition from a deterministic environment to one characterized by operational uncertainty reveals that the 100-million-ton construction goal is highly sensitive to infrastructure availability. Our Monte Carlo analysis, based on  iterations, demonstrates that the completion timeline follows a significant right-skewed "long-tail" probability distribution. While the baseline duration under perfect conditions was 45.9 years, the inclusion of maintenance downtimes and transit delays extends the mean completion time to 77.4 years, with the upper bound of the  confidence interval reaching 91.7 years. This "long-tail" effect suggests that while the system is resilient to minor perturbations, there is a non-negligible risk of extreme delays caused by the cascading effects of early-stage failures during the critical bootstrapping phase \textcolor{red}{Figure 7}.
+\subsubsection{System Resilience and Capacity Redundancy}
 
-Global sensitivity analysis further identifies the primary drivers of this temporal and fiscal volatility. Utilizing a Tornado diagram to perturb individual parameters by  while holding others constant, we observe that the system's performance is dominated by Space Elevator stability rather than rocket reliability. Specifically, the variables of "Elevator Breakdown Probability" and "Tether Oscillation Efficiency" exert the most profound influence on the mission's critical path. The relatively lower sensitivity observed for "Rocket Failure Rate" is attributed to the colony’s strategic transition toward the Space Elevator for bulk Tier 2 and Tier 3 deliveries as the industrial base matures. This ranking underscores that the primary mission risk resides in the long-term structural integrity and operational uptime of the Galactic Harbours \textcolor{red}{Figure 8(a)}.
+FIGURE 3: Elasticity of Transport Redundancy (Dynamic Area Plot)
+Description: A stacked area chart showing transport volume (Elevator vs. Rocket) over time during a simulated "Swaying Event" or maintenance downtime.
+Core Message: Demonstrates the "Self-healing" property where the Rocket fleet automatically increases throughput when Elevator efficiency drops.
+Argumentation Prompt: Argue that the Hybrid Model (Scenario C) is superior because it provides a safety buffer. When the 'spine' (Elevator) suffers from performance degradation, the 'circulatory system' (Rockets) compensates to maintain the construction flow.
 
-Finally, our investigation into the joint impact of failure rates and efficiency reveals the existence of a "Failure Cliff" in the project’s viability. As visualized in the 3D Risk Landscape, the project duration does not increase linearly with instability; instead, it exhibits a sharp, non-linear surge once the annual failure rate  exceeds a threshold of 0.08 occurrences per year. Beyond this critical limit, the logistical throughput fails to reach the minimum threshold required to sustain the self-replication of robotic labor and ISRU facilities, leading to a state of permanent developmental stagnation. This finding implies that the MCM Agency must prioritize maintaining system reliability below this 8\% threshold, as exceeding it results in a systemic failure where the colony can no longer overcome the natural rate of hardware degradation and resource consumption \textcolor{red}{Figure 8(b)}.
+Finally, we investigate the "self-healing" properties of our hybrid logistics model. By simulating a period of severe tether swaying (where  drops to 0.6), we observe the dynamic reallocation of cargo between the transport modes. The analysis confirms that the hybrid system possesses inherent operational elasticity: as the Space Elevator's throughput declines, the model automatically increases the utilization of the rocket fleet to sustain the construction rate of high-priority Tier 2 infrastructure. This synergy validates the strategic selection of Scenario C; the rocket fleet provides the necessary tactical flexibility to bridge the gap during periods of infrastructure degradation, ensuring that the critical "bootstrapping" threshold is maintained despite systemic imperfections.
 
-\subsection{Resilience and Mitigation: Critical Path Protection}
-
-Based on the risk landscapes identified, we propose adaptive strategies to safeguard the colony's growth. This includes the implementation of redundant "seed" stockpiles and the dynamic re-routing of cargo between the Space Elevator and rocket systems during periods of high tether instability.
 
 \end{document}  % 结束
 
