@@ -76,12 +76,12 @@ class PyomoBuilder:
         
         # self.C_E_0 = constants["initial_capacities"]["C_E_0"] # Removed
         
-        # Get elevator capacity at t=0 using logistic model
-        elevator_capacity_tpy_t0 = utils.get_elevator_capacity_tpy(0, constants)
+        # Get fixed elevator capacity
+        elevator_capacity_tpy = utils.get_elevator_capacity_tpy(0, constants)
         
         # Convert to per-step capacity in mass/second
         self.elevator_capacity_fixed_mass_s = (
-            elevator_capacity_tpy_t0
+            elevator_capacity_tpy
             * self.ton_to_kg
             / (self.steps_per_year * self.delta_t)
         )

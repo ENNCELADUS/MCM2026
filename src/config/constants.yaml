@@ -34,12 +34,12 @@ network:
     name: "Aggregate Earth Launch Site"
   arcs:
     elevator:
-      lead_time_days: 7
+      lead_time_days: 16
       payload_t: null # Will be calculated from scenario_parameters capacity (179000 t/y)
       cost_per_kg_2050: 500000 # Initial cost from scenario_parameters ($500/kg -> $500k/ton)
       enabled: ["E-only", "Mix"]
     rocket:
-      lead_time_days: 5
+      lead_time_days: 4
       payload_t: 150 # L_ref_t from scenario_parameters
       cost_per_kg_2050: 88900 # $88.90/kg * 1000 (scenario base_cost)
       enabled: ["R-only", "Mix"]
@@ -87,11 +87,8 @@ scenarios:
 scenario_parameters:
   elevator:
     # Capacity: Fixed capacity
-    capacity_logistic:
-      C_E_max_tpy: 537000   # Fixed capacity
-      C_E_ref_tpy: 537000   # Initial capacity at 2050 (179k × 3 harbours)
-      k_E: 0.0              # No growth (fixed capacity)
-      t0_year: 2050         # Reference year (model start)
+    capacity_fixed:
+      capacity_tpy: 358000  # Reduced: single harbour (~150k t/y) - makes transport constrained
       
     # Cost: Exponential decay model
     # Formula: C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
@@ -132,7 +129,7 @@ initial_capacities:
   Power_0: 0.1  # Power capacity (MW) - bootstrap to avoid power deadlock
 
 # -----------------------------------------------------------------------------
-# Task/Theme-Oriented Parameter Summary (from outline/model.md §5)
+# Task/Theme-Oriented Parameter Summary
 # -----------------------------------------------------------------------------
 parameter_summary:
   materials:
@@ -190,7 +187,7 @@ implementation_details:
 
   logistics:
     time_discretization:
-      threshold_days: 15
+      threshold_days: 8
 
 # -----------------------------------------------------------------------------
 # Optimization Bounds & Variable Domains
@@ -209,6 +206,20 @@ objective:
   w_C: 1.0      # Cost weight
   w_T: 1.0    # Time weight - Increased to balance $100B+ cost vs Ton-Months (Order of 1e11 vs 1e7)
   
+# -----------------------------------------------------------------------------
+# Risk / Stochastic Parameters (Task 2)
+# -----------------------------------------------------------------------------
+risk:
+  enabled: false  # Controlled by --risk flag at runtime
+  monte_carlo_runs: 1000
+  elevator:
+    # Efficiency factor eta ~ Beta(alpha, beta), mean = alpha/(alpha+beta) ≈ 0.85
+    eta_alpha: 17.0
+    eta_beta: 3.0
+  rocket:
+    # Each launch is Bernoulli(success_rate)
+    success_rate: 0.985
+
 # -----------------------------------------------------------------------------
 # Solver Settings
 # -----------------------------------------------------------------------------
