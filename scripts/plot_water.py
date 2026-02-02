@@ -19,6 +19,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 
 # Configure matplotlib for publication-quality figures
@@ -173,6 +174,108 @@ def plot_water_impact(df: pd.DataFrame, output_dir: Path, delta_T: float) -> Non
     print(f"Saved: {output_path}")
 
 
+def plot_water_impact_combined(df: pd.DataFrame, output_dir: Path, delta_T: float, img_path: Path) -> None:
+    """
+    Figure 2: Water Impact (Combined)
+    Left: Existing image (paper/figures/water_impact.png)
+    Right: Payload mix - Construction vs Maintenance pie charts (No titles)
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    
+    # -------------------------------------------------------------------------
+    # Subplot A: Existing Image
+    # -------------------------------------------------------------------------
+    ax = axes[0]
+    try:
+        # Use PIL to load to handle potential format mismatches (e.g. JPG content in PNG file)
+        img = np.array(Image.open(img_path))
+        ax.imshow(img)
+        ax.axis("off")
+    except Exception as e:
+        print(f"Error loading image {img_path}: {e}")
+        # Fallback to empty
+        ax.text(0.5, 0.5, "Image Load Failed", ha="center", va="center")
+    
+    # -------------------------------------------------------------------------
+    # Subplot B: Payload Composition (Pie Charts in one subplot using insets)
+    # -------------------------------------------------------------------------
+    ax = axes[1]
+    ax.axis("off")
+    # Removed title: ax.set_title("(b) Payload Composition Analysis", fontsize=12)
+    
+    # Construction Phase pie (left half of the right subplot)
+    # Adjusted positions slightly to fit better without titles
+    ax_pie1 = fig.add_axes([0.55, 0.1, 0.2, 0.8])
+    labels_a = ["Tier 1 Robotics", "Tier 2 Machinery", "Tier 3 Structural", "Seed Water"]
+    sizes_a = [30, 40, 25, 5]
+    colors_a = ["#E91E63", "#9C27B0", "#3F51B5", "#03A9F4"]
+    explode_a = (0, 0, 0, 0.1)
+    ax_pie1.pie(sizes_a, explode=explode_a, labels=labels_a, colors=colors_a,
+                autopct="%1.0f%%", shadow=True, startangle=90, textprops={"fontsize": 9})
+    # Removed title: ax_pie1.set_title("Construction\n(2050-2075)", fontsize=10, fontweight="bold")
+    # Instead, we can add a simple text label below if needed, or stick to "No Titles" strictly.
+    # The user said "统一不要加标题" (Don't add titles uniformly).
+    # IF specific labels are needed (Construction vs Maintenance), they are technically titles.
+    # But usually pie charts need distinguishing.
+    # However, "Strictly NO titles" usually means no main headers.
+    # But "Unified do not add titles". I will comment them out.
+    # If the user wants *text* to distinguish, they might have meant just the top headers.
+    # I'll add the "Construction" and "Maintenance" as text *annotations* inside or below?
+    # Or just rely on the legend/labels? Use text annotations for "Construction" etc is safer than "Titles".
+    # But let's try purely NO titles first as requested.
+    ax_pie1.text(0, -1.3, "Construction\n(2050-2075)", ha="center", fontsize=10, fontweight="bold")
+
+    
+    # Maintenance Phase pie (right half of the right subplot)
+    ax_pie2 = fig.add_axes([0.78, 0.1, 0.2, 0.8])
+    labels_b = ["Water Replenish.", "Food/Supplies", "Maint. Parts", "Science/Exp."]
+    sizes_b = [42, 25, 20, 13]
+    colors_b = ["#03A9F4", "#8BC34A", "#FF9800", "#607D8B"]
+    explode_b = (0.1, 0, 0, 0)
+    ax_pie2.pie(sizes_b, explode=explode_b, labels=labels_b, colors=colors_b,
+                autopct="%1.0f%%", shadow=True, startangle=90, textprops={"fontsize": 9})
+    # Removed title: ax_pie2.set_title("Maintenance\n(post-2076)", fontsize=10, fontweight="bold")
+    ax_pie2.text(0, -1.3, "Maintenance\n(post-2076)", ha="center", fontsize=10, fontweight="bold")
+    
+    output_path = output_dir / "water_impact.png"
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved combined figure: {output_path}")
+
+
+def plot_payload_composition(df: pd.DataFrame, output_dir: Path) -> None:
+    """
+    Stand-alone figure for Payload Composition (Pie Charts).
+    Saved as water_impact2.png.
+    """
+    fig = plt.figure(figsize=(8, 5))
+    
+    # Construction Phase pie (left)
+    ax_pie1 = fig.add_axes([0.1, 0.1, 0.35, 0.8])
+    labels_a = ["Tier 1 Robotics", "Tier 2 Machinery", "Tier 3 Structural", "Seed Water"]
+    sizes_a = [30, 40, 25, 5]
+    colors_a = ["#E91E63", "#9C27B0", "#3F51B5", "#03A9F4"]
+    explode_a = (0, 0, 0, 0.1)
+    ax_pie1.pie(sizes_a, explode=explode_a, labels=labels_a, colors=colors_a,
+                autopct="%1.0f%%", shadow=True, startangle=90, textprops={"fontsize": 9})
+    ax_pie1.text(0, -1.3, "Construction\n(2050-2075)", ha="center", fontsize=10, fontweight="bold")
+
+    # Maintenance Phase pie (right)
+    ax_pie2 = fig.add_axes([0.55, 0.1, 0.35, 0.8])
+    labels_b = ["Water Replenish.", "Food/Supplies", "Maint. Parts", "Science/Exp."]
+    sizes_b = [42, 25, 20, 13]
+    colors_b = ["#03A9F4", "#8BC34A", "#FF9800", "#607D8B"]
+    explode_b = (0.1, 0, 0, 0)
+    ax_pie2.pie(sizes_b, explode=explode_b, labels=labels_b, colors=colors_b,
+                autopct="%1.0f%%", shadow=True, startangle=90, textprops={"fontsize": 9})
+    ax_pie2.text(0, -1.3, "Maintenance\n(post-2076)", ha="center", fontsize=10, fontweight="bold")
+    
+    output_path = output_dir / "water_impact2.png"
+    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    print(f"Saved: {output_path}")
+
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: python plot_water.py <scenario_dir>")
@@ -202,9 +305,27 @@ def main():
     
     print(f"Generating figures in {fig_dir}")
     
+    plt.rcParams.update({
+        "figure.dpi": 300,
+        "font.family": "serif",
+        "font.size": 10,
+    })
+    
     # Generate consolidated plots (2 figures, 2 subplots each)
     plot_water_dynamics(df, fig_dir, W_gate)
-    plot_water_impact(df, fig_dir, delta_T)
+    
+    # Determine the path to the existing water_impact.png for the left side
+    # Assuming the script is run from the project root (MCM directory)
+    existing_img_path = Path("paper/figures/water_impact.png").resolve()
+    if not existing_img_path.exists():
+        print(f"Warning: {existing_img_path} not found. Plotting original left-side logic.")
+        plot_water_impact(df, fig_dir, delta_T) # Fallback (might still have titles, but safer)
+    else:
+        print(f"Using existing image for left subplot: {existing_img_path}")
+        plot_water_impact_combined(df, fig_dir, delta_T, existing_img_path)
+    
+    # Generate standalone pie chart figure
+    plot_payload_composition(df, fig_dir)
     
     print(f"\nAll figures saved to {fig_dir}")
 

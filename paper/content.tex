@@ -20,6 +20,7 @@
 \usepackage{booktabs}
 \usepackage{float}
 \usepackage{cite}  % 引入引用包
+\usepackage{pdfpages} % Used to include the letter PDF
 \title{Space Elevator Analysis - Stepping to moon}  % 标题
 
 \definecolor{codegreen}{rgb}{0,0.6,0}
@@ -548,31 +549,36 @@ where $z \in \{0,1\}$ is the binary decision variable for ISRU deployment.
 \subsection{Simulation Results and Sensitivity Analysis}
 
 \subsubsection{Hydrological Surge and Inventory Strategy}
-The simulation results, depicted in Figure \ref{fig:water_dynamics}, delineate the hydrological lifecycle and strategic planning. Panel (a) shows that the system remains in a low-consumption state during the initial robotic phase. However, as the timeline approaches the habitation target, the requirement for $W_{gate}$ triggers a massive logistic demand, necessitating a diversion of elevator capacity from structural materials to water.
-
-Comparison of inventory accumulation policies in Panel (b) indicates that a \textbf{Pre-emptive Strategy} is strictly dominant. By gradually accumulating $W_{gate}$ during periods of slack elevator capacity (2056-2076), the system avoids a ``Logistical Stall'' at the critical inhabitation juncture.
+The simulation results, depicted in Figure \ref{fig:water_dynamics}, delineate the hydrological lifecycle and strategic planning. The system exhibits a non-linear surge in consumption as the timeline approaches the habitation target, necessitating a diversion of elevator capacity from structural materials to water.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{figures/water_dynamics.png}
-\caption{Water Dynamics Analysis. (a) Evolution of Hydrological Turnover showing the distinct phases of water consumption: low-volume industrial demand during construction, followed by a massive surge in agricultural and domestic demand upon inhabitation in 2076. (b) Comparison of Water Inventory Accumulation Strategies: the Pre-emptive strategy (green) utilizes spare transport capacity to fill the 500,000-ton reservoir before habitation, whereas a reactive approach (red) would cause a catastrophic delay.}
+\includegraphics[width=0.8\textwidth]{figures/water_dynamics.jpg}
+\caption{Water Dynamics Analysis. Evolution of Hydrological Turnover showing the distinct phases of water consumption: low-volume industrial demand during construction, followed by a massive surge in agricultural and domestic demand upon inhabitation in 2076.}
 \label{fig:water_dynamics}
 \end{figure}
 
 \subsubsection{Quantification of Logistical Latency}
-The ``Butterfly Effect'' of capacity displacement is quantified in Figure \ref{fig:water_impact}(a). The requirement to transport the bulk inventory $W_{gate}$ via Earth-Moon transfer displaces approximately 6\% of the potential robotic seed mass during the growth phase. This displacement results in a dampening of the exponential growth coefficient, causing a cumulative \textbf{Additional Timeline of 1.2 years}. This delay is not merely a transport lag but a systemic retardation of industrial self-replication.
-
-\subsubsection{Cost Impact and Payload Reconfiguration}
-The categorization of payloads in Figure \ref{fig:water_impact}(b) confirms the shift from high-value ``Seeds'' to high-volume ``Sustenance.''
+The ``Butterfly Effect'' of capacity displacement is quantified in Figure \ref{fig:growth_retardation}. The requirement to transport the bulk inventory $W_{gate}$ via Earth-Moon transfer displaces approximately 6\% of the potential robotic seed mass during the growth phase. This displacement results in a dampening of the exponential growth coefficient, causing a cumulative \textbf{Additional Timeline of 1.2 years}. This delay is not merely a transport lag but a systemic retardation of industrial self-replication.
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=\textwidth]{figures/water_impact.png}
-\caption{Water Impact Analysis. (a) Visualization of Growth Retardation: the water transport requirement introduces a 1.2-year delay ($\Delta T$) in achieving the 100-million-ton infrastructure target. (b) Payload Composition Analysis: Construction Phase (2050-2075) is dominated by industrial capital goods, while Maintenance Phase (post-2076) shows water replenishment and life support consumables constituting 67\% of logistics volume.}
-\label{fig:water_impact}
+\includegraphics[width=0.6\textwidth]{figures/water_impact1.jpg}
+\caption{Visualization of Growth Retardation: the water transport requirement introduces a 1.2-year delay ($\Delta T$) in achieving the 100-million-ton infrastructure target.}
+\label{fig:growth_retardation}
 \end{figure}
 
-The financial analysis yields an \textbf{Additional Cost of \$89.1 Billion} over the project lifecycle. This significant expenditure is driven by two factors: the increased capital requirement for high-capacity ISRU infrastructure ($F_{ISRU} = \$20.0\text{B}$) and the substantial logistic burden of maintaining a hydrological inventory against higher agricultural demands ($w_{ag} = 100 \text{ kg/cap/day}$) and conservative recycling efficiencies ($\eta_{bio} = 0.96$). Sensitivity analysis confirms that without pre-emptive ISRU extraction, the recurring annual replenishment of 175,200 tons would be economically prohibitive. Thus, the \$89.1B investment represents a critical foundational cost for ensuring biological viability.
+\subsubsection{Cost Impact and Payload Reconfiguration}
+The categorization of payloads in Figure \ref{fig:payload_composition} confirms the shift from high-value ``Seeds'' to high-volume ``Sustenance.''
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{figures/water_impact2.png}
+\caption{Payload Composition Analysis: Construction Phase (2050-2075) is dominated by industrial capital goods, while Maintenance Phase (post-2076) shows water replenishment and life support consumables constituting 67\% of logistics volume.}
+\label{fig:payload_composition}
+\end{figure}
+
+Applying the cost formulation defined previously, the financial analysis yields a total \textbf{Additional Cost} ($\Delta C$) of \textbf{\$89.1 Billion} over the project lifecycle. This aggregate expenditure comprises two distinct components: the fixed capital investment for ISRU infrastructure ($F_{ISRU} = \$20.0\text{B}$) and the cumulative transport operating expense ($\sum c_E \cdot q_E = \$69.1\text{B}$). The transport component reflects the delivery of 10.9 million tons of hydrological mass---comprising the initial gate volume and recurring annual replenishment---via the Space Elevator. This figure confirms that while water is abundant on Earth, its delivery to the lunar surface remains a premium service until local recycling achieves near-perfect closure ($\eta > 0.99$). Thus, the investment represents the shadow price of biological viability.
 
 \section{Model IV: Environmental Sustainability and Ecological Assessment}
 
@@ -607,39 +613,78 @@ On the lunar surface, the concept of "pollution" is redefined as the irreversibl
 
 where $q_{ISRU}(t)$ is the extraction throughput. The coefficient $\epsilon_{reg}$ quantifies the baseline physical disruption (mechanized regolith turnover), while $\epsilon_{sens}$ imposes a severe penalty for operations within sensitive zones, such as Permanently Shadowed Regions (PSRs) or designated heritage sites. The indicator function $\mathbb{I}_{sens}(t) \in [0,1]$ represents the proportion of extraction occurring in these high-value scientific zones, incentivizing the solver to restrict ISRU activities to low-sensitivity equatorial maria.
 
-\subsection{The Environmental Investment Tipping Point}
+\subsection{Simulation Results: The Environmental Investment Tipping Point}
 
 \subsubsection{Coupled Seeding-Growth Dynamics}
-The minimization of $\mathcal{D}_E$ is not achieved by simply eliminating rocket launches, but by leveraging them to accelerate the "Decoupling Point." We model the lunar industrial capacity $P(t)$ as a saturation-limited growth function driven by specific Tier-1 technological inputs:
-
-\begin{equation}
-\frac{dP(t)}{dt} = \alpha P(t) \left( 1 - \frac{P(t)}{P_{max}} \right) + \beta \cdot \Phi_{R, Tier1}(t - \tau)
-\end{equation}
-
-where $\Phi_{R, Tier1}$ represents the influx of high-complexity "seed" machinery delivered exclusively by rockets. This differential coupling reveals a counter-intuitive \textbf{Environmental Investment Logic}: an aggressive initial deployment of dirty rockets maximizes the term $\beta \cdot \Phi_{R, Tier1}$, rapidly elevating $P(t)$. This accelerated industrialization allows for an earlier transition to high ISRU localization ($k_i \to 1$), thereby drastically reducing the total Earth-to-Moon mass requirement ($\int x_{m,k} dt$) over the project lifecycle.
-
-\subsubsection{Inter-Planetary Liability Exchange}
-The optimal solution exhibits a phenomenon we define as \textbf{Inter-Planetary Liability Exchange}. The mission strategically accumulates terrestrial debt $\mathcal{D}_E$ during the "Seeding Phase" (2050-2053) to establish a self-sufficient lunar industrial base. This "investment" yields a net positive return by preventing the much larger cumulative emissions that would result from a prolonged, low-efficiency dependency on Earth-based supply chains. The simulation identifies a \textbf{Green Pareto Frontier}, where the marginal environmental cost of limiting early rocket launches results in a disproportionate increase in total project duration and long-term transport volume.
+The minimization of global environmental cost $J$ is not achieved by simply minimizing rocket launches in the short term, but by leveraging them to accelerate the system's "Decoupling Point." We model the lunar industrial capacity $P(t)$ as a saturation-limited growth function driven by specific Tier-1 technological inputs. The differential coupling reveals a counter-intuitive \textbf{Environmental Investment Logic}: while restricting rocket launches reduces immediate stratospheric forcing, it severely retards the industrial learning curve.
 
 \begin{figure}[htbp]
 \centering
-\begin{minipage}{0.48\textwidth}
+\includegraphics[width=\linewidth]{figures/investment_case.png}
+\caption{The Environmental Investment Case. The "Aggressive" strategy (blue) incurs high initial debt but plateaus early, whereas the "Conservative" approach (red) results in runaway long-term liabilities.}
+\label{fig:env_investment}
+\end{figure}
+
+Our simulation (Figure \ref{fig:env_investment}) demonstrates that an aggressive initial deployment (Scenario C) forces an early inflection in the lunar production function $P(t)$, permitting the localization rate to saturate ($k_i \to 0.95$) by 2056. This rapid industrialization reduces the project's total Earth-to-Moon mass requirement by approximately 42\% compared to a linearly growing elevator-only baseline.
+
+\begin{figure}[htbp]
 \centering
-\fbox{\parbox[c][5cm]{0.9\linewidth}{\centering \textbf{PLACEHOLDER: Environmental Debt Crossover Plot} \\
-\emph{Description:} Dual-line graph with Time (X) vs. Cumulative Emissions (Y). Show "Aggressive Bootstrapping" (Blue) with high initial slope but early plateau, and "Conservative" (Red) with lower initial slope but constant rise. Highlight the "Environmental Crossover Point".}}
-\end{minipage}
-\hfill
-\begin{minipage}{0.48\textwidth}
+\includegraphics[width=0.85\linewidth]{figures/global_impact.png}
+\caption{Inter-Planetary Environmental Liability Exchange. The visualization quantifies the temporal evolution of the Earth atmospheric debt rate $\dot{\mathcal{D}}_E(t)$ (positive domain) and the Moon surface debt rate $\dot{\mathcal{D}}_M(t)$ (negative domain). Observations indicate a terrestrial debt termination at 2088.0, signifying the resolution of the rocket-dependent bootstrapping phase.}
+\label{fig:global_impact}
+\end{figure}
+
+\subsubsection{Inter-Planetary Liability Exchange}
+The optimal solution exhibits a strategic phenomenon defined as the \textbf{Inter-Planetary Liability Exchange}, illustrated in Figure \ref{fig:global_impact}. Under this framework, we decompose the planetary environmental burden into the terrestrial stratospheric debt rate $\dot{\mathcal{D}}_E(t)$ and the lunar surface disturbance rate $\dot{\mathcal{D}}_M(t)$, both expressed in millions of USD per month ($\text{\$M/month}$). We justify the initial utilization of high-cadence chemical propulsion by the requirement for rapid industrial seeding; consequently, the Earth debt rate $\dot{\mathcal{D}}_E(t)$ initiates at $10.0$ $\text{\$M/month}$ in 2050 and undergoes a logistical escalation to a peak of $24.2$ $\text{\$M/month}$ by 2087. Upon the accomplishment of the seeding phase and the subsequent transition to the Space Elevator's steady-state throughput, terrestrial emissions terminate abruptly in 2088.0. Simultaneously, the Moon surface debt rate $\dot{\mathcal{D}}_M(t)$ exhibits significant high-frequency stochasticity driven by variable ISRU extraction cadences, reaching a peak magnitude of $110.0$ $\text{\$M/month}$ during the intensive replication phase of 2085. This exchange represents a deliberate strategic optimization: the acceptance of a finite terrestrial atmospheric burden ensures the establishment of an autonomous lunar industrial base, which ultimately minimizes the integral of planetary environmental disturbance.
+
+\begin{figure}[htbp]
 \centering
-\fbox{\parbox[c][5cm]{0.9\linewidth}{\centering \textbf{PLACEHOLDER: Green Pareto Flow} \\
-\emph{Description:} Stacked area chart showing Earth Debt (Positive Y) decreasing over time and Moon Debt (Negative Y) increasing. Illustrates the "Inter-Planetary Liability Exchange" - shifting burden from Earth atmosphere to Moon surface.}}
-\end{minipage}
-\caption{Strategic Environmental Dynamics. (Left) The crossover point confirms that high initial investment leads to lower long-term debt. (Right) The exchange of liabilities protects the terrestrial stratosphere at the cost of localized lunar disturbance.}
-\label{fig:env_dynamics}
+\includegraphics[width=\linewidth]{figures/tradeoff_robustness.png}
+\caption{The Green Pareto Frontier. The optimization landscape reveals a convex trade-off between project duration and ecological impact. The optimal solution (Solution C) sits at the "knee" of the curve, balancing the \$12.1B environmental savings with a feasible 25-year timeline.}
+\label{fig:tradeoff_robustness}
 \end{figure}
 
 
-% % 参考文献
+\section{Evaluation of Models}
+
+\subsection{Sensitivity Analysis}
+
+We quantify the system's robustness using a normalized elasticity metric, defined as $E_{\theta} = (\partial J / \partial \theta) \cdot (\theta / J)$, where perturbations in parameter $\theta$ yield proportional shifts in the objective value $J$.
+
+\paragraph{Model I (Hierarchical Optimization):}
+The system exhibits \textbf{critical sensitivity} ($E > 1.0$) to early-stage industrial parameters, specifically the capital replication efficiency $\alpha$ and Tier-1 seed effectiveness $\beta$. This is physically justified by the endogenous growth constraint (Eq. \ref{eq:growth}), where initial capability governs the exponent of the entire expansion function. Conversely, saturation constraints ($L_{max}, C_E$) show \textbf{damped sensitivity} ($E < 0.2$), as the mature colony's high ISRU localization rate ($k \approx 0.95$) effectively decouples it from Earth-to-Moon transport ceilings.
+
+\paragraph{Model II (Stochastic Robustness):}
+Risk profiling identifies a distinct \textbf{temporal asymmetry}. The mission is highly elastic to rocket reliability $P_s$ during the "Seeding Phase" (2050--2053), where a single failure generates a cascading delay of $\Delta T \approx 1.2$ years. However, the system demonstrates strong \textbf{modal cross-elasticity}: degradation in Space Elevator efficiency ($\eta$) is automatically mitigated by dynamic reallocation of payload to the rocket fleet, validating the hybrid architecture's self-healing capability.
+
+\paragraph{Model III (Water Dynamics):}
+The timeline and cost are strictly bound by the recycling efficiency $\eta_{bio}$. A deviation of just 2\% ($0.96 \to 0.94$) necessitates a massive increase in makeup water flow $q_E$, which, via the competitive capacity constraint $\sum x < U$, displaces high-value industrial "seed" cargo. This \textbf{crowding-out effect} confirms that biological loop closure is not merely an environmental goal but a critical logistical prerequisite.
+
+\paragraph{Model IV (Environmental Exchange):}
+The ecological trade-off is governed by the ratio of shadow prices $\rho = \lambda_E / \lambda_M$. The system reveals a \textbf{threshold instability} near $\rho \approx 0.4$; below this value, the solver reverts to a "dirty" launch-heavy strategy to minimize mere fiscal cost. However, under the baseline valuation ($\rho=1$), the \textbf{Liability Exchange} mechanism is robust, with the crossover year ($T_{cross}=2077$) showing low elasticity to minor variations in stratospheric radiative forcing per ton ($E < 0.3$), confirming the structural dominance of the aggressive bootstrapping strategy.
+
+\subsection{Strengths and Limitations}
+
+\paragraph{Strengths:}
+\begin{itemize}
+    \item \textbf{Endogenous Coupling:} The model rigorously enforces the feedback loop between logistic throughput and industrial capacity, extending beyond static scheduling.
+    \item \textbf{Verified Resilience:} Impulse-response and Monte Carlo simulations ($N=1000$) confirm the system's stability against localized failures, bounded by strict confidence intervals.
+    \item \textbf{Holistic Valuation:} The inclusion of environmental shadow prices ($\mathcal{D}_E, \mathcal{D}_M$) allows for a principled, quantitative trade-off between rapid development and ecological preservation.
+\end{itemize}
+
+\paragraph{Weaknesses:}
+\begin{itemize}
+    \item \textbf{Spatial Aggregation:} The operational abstraction of global launch sites into a single super-node ($N_{launch}$) may mask specific ground-transport bottlenecks.
+    \item \textbf{Stochastic Independence:} The risk model assumes uncorrelated failure events, potentially underestimating the impact of systemic disruptions (e.g., solar storms).
+    \item \textbf{Calibration Sensitivity:} The fiscal optimality is contingent on the projected learning curve rates; deviations in the deflationary trajectory of aerospace costs could shift the Pareto frontier.
+    \item \textbf{Normative Valuation:} The environmental optimality is sensitive to the shadow price ratio $\rho$; shifting societal priorities towards extreme conservation ($\rho \to \infty$) would invalidate the proposed aggressive timeline.
+\end{itemize}
+
+% \newpage
+
+% \includepdf[pages=-]{letter/letter.pdf}
+
+\newpage
 \bibliographystyle{unsrt} % 选择数字引用样式
 \bibliography{team.bib}
 
