@@ -174,3 +174,9 @@ def validate_parameter_summary(summary: dict[str, Any], resource_ids: set[str]) 
     target = colony.get("target")
     if target is None or "population" not in target:
         raise KeyError("parameter_summary.colony.target.population is required")
+    if "deadline_year" in target:
+        deadline_year = target["deadline_year"]
+        if not isinstance(deadline_year, (int, float)):
+            raise ValueError(
+                "parameter_summary.colony.target.deadline_year must be numeric"
+            )

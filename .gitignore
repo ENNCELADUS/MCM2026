@@ -19,6 +19,9 @@
 
 # PDF files
 *.pdf
+*.png
+*.jpg
+*.jpeg
 
 # OS generated files
 .DS_Store

@@ -6,7 +6,7 @@ Usage:
     python main.py                          # Run with defaults (Mix scenario)
     python main.py --scenario E-only        # Elevator-only scenario
     python main.py --scenario R-only        # Rocket-only scenario
-    python main.py --horizon 80              # 80-month horizon
+    python main.py --horizon 1200            # 100-year horizon
     python main.py --output results/run1    # Custom output directory
 
 Author: [Your Name]
@@ -33,7 +33,7 @@ def parse_args() -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python main.py --scenario Mix --horizon 80
+  python main.py --scenario Mix --horizon 1200
   python main.py --scenario E-only --output results/elevator_scenario
         """,
     )
@@ -49,8 +49,8 @@ Examples:
     parser.add_argument(
         "--horizon",
         type=int,
-        default=480,
-        help="Planning horizon in months/steps (default: 80)",
+        default=1200,
+        help="Planning horizon in months/steps (default: 1200)",
     )
 
     parser.add_argument(

@@ -7,7 +7,7 @@
 # -----------------------------------------------------------------------------
 time:
   delta_t: 2628000   # 1 month in seconds (365 * 24 * 3600 / 12)
-  T_max: 1800         # Maximum time horizon (time steps)
+  T_max: 2400         # Maximum time horizon (time steps)
   start_year: 2050   # Calendar year for t=0 (Phase I start)
   steps_per_year: 12
 
@@ -92,7 +92,7 @@ scenario_parameters:
     capacity_logistic:
       C_E_max_tpy: 1000000  # Physical ceiling (~1 Mt/y, see implementation_details.md)
       C_E_ref_tpy: 537000   # Initial capacity at 2050 (179k × 3 harbours)
-      k_E: 0.15             # Growth rate parameter
+      k_E: 0.10             # Growth rate parameter
       t0_year: 2050         # Reference year (model start)
       
     # Cost: Exponential decay model
@@ -112,18 +112,18 @@ scenario_parameters:
       ref_year: 2050
     launch_rate:
       # Logistic Growth Model: L(t) = K / (1 + A * exp(-r * (t - t0)))
-      # Fitted to historical data (2005-2024)
-      K: 35274        # Carrying capacity (max launches/year)
-      A: 1000         # Initial scaling factor
-      r: 0.0991       # Growth rate
-      t0: 2005        # Base year (historical start)
+      # Fitted to historical data (2000-2024)
+      K: 1500        # Carrying capacity (max launches/year)
+      A: 10.00       # Initial scaling factor
+      r: 0.0970      # Growth rate
+      t0: 2020       # Fitted inflection year
     cost_decay:
       # Exponential Decay: C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
       # Fitted to 2005-2024 history ($25k -> $1.5k). Base Year t=0 is 2050.
       base_year: 2050
-      base_cost_usd_per_kg: 88.90   # Projected cost at 2050
-      decay_rate_monthly: 0.015001  # Annual: 0.1800 -> Monthly: 0.015
-      min_cost_usd_per_kg: 80.82    # Floor cost
+      base_cost_usd_per_kg: 110.68   # Projected cost at 2050
+      decay_rate_monthly: 0.014488  # Annual: 0.1800 -> Monthly: 0.015
+      min_cost_usd_per_kg: 100.0    # Floor cost
 
 # -----------------------------------------------------------------------------
 # Initial Capacity Parameters (at t=0)
@@ -159,6 +159,7 @@ parameter_summary:
   colony:
     target:
       population: 100000
+      deadline_year: 2150
     requirements:
       water_per_capita_per_month: 0.5  # tons/person/month (assumption: 16-17 kg/day? High but simple)
 
@@ -208,7 +209,7 @@ optimization:
 # -----------------------------------------------------------------------------
 objective:
   w_C: 1.0      # Cost weight
-  w_T: 20000.0    # Time weight - Increased to balance $100B+ cost vs Ton-Months (Order of 1e11 vs 1e7)
+  w_T: 1.0    # Time weight - Increased to balance $100B+ cost vs Ton-Months (Order of 1e11 vs 1e7)
   
 # -----------------------------------------------------------------------------
 # Solver Settings

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 import pyomo.environ as pyo
 
@@ -96,6 +97,9 @@ class PyomoBuilder:
             * self.ton_to_kg
         )
         self.target_pop = constants["parameter_summary"]["colony"]["target"]["population"]
+        self.deadline_year = (
+            constants["parameter_summary"]["colony"]["target"].get("deadline_year")
+        )
         
         # BOM Mappings
         self.tiers = utils.get_tier_definitions(constants)
@@ -500,24 +504,28 @@ class PyomoBuilder:
         
         m.cum_city_state = pyo.Constraint(m.T, rule=_cum_city_rule)
         
-        # Goal: Reach X tons
-        # We put this in Objective (minimize time to reach X).
-        # We define T_end when Cumulative_City >= Target.
-        target_mass = 1e8 # 100M tons hardcoded? Or from BOM?
-        # Using 100,000 tons for initial test to be safe.
-        target_mass = 100000.0 * 1000.0 # 100kt
-        
-        # Trigger T_end
-        # Cumulative_City[T_end] >= target
-        # z_end[t] = 1 if t == T_end.
-        # This is hard to formulate linearly.
-        # Standard way: Sum(z_end) = 1.
-        # Cumulative_City[t] >= target * Sum(z_end[tau] for tau <= t) ? 
-        # No, that forces early completion.
-        
-        # Reverse: If not complete, city < target.
-        # If complete, city >= target.
-        pass
+        # Goal: Hard deadline on cumulative city mass
+        target_mass_kg = self.total_demand_kg
+        if self.deadline_year is not None:
+            start_year = float(self.constants["time"]["start_year"])
+            steps_per_year = float(self.constants["time"]["steps_per_year"])
+            deadline_step = int(
+                math.ceil((float(self.deadline_year) - start_year) * steps_per_year)
+            )
+            if deadline_step >= self.settings.T_horizon:
+                raise ValueError(
+                    "deadline_year exceeds or equals current horizon; "
+                    "increase T_horizon or move the deadline earlier."
+                )
+            m.city_deadline = pyo.Constraint(
+                expr=m.Cumulative_City[deadline_step] >= target_mass_kg
+            )
+        else:
+            # Default: enforce at final horizon
+            last_t = self.settings.T_horizon - 1
+            m.city_deadline = pyo.Constraint(
+                expr=m.Cumulative_City[last_t] >= target_mass_kg
+            )
 
     def _create_objective(self):
         m = self.m

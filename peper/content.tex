@@ -1,0 +1,1584 @@
+%% 美赛模板:正文部分
+
+\documentclass[12pt]{article}  % 官方要求字号不小于 12 号，此处选择 12 号字体
+
+% 本模板不需要填写年份，以当前电脑时间自动生成
+% 请在以下的方括号中填写队伍控制号
+\usepackage[2627434]{easymcm}  % 载入 EasyMCM 模板文件
+\problem{B}  % 请在此处填写题号
+
+\usepackage{mathptmx}  % 这是 Times 字体，中规中矩 
+%\usepackage{mathpazo}  % 这是 COMAP 官方杂志采用的更好看的 Palatino 字体，可替代以上的 mathptmx 宏包
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\usepackage{graphics}
+\usepackage{subcaption}
+\usepackage{verbatim}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{cite}  % 引入引用包
+\title{Space Elevator Analysis - Stepping to moon}  % 标题
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% 如需要修改题头（默认为 MCM/ICM），请使用以下命令（此处修改为 MCM）
+%\renewcommand{\contest}{MCM}
+
+% 文档开始
+\begin{document}
+
+% 此处填写摘要内容
+\begin{abstract}
+Stair wear patterns in historic buildings can provide valuable archaeological evidence regarding the building's age, usage and traffic patterns throughout history. In this paper, we develop a comprehensive mathematical framework to analyze wear patterns and provide archaeologists with quatitative tools for historical interpretation.
+    
+First, we establish a non-destructive measurement methodology including \textbf{physical, chemical and biological} measurements. Physical measurements involve \textbf{3D scanning} of stairs and monocular depth estimation. Chemical measurements include \textbf{isotope analysis} and mineral composition testing. Biological measurements involve the study of microbial colonies.
+Then, we personally collected top-down photos of stairs from ancient buildings. Using \textbf{depth map estimation} methods, we drew heatmaps and obtained wear data.
+
+Following data collection, we address the challenge of quantifying wear volume from discrete point cloud data. We employ\textbf{ Delaunay triangulation} to transform the theoretical volume integral into a weighted summation of local triangular volumes, thus accurately calculating spatial wear volume.
+
+Second, we build a \textbf{Daily Foot Traffic Model} based on the Archard equation. We take \textbf{Archard Adhesive Wear Model} and \textbf{Abrasive Wear Model} both into consideration. Besides, we use \textbf{Bayesian Inversion Framework} to calculate the construction time to provide essential parameter.
+
+Third, we establish a \textbf{Wear Distribution Model} to determine movement patterns and simultaneous occupancy levels. The model analyzes wear patterns to deduce whether people moved in single file or side by side, and whether there were predominant directional preferences.
+
+For age estimation, we employ multiple approaches: \textbf{C14 dating method} for wooden staircases, \textbf{weathering degree analysis} for stone staircases, and \textbf{Bayesian inversion}.We constructed a \textbf{weighted evaluation model} of three representative \textbf{Chemistry Weathering Indecies} to evaluate the weathering condition of stone, providing information about its age.
+
+To detect repairs or renovations, we analyze age distribution discontinuities using anomaly detection methods like the \textbf{Z-score}. We also verify the consistency of wear patterns with available historical information. For material source verification, we use the \textbf{Archard Wear Model} to calculate wear coefficients and perform chemical composition analysis to trace the origin of materials. We analyze usage patterns by examining the distribution of wear depth. By calculating the kurtosis of the distribution, we determine the usage pattern of stairs.
+
+Finally, we perform a sensitivity analysis on the key parameters of our model to evaluate its responsiveness. The results demonstrate strong robustness.  
+
+\textbf{Key Words:} Stair Wear, Archard Equation, Depth Estimation, Weathering Degree Model, Bayesian Inversion
+
+    % 美赛论文中无需注明关键字。若您一定要使用，
+    % 请将以下两行的注释号 '%' 去除，以使其生效
+    % \vspace{5pt}
+    % \textbf{Keywords}: MATLAB, mathematics, LaTeX.
+
+\end{abstract}
+
+\maketitle  % 生成 Summary Sheet
+\setcounter{tocdepth}{2} 
+\tableofcontents  % 生成目录
+
+
+% 正文开始
+\section{Introduction}
+
+\subsection{Problem Background}
+The dream of extending human civilization to the Moon has transitioned from science fiction to a pressing logistical challenge as we approach the mid-21st century. At the heart of this ambition lies the fundamental problem of Earth-to-Moon transportation. Traditionally, space exploration has relied exclusively on rocket propulsion systems, such as the advanced Falcon Heavy, which are estimated to carry between 100 to 150 metric tons of payload to the lunar surface per launch by 2050. While reliable, traditional chemical rockets are inherently limited by the "rocket equation," where a significant portion of the launch mass must be dedicated to fuel, resulting in high costs and substantial atmospheric pollution.
+
+To overcome these barriers, the concept of a Space Elevator System offers a revolutionary paradigm for interplanetary logistics. This system is envisioned as a scalable, electrically powered infrastructure consisting of three "Galactic Harbours" strategically positioned 120 degrees apart along the Earth's equator. Each harbour comprises a single Earth port connected via two 100,000 km-long graphene tethers to apex anchors. Unlike the single-step trajectory of a rocket, the Space Elevator employs a two-step delivery process: payloads are first lifted from the Earth port to the apex anchor, and then ferried to the Moon via specialized rockets using significantly less fuel. This infrastructure promises a "green" alternative capable of moving 179,000 metric tons annually without atmospheric degradation, providing a consistent and cost-effective corridor to space.
+
+The major problems dealt with in this paper will be specified in Section 1.3.
+
+\subsection{Literature Review}
+Our research focuses 
+
+\subsection{Problem Restatement and Analysis}
+
+To provide the Moon Colony Management Agency with a concise yet robust framework, we restate the project requirements for transporting  million metric tons of material to support a 100,000-person colony by 2050. After normalizing technical parameters for both Galactic Harbours and rocket launch sites, we address the following tasks:
+
+\begin{itemize}
+\item \textbf{Problem 1.} Calculate and compare the total time required to transport  tons across exclusive elevator, exclusive rocket, and hybrid delivery modes.
+\item \textbf{Problem 2.} Quantify total expenditures, specifically contrasting the two-step elevator delivery process against the single-step direct rocket launch.
+\item \textbf{Problem 3.} Determine the optimal allocation ratio between elevator and rocket systems to maximize mass throughput while minimizing total economic burden.
+\item \textbf{Problem 4.} Evaluate fluctuations in cost and timeline under non-ideal conditions, such as tether swaying, mechanical failures, or rocket anomalies.
+\item \textbf{Problem 5.} Investigate the total annual water needs to sustain a fully operational colony of 100,000 inhabitants.
+\item \textbf{Problem 6.} Calculate additional costs and delivery cycles required to ensure sufficient life-support supplies for the colony’s inaugural year.
+\item \textbf{Problem 7.} Analyze atmospheric pollution and ecological damage, contrasting the green efficiency of elevators with traditional chemical propulsion.
+\item \textbf{Problem 8.} Develop adjustments to the logistical models to minimize environmental degradation without compromising critical material flow rates.
+\end{itemize}
+
+Finally, we will synthesize these findings into a one-page strategic recommendation letter addressed to the MCM Agency.
+
+
+
+\subsection{Our Work}
+
+Our paper will be organized following the structure below.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{绘图1.jpg}
+    \caption{Our Work}
+    \label{fig:enter-label}
+\end{figure}
+
+
+
+
+
+\section{Methodology and Model Formulation}
+
+\subsection{Strategic Framework: Autonomous Lunar Urbanization}
+
+Our design for the establishment of a 100,000-person lunar colony is formulated as a dynamic process of autonomous industrial evolution. Our strategy prioritizes a \textbf{"Robot-First" developmental logic}, where the initial infrastructure is entirely managed and executed by intelligent robotic units. In this framework, the construction of human living quarters represents the terminal phase; once the habitation zones are operational and life-support systems are verified, the colony establishment process is considered complete. This approach ensures that the lunar environment is fundamentally transformed into a habitable urban center before the first human residents arrive.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{unwatermarked_流程图.png}
+    \caption{The Lunar Urbanization Timeline}
+    \label{fig:timeline}
+\end{figure}
+
+We envision the lunar base's development through a trajectory analogous to terrestrial urbanization but accelerated by robotic efficiencies. Unlike human labor, which is limited by long upbringing cycles, a robotic labor force can be instantaneously deployed upon the establishment of the manufacturing chain. This workforce initiates a self-reinforcing productivity surge that evolves through three strategic stages:
+\begin{enumerate}
+    \item \textbf{The Bootstrapping Phase:} A "seeding" stage where high-complexity foundational infrastructure and precision components are transported from Earth to establish initial lunar industrial capacity. 
+    \item \textbf{The Self-Replication Phase:} A growth explosion where robots utilize In-Situ Resource Utilization (ISRU) to fabricate new labor units and infrastructure, triggering exponential output. 
+    \item \textbf{The Saturation Phase:} A logistic stabilization period where growth slows as the colony approaches physical limits, such as thermal dissipation at the lunar poles and cosmic radiation degradation.
+\end{enumerate}
+
+
+\subsection{Notations}
+To ensure the clarity and consistency of the mathematical framework, we define a set of primary notations used in our logistics and construction models. These symbols represent the temporal, spatial, and functional components of the Earth-Moon transportation network.
+
+\begin{table}[h]
+\centering
+\caption{Primary Notations and Definitions}
+\label{tab:notations}
+\begin{tabular}{clc}
+\hline
+\textbf{Symbol} & \textbf{Definition} & \textbf{Units/Domain} \\ \hline
+$t \in \mathcal{T}$ & Time step index within the planning horizon & $[0, T_{horizon}-1]$ \\
+$n \in \mathcal{N}$ & Set of nodes including Earth launch sites, Earth ports, and Moon & -- \\
+$a \in \mathcal{A}$ & Set of arcs representing rockets, elevators, and transfer segments & -- \\
+$r \in \mathcal{R}$ & Set of material resources (e.g., structures, equipment, fuel) & -- \\
+$i \in \mathcal{I}$ & Set of Work Breakdown Structure (WBS) tasks & -- \\
+$\mathcal{I}_V \subset \mathcal{I}$ & Capability-building task set (infrastructure and production units) & -- \\
+$\mathcal{I}_{nonV} \subset \mathcal{I}$ & Standard construction task set (habitations and utilities) & -- \\
+$M$ & Total material mass required for colony construction  & Metric tons \\
+$C$ & Throughput capacity for transportation or production  & Tons/year \\
+$L_{cap}(t)$ & Annual payload capacity of rocket systems & Tons/year \\
+$Cost_R(t)$ & Unit cost of rocket transport at time $t$ & USD/kg \\
+$r$ & Learning curve cost decay rate (Wright’s Law) & Constant \\
+$C_E$ & Total steady-state capacity of Space Elevator system  & Tons/year \\
+$\chi_i$ & Material complexity index of task $i$ & $[0, 1]$ \\
+$P_2(t)$ & Local production rate of Tier 2 industrial materials & Tons/year \\
+$k_i(t)$ & Localization rate (ratio of ISRU materials for task $i$) & $[0, 1]$ \\
+$J$ & Comprehensive Performance Index (Objective function value) & Dimensionless \\
+$w_{time}, w_{cost}$ & Weight coefficients for time and cost priorities & Constant \\
+$\mathbf{S}_t$ & State vector of lunar infrastructure and capability & -- \\
+$v_{i,t}$ & Construction progress of task $i$ at time $t$ & Percentage/Mass \\
+\hline
+\end{tabular}
+\end{table}
+
+
+
+
+\subsection{Assumptions}
+Through a complete analysis of the interplanetary logistics problem, in order to simplify our model and ensure computational tractability, we make the following reasonable assumptions based on the physical constraints and technological projections of 2050.
+
+\textbf{Assumption 1: Technical continuity and logistic growth of rocket systems.}
+
+The rocket technology available in 2050 is assumed to be a mature evolution of current systems like Starship and Falcon Heavy[cite: 1047, 1107]. However, the expansion of rocket transport is not infinite; it is constrained by the finite number of global launch sites, such as those in Florida, Kazakhstan, and China. Consequently, we assume the growth of total rocket launch capacity follows a Logistic Growth Model, where the capacity initially increases rapidly but eventually approaches a saturation point determined by environmental and geographical limits].
+
+\textbf{Assumption 2: Physical limits and safety stress of the space elevator system.}
+
+We assume that material science has advanced sufficiently to produce carbon nanotubes (CNT) or graphene with the theoretical strength required for a 100,000 km tether. Nevertheless, the system is subject to strict mechanical safety factors. To prevent tether rupture or excessive swaying, we assume there is a fixed upper limit on the instantaneous payload mass and operational speed, resulting in a maximum annual throughput capacity for each Galactic Harbour.
+
+\textbf{Assumption 3: Seamless transfer from the Galactic Harbour to the Moon.}
+
+The transport process involves a two-step delivery: from Earth to the apex anchor, and then from the anchor to the Moon. We assume that the second leg of this journey is highly efficient and that the rocket ferries operating between the apex anchor and the lunar surface have sufficient capacity to handle all incoming cargo. Therefore, the system's bottleneck is assumed to reside solely in the Earth-to-apex lift phase, rather than the subsequent lunar delivery.
+
+\textbf{Assumption 4: Feasibility of In-Situ Resource Utilization (ISRU).}
+
+To meet the 100 million metric ton requirement, we assume that lunar regolith and water ice can be successfully extracted and processed into bulk building materials and chemical propellants. This allows for a "system bootstrapping" effect where early infrastructure enables the local production of materials, significantly reducing the total mass that must be transported from Earth's deep gravity well.
+
+\textbf{Assumption 5: [To be determined]}
+
+[This space is reserved for further constraints as the model details are refined.]
+
+To continue the development of our mathematical framework, we define the operational dynamics of the two primary transportation systems and establish a strategic classification for the materials required for lunar colonization.
+
+\subsection{Material Classification and Logistics Strategy}
+
+To optimize the 100 million metric ton delivery requirement, the \textbf{Equivalent Mass Dynamic Allocation (EMDA)} model categorizes materials by complexity ($\chi$) and value density to determine if they are Earth-transported or produced via lunar In-Situ Resource Utilization (ISRU).
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.4}
+\caption{Material Classification and Logistical Strategy}
+\label{tab:material_strat}
+\begin{tabular}{lp{4.5cm}cp{5.5cm}}
+\toprule
+\textbf{Category} & \textbf{Typical Components} & \boldmath$\chi_i$ & \textbf{Logistical Strategy \& Mass Ratio} \\ 
+\midrule
+\textbf{Tier 1: Precision} & Chips, robot brains, precision bio-pharmaceuticals & $\approx 1.0$ & 100\% Earth transport. Mandatory delivery of high-complexity seeds. (15\% Initial $\to$ $<$1\% Mature) \\ 
+
+\textbf{Tier 2: Industrial} & Machine tool parts, flexible films, motors & $0.3 - 0.7$ & Hybrid sourcing. Core components from Earth enable lunar replication. (35\% Initial $\to$ $\sim$4\% Mature) \\ 
+
+\textbf{Tier 3: Basic} & Structural frames, regolith bricks, oxygen, shielding water & $\approx 0.0$ & 100\% lunar ISRU. Bulk materials produced locally to minimize logistical load. (50\% Initial $\to$ $\sim$95\% Mature) \\ 
+\bottomrule
+\end{tabular}
+\end{table}
+
+The mission utilizes a \textbf{System Bootstrapping Effect}, where Tier 1 "seeds" enable the growth of lunar production capacity $P_r(t)$. We define the \textbf{Localization Rate} $k_i(t)$ as the ratio of ISRU materials to the total demand for task $i$:
+\begin{equation}
+k_i(t) = \frac{q^M_{i,t}}{q^M_{i,t} + q^E_{i,t}} \in [0, 1]
+\end{equation}
+The evolution of $k_i(t)$ is driven by $P_r(t)$, which follows a self-reinforcing differential equation:
+\begin{equation}
+\frac{dP_r(t)}{dt} = \alpha \cdot P_r(t) + \beta \cdot T_{seed}(t)
+\end{equation}
+where $\alpha$ is the self-replication efficiency and $\beta$ is the input factor of high-complexity Tier 1 components ($T_{seed}$). As $P_r(t)$ increases, $k_i(t)$ for Tier 2 and Tier 3 materials scales accordingly, allowing the colony mass to grow exponentially while the transport burden remains focused on high-value technological payloads.
+
+
+
+
+
+\subsection{Transport Capacity and Cost Modeling}
+
+The evaluation of the Earth-Moon supply chain requires a rigorous definition of how transport capacity evolves and how operational costs fluctuate over the fifty-year construction horizon. We model the two competing systems—chemical rockets and the space elevator—using distinct mathematical approaches that reflect their unique physical and economic constraints.
+
+\subsubsection{Rocket System Modeling}
+The capacity of traditional chemical rocket systems is fundamentally constrained by the energy density of propellants and the structural integrity of reusable launch vehicles. We model the annual payload capacity $L_{cap}(t)$ using a \textbf{Logistic Growth Model}:
+\begin{equation}
+L_{cap}(t) = \frac{L_{max}}{1 + A \cdot e^{-k(t - t_0)}}
+\end{equation}
+where $L_{max}$ represents the ultimate physical limit of annual throughput, $k$ is the technological iteration rate, and $t_0$ is the inflection point of the technology explosion. This reflects the maturation from current heavy-lift vehicles to ultra-heavy reusable platforms, approaching a saturation point dictated by global launch site constraints.
+
+
+Parallel to capacity growth, the unit cost of rocket transport is expected to decrease significantly due to the maturity of reusable technologies and economies of scale. Following the principles of \textbf{Wright’s Law} and the \textbf{Transcost 7.0} coupling model, we define the cost evolution function  as:
+\begin{equation}
+Cost_R(t) = Cost_{2050} \cdot (1 - r)^{t - t_0}
+\end{equation}
+where  is the annual cost decay rate (historically observed at approximately ) and  is the projected entry-level cost per kilogram for lunar delivery. This decay reflects the "learning curve" effect where doubling the cumulative number of launches reduces marginal costs toward a theoretical floor determined by propellant and maintenance expenses.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{rocket_model.png}
+    \caption{Multi-dimensional Evolution Modeling of Space Transportation Systems: Historical Validation and 21st Century Projections}
+    \label{fig:rocket_model}
+\end{figure}
+
+\subsubsection{Space Elevator System Modeling}
+
+In contrast to the variable dynamics of rocket systems, the Space Elevator System, comprising three Galactic Harbours, offers a steady-state, high-throughput corridor. Based on the technical specifications provided by the MCM Agency, each Galactic Harbour is capable of lifting 179,000 metric tons annually. Therefore, the total system capacity  is treated as a constant:
+\begin{equation}
+C_E = 3 \times 179,000 = 537,000 \text{ metric tons/year}
+\end{equation}
+From an economic perspective, the space elevator represents a \textbf{High-CAPEX, Low-OPEX} infrastructure. We assume the massive initial construction costs (estimated at 10 billion USD per harbour) have been amortized by 2050, allowing the system to operate at a marginal cost significantly lower than chemical rockets. The primary cost component for the elevator is the electricity required for the climbers and the maintenance of the 100,000 km graphene tethers.
+
+\subsection{Multi-Objective Evaluation Framework}
+To rigorously assess the performance of various transportation scenarios, we define a Comprehensive Performance Index ($Z$) as our primary evaluation criterion. This framework balances temporal urgency against economic feasibility:
+\begin{equation}
+\min Z = w_T \cdot T_{end} + w_C \cdot \sum_{t \in \mathcal{T}} \sum_{a \in \mathcal{A}} C_{total}(a, t)
+\end{equation}
+In this expression, $w_T$ and $w_C$ represent the non-negative weight coefficients assigned to time and cost, respectively. $T_{end}$ denotes the total completion year, while $\sum C_{total}$ encompasses the total cumulative expenditure (CAPEX and OPEX) for both rocket and elevator systems. This allows the MCM Agency to calibrate the mission priority: a higher $w_T$ prioritizes rapid habitation, whereas a higher $w_C$ favors fiscal sustainability.
+
+
+
+% \section{Model I}
+% \subsection{The Hierarchical Hybrid Framework}
+
+% To address the divergent temporal scales and logistical logic of this mission, we propose a **Bi-Level Coupled Optimization Framework**. This architecture distinguishes between macro-level strategic transport and micro-level tactical construction, ensuring that the global flow of materials is synchronized with the localized capabilities of the lunar workforce.
+
+% \textbf{Layer 1: Strategic Transport Planner (Macro).} This layer operates as a high-level logistics orchestrator. It manages the spatio-temporal distribution of resources—determining when, via which vehicle, and in what quantity materials should be moved from Earth to the Moon.
+
+% \textbf{Layer 2: Tactical Construction Scheduler (Micro).} This layer functions as an on-site project manager. It dictates the task-level execution sequence (e.g., prioritizing power grids over habitation modules) and manages the "bootstrapping" of lunar production capacity.
+
+% The synergy between these layers is governed by a continuous feedback loop. Layer 1 provides Layer 2 with \textit{Supply Constraints}, defining the upper bounds of available inventory. Conversely, Layer 2 provides Layer 1 with \textit{Upward Feedback}, including current handling capacity () and production capacity (), which serve as dynamic bottlenecks for the macro-level flow.
+
+
+% \subsection{Layer 1: Strategic Transport Planner (Macro-Level)}
+
+% The macro-level layer is modeled as a Time-Dependent Multi-Commodity Network Flow problem. This formulation is designed to balance the evolving technical capabilities of transport vehicles against the stringent cost and timeline requirements of the MCM Agency.
+
+% \subsubsection{Objective Function}
+% Our primary objective is the minimization of the completion timeline and mission cost, as governed by the Comprehensive Performance Index $Z$ defined in Eq. (???). This ensures that the global flow of materials is optimized across both economic and temporal dimensions.
+
+
+% \subsubsection{Capacity Expansion Models}
+% Consistent with the principles of aerospace maturation, the annual capacity of the rocket fleet follows the logistic growth model $L_{cap}(t)$ as specified in Eq. (???). This capacity functions as a dynamic bottleneck in the macro-level flow, dictating the volume of "seeding" materials available for the initial stages of lunar industrialization.
+
+% \subsubsection{Macro Logistical Constraints}
+
+% The model is subject to flow conservation and capacity constraints:
+% \begin{itemize}
+% \item \textbf{Flow Balance:} The change in inventory at the lunar node must equal the sum of inflows (Rockets and Elevators) plus local production $P_r(t)$ minus consumption.
+% \item \textbf{Dynamic Bottlenecks:} Total rocket throughput is limited by $L_{cap}(t)$. For the Space Elevator, the annual throughput is strictly capped by the total system capacity $C_E$ defined in Section 2.3.2.
+% \end{itemize}
+
+% \subsection{Layer 2: Tactical Construction Scheduler (Micro-Level)}
+
+% The micro-level layer is formulated as a Discrete Multi-Mode Resource-Constrained Project Scheduling Problem. It incorporates the "Robot-First" logic, where robots manufacture further infrastructure and additional labor units.
+
+% \subsubsection{Task Execution and State Evolution}
+
+% The global state of lunar capability, , evolves as tasks are completed. Each completed project (such as a nuclear power plant) provides a permanent increment to the system's capacity:
+
+% \begin{equation}
+% \mathbf{S}*t = \mathbf{S}*0 + \sum*{\tau=0}^{t-d} \sum*{i \in \mathcal{I}} \mathbf{\Delta S}*i \cdot u^{done}*{i,\tau}
+% \end{equation}
+
+% where  is the capacity gain from task  and  represents the operational delay for commissioning.
+
+% \subsubsection{Resource Localization Strategy}
+
+% In the micro-level simulation, the Localization Rate $k_i(t)$ acts as a dynamic decision variable. The scheduler determines the optimal $k_i(t)$ for each task by comparing the current lunar production $P_r(t)$ against the remaining transport capacity $L_{cap}(t)$ and $C_E$. If $P_r(t)$ is sufficient, the model prioritizes ISRU to minimize the transport burden on Tier 3 materials, effectively reserving the Space Elevator's capacity for high-complexity Tier 1 and Tier 2 goods.
+
+% \subsubsection{Construction Dynamics}
+
+% To prevent unphysical results, construction progress  is strictly limited by both the available construction capacity  and the actual presence of materials at the site:
+
+% \begin{equation}
+% v_{i,t} \le \min \left( V_t \cdot \text{alloc}*{i,t}, \quad \text{MaterialAvailability}*{i,t} \right)
+% \end{equation}
+
+% This coupling ensures that construction only proceeds when both "labor" (robotic capacity) and "material" (transported or produced) are simultaneously available.
+
+% \subsection{Analysis of Results}
+
+% \subsubsection{Multi-Scenario Performance Comparison}
+
+% To validate the superiority of the hybrid strategy, we compared the results of three scenarios: the Pure Rocket strategy, the Pure Elevator strategy, and our Optimal Hybrid model. The simulation results indicate that while the Pure Rocket scenario offers a fast initial deployment, its cumulative cost grows exponentially due to the massive fuel requirements for transporting bulk Tier 3 materials, exceeding  billion USD. Conversely, the Pure Elevator scenario, despite its low operational cost, suffers from a "slow start" bottleneck, with completion times extending toward 200 years because it lacks the rapid initial "seeding" capability of rockets. The Optimal Hybrid scenario effectively navigates this Pareto frontier, utilizing rockets for the initial 2.92 million metric tons of high-priority industrial equipment and then transitioning bulk transport to the Space Elevator. This synergistic approach reduces the total construction duration to approximately 45.9 years, significantly outperforming the 58-year timeline of a fully mobilization-based rocket strategy while maintaining fiscal sustainability.
+
+% 【Figure: Comparative Performance Bar Chart — A dual-axis chart comparing Completion Time () and Total Cost () across the three scenarios, highlighting the Hybrid model as the Pareto-optimal solution.】
+
+% \subsubsection{Mass Sourcing Evolution and ISRU Efficiency}
+
+% The viability of the 100-million-ton colony relies fundamentally on the transition from Earth-dependence to lunar self-sufficiency. Our analysis of mass sourcing reveals a stark composition at the project's conclusion: approximately 92.46 million metric tons—over 90\% of the total mass—are sourced via lunar In-Situ Resource Utilization. This massive local output is triggered by the initial 7.64 million metric tons transported from Earth (comprising 2.92 million via rockets and 4.72 million via the Space Elevator). The results demonstrate a clear "bootstrapping" trajectory: early high-complexity Tier 1 and Tier 2 imports establish the industrial infrastructure necessary to process regolith and ice, allowing the growth rate of the colony's mass to decouple from Earth-based launch capacity. This mass sourcing distribution validates our material classification strategy and proves that the "seed-and-grow" logic is the key to achieving such unprecedented scales.
+
+% 【Figure: Material Composition River Plot — A stacked area chart (river plot) showing the temporal evolution of mass sourcing. The area for ISRU-produced mass expands dramatically following the initial "seeding" phase, while Earth-sourced mass remains a small, high-value fraction of the total.】
+
+% \subsubsection{Strategic Milestone and Schedule Analysis}
+
+% The generated optimal construction schedule exhibits a compact three-phase progression. Phase 1 (2050–2055) focuses on the rapid installation of energy grids and regolith sintering plants, where the high frequency of rocket launches is critical. Phase 2 (2055–2078) is characterized by high levels of parallel task execution; as local production capacity matures, multiple industrial modules are constructed simultaneously using materials delivered by the Space Elevator. Finally, Phase 3 (2075–2096) involves the large-scale expansion of habitation zones and the Gaia biosphere. Critical path analysis identifies the completion of high-volume industrial refineries (Tier 2 infrastructure) as the primary bottleneck; once these are operational, the construction of habitation quarters accelerates, leading to the project's completion in 2096. This timeline confirms that the hierarchical framework successfully coordinates macro-level logistics with micro-level task dependencies to maximize the construction rate.
+
+% [Figure: Optimal Construction Schedule Gantt Chart — A detailed timeline showing the dependencies between infrastructure milestones (T01–T11), highlighting the transition from industrial preparation to large-scale urban development and habitation.]
+
+
+
+
+
+\section{Model I: Hierarchical Scheduling and Optimization}
+
+\subsection{Bi-Level Coupled Optimization Architecture}
+
+To bridge the gap between continuous interplanetary logistics and discrete lunar construction tasks, we propose a \textbf{Bi-Level Coupled Optimization Framework}. This architecture ensures that long-term transport planning is dynamically responsive to the real-time industrial maturity of the colony.
+
+\textcolor{red}{Figure}: Bi-Level Coupled Optimization Architecture — A block diagram showing the interaction between Layer 1 (Strategic MILP) and Layer 2 (Tactical RCPSP), highlighting the "Material Supply" and "Capability Feedback" exchange.
+
+\begin{itemize}
+    \item \textbf{Layer 1: Strategic Transport Planner (Macro).} Guided by the $J$ index (Eq. ???), this layer optimizes the multi-modal flow of materials ($x_{a,r,t}$) from Earth to Moon, subject to the non-linear capacity evolution of rockets and the steady throughput of the Space Elevator.
+    \item \textbf{Layer 2: Tactical Construction Scheduler (Micro).} This layer governs the "system bootstrapping" logic. It receives inventory constraints from Layer 1 and feedback current production $P_t$ and handling $H_t$ as dynamic bottlenecks to the macro layer.
+\end{itemize}
+
+\subsection{Layer 1: Strategic Transport Optimization}
+
+The macro layer is formulated as a \textbf{Time-Dependent Multi-Commodity Network Flow (TDMCNF)} problem. It determines the optimal utilization of the three Galactic Harbours and global rocket sites.
+
+\subsubsection{Mathematical Constraints}
+
+The optimization is subject to flow conservation and technological capacity limits:
+\begin{equation}
+I_{Moon,r,t} = I_{Moon,r,t-1} + \sum_{a \in \mathcal{A}} x_{a,r,t-\tau_a} + P_r(t) - D_{r,t}
+\end{equation}
+where $I$ is the inventory, $P_r(t)$ is the local ISRU output, and $D_{r,t}$ is the construction demand. The throughput for each transport arc $a$ is bounded by:
+\begin{equation}
+\sum_{r \in \mathcal{R}} x_{rocket,r,t} \le L_{cap}(t), \quad \sum_{r \in \mathcal{R}} x_{elevator,r,t} \le C_E
+\end{equation}
+The integration of the S-curve capacity model ($L_{cap}(t)$) ensures the transport schedule aligns with 2050-era technological maturation.
+
+\subsection{Layer 2: Tactical Construction Scheduling}
+
+The micro layer manages the transformation of "mass into capability" using a Resource-Constrained Project Scheduling (RCPSP) approach.
+
+\subsubsection{Capability Evolution and Localization}
+
+The colony's state $\mathbf{S}_t$ evolves as infrastructure tasks (Tier 1/2) provide permanent capacity increments $\Delta \mathbf{S}_i$. A critical decision variable is the \textbf{Localization Rate} $k_i(t)$, which determines the reliance on ISRU:
+\begin{equation}
+v_{i,t} \le \min \left( V_t \cdot \text{alloc}_{i,t}, \quad \text{Inventory}_{i,t}(k_i) \right)
+\end{equation}
+This "Leibig’s Law" constraint ensures construction only proceeds when both robotic labor ($V_t$) and required materials are simultaneously available.
+
+\subsection{Simulation Results and Interpretation}
+
+\subsubsection{Scenario Dominance and Trade-offs}
+
+Simulation results confirm that \textbf{Scenario C (Hybrid Model)} is the only strategy capable of meeting the MCM Agency’s target within a half-century.
+
+\textcolor{red}{Figure}: Comparative Performance Bar Chart — A dual-axis visualization of duration and cost for the three scenarios, emphasizing Scenario C’s 45.9-year completion.
+
+The hybrid model optimizes the "Cold Start" problem: rockets are utilized for the initial 2.92 million tons of "technological seeds" (high-complexity robotics and energy modules), while the Space Elevator assumes the role of a bulk carrier for Tier 2 expansion. This prevents the "Slow Start" of a pure elevator system (completion $>150$ years) and the "Fiscal Explosion" of a pure rocket system.
+
+\subsubsection{Bootstrapping and Mass Sourcing Evolution}
+
+The model validates the \textbf{System Bootstrapping Effect}. By the end of the project, over 90\% of the 100-million-ton requirement is satisfied by lunar ISRU.
+
+\textcolor{red}{Figure}: Material Composition River Plot — A stacked area chart showing the transition from 100\% Earth-dependence to 90\%+ lunar self-sufficiency as $P_r(t)$ matures.
+
+The "River Plot" demonstrates that the initial Earth-sourced "seeds" serve as industrial catalysts. This decoupling of colony growth from Earth’s transport capacity is what allows the total mass to scale to $10^8$ tons without overwhelming global launch infrastructure.
+
+\subsubsection{Optimal Construction Timeline}
+
+The resulting Gantt chart reveals three distinct phases: (1) Industrial Seeding (2050–2055), (2) Capacity Self-Replication (2055–2078), and (3) Urban Habitation Expansion (2075–2096).
+
+\textcolor{red}{Figure}: Optimal Construction Schedule Gantt Chart — Highlighting the critical path from energy grid completion to the finalized Gaia-biosphere habitation modules.
+
+
+\section{Model II: System Robustness and Risk Assessment}
+
+To evaluate the extent to which our solution remains viable under non-ideal conditions, we transition from a deterministic framework to a stochastic risk-impact model. This section quantifies how systemic "imperfections"—ranging from tether swaying to catastrophic rocket failures—propagate through the hierarchical logistics network.
+
+
+\subsection{Risk Modeling and Classification}
+
+To quantify the impact of non-ideal operational conditions, we classify mission risks into three mathematical categories based on their temporal characteristics and impact on the logistical chain.
+
+\textbf{Category I: Steady-State Availability.} The long-term reliability of the Space Elevator and lunar ISRU facilities is modeled as a two-state Markov process. The system's effective operational time is governed by the Availability Factor ($A$), defined by the Mean Time Between Failures ($MTBF$) and Mean Time To Repair ($MTTR$):
+\begin{equation}
+A = \frac{MTBF}{MTBF + MTTR}
+\end{equation}
+This factor scales the ideal production capacity $P_{ideal}(t)$ and handling capacity $H_t$. For lunar facilities, we adjust the $MTTR$ to account for the abrasive effects of regolith on mechanical components, providing a conservative estimate of localized growth. 
+
+\textbf{Category II: Performance Degradation.} Transient inefficiencies, such as tether swaying caused by Coriolis forces and rocket launch scrubs due to environmental factors, are modeled as stochastic reduction factors. For the Space Elevator, the effective annual throughput $\Phi$ is adjusted by a penalty factor $f_{sway} \in [0, 1]$ to maintain structural integrity during climber transit:
+\begin{equation}
+\Phi_{eff} = \Phi_{ideal} \cdot (1 - f_{sway})
+\end{equation}
+Rocket systems similarly incorporate a launch probability distribution based on historical scrub rates, reflecting the temporal volatility of chemical propulsion. 
+
+\textbf{Category III: Discrete Mission Loss.} Catastrophic failures, including rocket launch anomalies and micro-meteoroid impacts on cargo modules, are represented as a Bernoulli loss process. The total effective mass $M_{eff}$ delivered to the lunar surface is a random variable:
+\begin{equation}
+M_{eff} = \sum_{j=1}^{N} L_{cap} \cdot X_j \cdot (1 - \gamma)
+\end{equation}
+where $X_j \sim \text{Bernoulli}(P_s)$ denotes the success of mission $j$, and $\gamma$ is a yield factor for minor transit damage. This identifies the risk where the loss of a single high-complexity Tier 1 payload disproportionately stalls the colony's industrial self-replication cycle. 
+
+
+\subsection{Simulation Results: The Impact of Uncertainty}
+
+By integrating these stochastic variables into our Monte Carlo simulation, we quantify the sensitivity of the 2096 completion target to system instabilities.
+
+\textbf{1. The Long-Tail Effect on Project Duration.}
+【Insert Figure: Probability Distribution Histograms (Time & Cost) — Showing the right-skewed distribution of completion dates due to cumulative delays.】
+
+\textbf{2. Global Sensitivity Analysis: Identifying the Primary Constraint.}
+【Insert Figure: Tornado Diagram — Ranking risk factors from highest to lowest impact on total mission cost and time.】
+
+\textbf{3. Identifying the "Failure Cliff" via 3D Landscape Analysis.}
+【Insert Figure: 3D Risk Landscape Surface — Visualizing the relationship between system failure rates and project viability to identify critical instability thresholds.】
+
+Following the rigorous modeling of failure modes in the previous section, we present the results of our stochastic analysis to quantify the impact of operational uncertainty on the lunar colony's construction.
+
+\subsection{4.2 Simulation Results: The Impact of Uncertainty}
+
+To evaluate the robustness of our logistics framework, we conducted a stochastic simulation integrating the failure modes defined in Section 4.1. The transition from a deterministic environment to one characterized by operational uncertainty reveals that the 100-million-ton construction goal is highly sensitive to infrastructure availability. Our Monte Carlo analysis, based on  iterations, demonstrates that the completion timeline follows a significant right-skewed "long-tail" probability distribution. While the baseline duration under perfect conditions was 45.9 years, the inclusion of maintenance downtimes and transit delays extends the mean completion time to 77.4 years, with the upper bound of the  confidence interval reaching 91.7 years. This "long-tail" effect suggests that while the system is resilient to minor perturbations, there is a non-negligible risk of extreme delays caused by the cascading effects of early-stage failures during the critical bootstrapping phase \textcolor{red}{Figure 7}.
+
+Global sensitivity analysis further identifies the primary drivers of this temporal and fiscal volatility. Utilizing a Tornado diagram to perturb individual parameters by  while holding others constant, we observe that the system's performance is dominated by Space Elevator stability rather than rocket reliability. Specifically, the variables of "Elevator Breakdown Probability" and "Tether Oscillation Efficiency" exert the most profound influence on the mission's critical path. The relatively lower sensitivity observed for "Rocket Failure Rate" is attributed to the colony’s strategic transition toward the Space Elevator for bulk Tier 2 and Tier 3 deliveries as the industrial base matures. This ranking underscores that the primary mission risk resides in the long-term structural integrity and operational uptime of the Galactic Harbours \textcolor{red}{Figure 8(a)}.
+
+Finally, our investigation into the joint impact of failure rates and efficiency reveals the existence of a "Failure Cliff" in the project’s viability. As visualized in the 3D Risk Landscape, the project duration does not increase linearly with instability; instead, it exhibits a sharp, non-linear surge once the annual failure rate  exceeds a threshold of 0.08 occurrences per year. Beyond this critical limit, the logistical throughput fails to reach the minimum threshold required to sustain the self-replication of robotic labor and ISRU facilities, leading to a state of permanent developmental stagnation. This finding implies that the MCM Agency must prioritize maintaining system reliability below this 8\% threshold, as exceeding it results in a systemic failure where the colony can no longer overcome the natural rate of hardware degradation and resource consumption \textcolor{red}{Figure 8(b)}.
+
+\subsection{Resilience and Mitigation: Critical Path Protection}
+
+Based on the risk landscapes identified, we propose adaptive strategies to safeguard the colony's growth. This includes the implementation of redundant "seed" stockpiles and the dynamic re-routing of cargo between the Space Elevator and rocket systems during periods of high tether instability.
+
+% \subsection{Wear Volume Calculation}
+
+% \textbf{1.Mathematical Modeling of Step Surface Wear Volume}
+
+% The goal of surface wear volume calculation is to estimate the spatial volume (the concave part) beneath a three-dimensional surface. Suppose a continuous surface \( z = f(x, y) \), the concave volume can theoretically be represented as:
+
+% \begin{equation}
+% V = \iint_{S} |f(x, y)| \, dA
+% \end{equation}
+% where: \( f(x, y) \) is the height (or depth) function of the surface;
+%   \( dA \) is the differential area element.
+
+% However, the actual data consists of discrete point clouds without an analytical form of \( f(x, y) \), so the integral cannot be directly solved. We use the \textbf{triangulation method } to discretize the problem and replace the integral with a weighted summation over the areas and depths of triangles.
+
+% \textbf{2. Principle of the Discrete Method}
+
+%  \textbf{Triangulation}
+   
+% Data points are distributed in the plane, and through triangulation (Delaunay Triangulation), the point cloud is divided into many small triangles; Each small triangle approximates a part of the original surface\textsuperscript{\cite{12}}.
+
+
+% \textbf{Local Volume Calculation}
+
+% For each triangle, we compute its area \( A \):
+
+% \begin{equation}
+% A = \frac{1}{2} \| \vec{v_1} \times \vec{v_2} \| 
+% \end{equation}
+    
+% where \( \vec{v_1} \) and \( \vec{v_2} \) are the two edge vectors of the triangle.
+
+% Compute the average depth \( h \) of the triangle region: $h = \frac{1}{3}(z_1 + z_2 + z_3)$
+
+% Compute the local volume: $V = A \cdot |h|$
+
+% \textbf{Global Volume Summation}
+
+% The total volume is obtained by summing the local volumes of all triangles:
+%  \begin{equation}
+% V_{\text{total}} = \sum_{i} A_i \cdot |h_i|
+% \end{equation}
+
+
+
+% \subsection{Model I: Daily foot traffic model based on the Archard equation}
+% To solve Problem 1——the usage frequency of the stairs, we only need to consider the total wear.
+% Based on our literature review and analysis, wear can be categorized into five types\textsuperscript{\cite{1}}, and we believe the wear on stairs mainly belongs to abrasive wear, with adhesive wear being secondary. Therefore, Archard's wear equation\textsuperscript{\cite{2}} can effectively link the wear volume to the usage conditions of the steps. 
+
+% \subsubsection{Archard Adhesive Wear Model}
+% The wear volume \(V\) based on the Archard Adhesive model is given by the following formula:
+
+% \begin{equation}
+% V = \frac{KPL}{3H}
+% \end{equation}
+
+% where:
+%  \(V\) is the wear volume,
+% \(K\) is the wear coefficient,
+% \(P\) is the load force,
+% \(L\) is the Friction distance
+% and \(H\) is the material hardness.
+
+% \subsubsection{Archard Abrasive Wear Model:}
+
+% In adhesive wear, K represents the probability of wear debris being generated at the contact microasperities; while in abrasive wear, $K_{abr}$ represents the product of the abrasive particle geometric factor \( \frac{2ctg\theta}{\pi} \) and a proportional constant. The actual proportional constant is the fraction of all abrasive particles that generate wear debris\textsuperscript{\cite{6}}. 
+
+% According to the Archard equation, the abrasive wear coefficient is given by:
+% \begin{equation}
+% K_{abr} = \frac{3  \tan\theta}{\pi} = 0.96 \tan\theta \approx  \tan\theta
+% \end{equation}
+
+% Thus, the simplified abrasive wear equation can be:
+% \begin{equation}
+% V = K_{abr} \cdot \frac{L}{3H}
+% \end{equation}
+
+% Based on the theoretical calculations, the values of \( \tan\theta \) and \( K P \) show little difference in the theoretical results of the stair wear model. Therefore, we can simplify the model and use formula (1) to solve the problem.
+
+% From the Archard model, we can estimate the wear volume by calculating the total friction distance. The total friction distance \(L\) is given by the formula:
+
+% \begin{equation}
+% L = n \cdot d \cdot t
+% \end{equation}
+
+% where:
+% \(n\) is the daily foot traffic ,
+%  \(d\) is the friction distance of an average person,
+% \(t\) is the total time.
+
+% According to the analysis,the theoretical value of \( d \) is 0.01 m, and \( P \) is 650 N.
+
+% Combining the equations above, we get:
+
+% \begin{equation}
+% n = \frac{3\cdot V \cdot H}{K \cdot P \cdot d \cdot t}
+% \end{equation}
+
+% Applying this formula to our 11 staircase samples, we calculated the estimated average daily pedestrian flow, as shown in the table below. The values of \textbf{H} and \textbf{K} used in the estimation were referenced from relevant literature on staircase materials, while \textbf{t} was estimated based on publicly available information about the building:
+
+% % \begin{table}[H]
+% % \centering
+% % \begin{tabular}{ccccc}
+% %     \toprule
+% %     Stair ID & $t$ (\text{day}) & $V$ (\text{mm}^3) & Wear Condition & $n$ (\text{day}^{-1}) \\
+% %     \midrule
+% %     1  & 9100  & 3796.5  & Slight   & 1925.5 \\
+% %     2  & 9100  & 2395    & Slight   & 1214.7 \\
+% %     3  & 9100  & 3833    & Slight   & 1944.0 \\
+% %     4  & 9100  & 6277    & Moderate & 3183.6 \\
+% %     5  & 29200 & 10617   & Severe   & 8390.6 \\
+% %     6  & 29200 & 13495   & Severe   & 6399.1 \\
+% %     7  & 5470  & 4024.5  & Slight   & 5093.5 \\
+% %     8  & 5470  & 3598    & Slight   & 4553.7 \\
+% %     9  & 5470  & 2351.5  & Slight   & 5952.3 \\
+% %     10 & 14600 & 7496.5  & Moderate & 4739.6 \\
+% %     11 & 14600 & 5753.5  & Slight   & 3637.6 \\
+% %     \bottomrule
+% % \end{tabular}
+% % \caption{Foot Traffic Estimation for Stair Samples}
+% % \label{table:stair_wear_condition}
+% % \end{table}
+
+% \subsubsection{Bayesian Inversion Framework}
+% To estimate the daily foot traffic \( n \) and usage time \( t \), a Bayesian inversion framework is employed. This approach combines prior knowledge with observed data to infer the posterior distribution of the parameters.
+
+
+
+% \textbf{The prior distribution} represents our initial knowledge about the parameters. For usage time \( t \), a uniform distribution is assumed:
+% \begin{equation}
+% t \sim \mathcal{U}(t_{\min}, t_{\max}),
+% \end{equation}
+% where \( t_{\min} = 50 \) years and \( t_{\max} = 200 \) years.
+
+
+
+% \textbf{The likelihood function} quantifies the agreement between the observed wear volume \( V_{\text{obs}} \) and the model prediction \( V_{\text{model}} \). It is defined as:
+% \begin{equation}
+% \mathcal{L}(t | V_{\text{obs}}) = \exp\left(-\frac{(V_{\text{model}}(t) - V_{\text{obs}})^2}{2\sigma^2}\right),
+% \end{equation}
+% where:
+
+%    \( V_{\text{model}}(t) \) is the wear volume predicted by the Archard model for a given \( t \),
+%   \( \sigma \) is the standard deviation of the observation error.
+
+% \textbf{Posterior distribution} combines the prior distribution and the likelihood function using Bayes' theorem:
+% \begin{equation}
+% P(t | V_{\text{obs}}) \propto \mathcal{L}(t | V_{\text{obs}}) \cdot P(t).
+% \end{equation}
+% The posterior distribution is estimated using a grid search over the range \( t \in [t_{\min}, t_{\max}] \).
+
+
+% The maximum a posteriori (MAP) estimate of \( t \) is obtained by maximizing \textbf{the posterior distribution}:
+% \begin{equation}
+% t_{\text{MAP}} = \arg\max_t P(t | V_{\text{obs}}).
+% \end{equation}
+% Once \( t_{\text{MAP}} \) is determined, the daily foot traffic \( n \) is calculated using:
+% \begin{equation}
+% n = \frac{3 \cdot V_{\text{obs}} \cdot H}{K \cdot P \cdot d \cdot t_{\text{MAP}}}.
+% \end{equation}
+
+% \subsection{Model II:Wear Distribution Model——solving Problem 2 and 3}
+
+% \textbf{The solution of Problem 2}
+
+% \textbf{1. Preliminary analysis}
+
+% We establish a two-dimensional coordinate system, with the midpoint of the step edge as the origin. Take the step's horizontal length as the x-axis and the vertical width as the y-axis.
+
+% The difference between ascending and descending mainly lies in the different force points on the steps, reflected in the y-coordinate. This problem doesn't consider the lateral wear differences.
+
+% \textbf{2. Analysis of Stair Wear Locations}
+
+% When moving upstairs, the force is primarily applied to the front edge and the sides of the step. As the foot pushes upward, the pressure is focused on the front part of the stair, which leads to more wear on the front edge of the step. 
+
+% In contrast, when moving downstairs, the body’s weight shifts downward, causing more pressure to be applied to the central and rear parts of the step. This results in greater wear on the middle and rear edges of the stair. The force analysis diagrams of these two processes will be shown below.
+
+% \begin{figure}[h]
+%     \centering
+%     \begin{minipage}{0.4\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{微信图片_20250127115304.png}
+%         \caption{Going upstairs}
+%         \label{fig:enter-label-upstairs}
+%     \end{minipage}%
+%     \begin{minipage}{0.4\linewidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{2.png}
+%         \caption{Going downstairs}
+%         \label{fig:enter-label-downstairs}
+%     \end{minipage}
+% \end{figure}
+
+
+% According to the analysis of movement differences and the force analysis diagram, it can be seen that:
+
+% Upward movement causes wear primarily on the front edge and the edges of the stairs.
+
+% Downward movement causes wear mainly on the central part and the rear edge of the steps\textsuperscript{\cite{5}}.
+
+% Based on the actual data and the model, it can be established that:
+
+% \textbf{Upward movement}: Wear is assumed to follow a "truncated" normal distribution, which means the wear at the front edge and the stair edges gradually decreases as we move along the stairs, with the highest wear occurring at the front part.
+
+  
+% \textbf{Downward movement}: Wear follows a normal distribution, meaning the wear is most significant in a certain region on the central part of the stairs, and the distribution is typically more symmetrical.
+
+% \textbf{If both upward and downward movements occur}: Wear depth will exhibit a bimodal distribution, which is the combination of two normal distributions — one representing the wear from upward movement and the other representing the wear from downward movement.
+
+% \textbf{3. Mathematical Modeling}
+
+% To solve this problem, we can establish a mathematical model through the following steps:
+
+% \textbf{3.1 Establishing the 2D Coordinate System}
+
+% - Set up a 2D coordinate system, with the midpoint of the stair edge as the origin.
+
+% - The y-coordinate represents the position along the stair from the front edge to the rear edge.
+
+% \textbf{3.2 Wear Depth Function \( h(y) \)}
+
+% Based on the wear distribution types, we define the average wear depth function \( h(y) \) at position y. According to the given assumptions, if we only consider upward or downward movement, the wear depth can be modeled using normal distributions.
+
+% \textbf{ Upward movement:}
+
+%    Assuming the wear depth for upward movement follows a "truncated" normal distribution, we can model it as:
+%  \begin{equation}
+%   h_{\text{up}}(y) = \frac{1}{\sigma\sqrt{2\pi}} \exp\left(-\frac{(y-\mu_{\text{up}})^2}{2\sigma^2}\right), \quad y \geq 0
+%  \end{equation}
+%   where \( \mu_{\text{up}} \) is the mean position of the wear for upward movement, and \( \sigma \) is the standard deviation.
+
+% \textbf{Downward movement:}
+%   The wear for downward movement typically follows a normal distribution, so we can represent it as:
+%  \begin{equation}
+%   h_{\text{down}}(y) = \frac{1}{\sigma_{\text{down}}\sqrt{2\pi}} \exp\left(-\frac{(y-\mu_{\text{down}})^2}{2\sigma_{\text{down}}^2}\right)
+%   \end{equation}
+%   where \( \mu_{\text{down}} \) is the mean position of the wear for downward movement, and \( \sigma_{\text{down}} \) is the standard deviation.
+
+% \textbf{ Both upward and downward movements:}
+%   If both upward and downward movements occur, the wear depth will exhibit a bimodal distribution, which can be represented by the sum of two normal distributions:
+%   \begin{equation}
+%   h_{\text{total}}(y) = \alpha \cdot h_{\text{up}}(y) + (1-\alpha) \cdot h_{\text{down}}(y)
+%  \end{equation}
+%   where \( \alpha \) is a weight coefficient representing the proportion of upward movement, and \( 1-\alpha \) represents the proportion of downward movement.
+
+  
+% \textbf{3.3 Computer Simulation of Several Typical Wear Patterns.}
+
+% After considering all the above factors, we wrote a Python program using the Monte Carlo method to simulate stair wear based on some hypothetical data. The program generates surface plots of the stair tread and wear depth heatmaps corresponding to the three typical wear patterns, which are shown below:
+
+% \begin{figure}[H]
+%   \centering
+%   \begin{subfigure}{0.32\textwidth} % 第一个子图
+%      \includegraphics[width=\linewidth]{Single File Upstairs.png}
+%     \caption{Single File Upstairs}
+%     \label{fig:sub1}
+%   \end{subfigure}
+%   \hfill % 填充水平间距
+%   \begin{subfigure}{0.32\textwidth} % 第二个子图
+%     \includegraphics[width=\linewidth]{Single File Downstairs.png}
+%     \caption{Single File Downstairs}
+%     \label{fig:sub2}
+%   \end{subfigure}
+%   \hfill % 填充水平间距
+%   \begin{subfigure}{0.32\textwidth} % 第三个子图
+%     \includegraphics[width=\linewidth]{Single File Upstairs and Downstairs.png}
+%     \caption{Both Upstairs and Downstairs}
+%     \label{fig:sub3}
+%   \end{subfigure}
+%   \caption{Typical Wear Patterns for Problem 2}
+%   \label{fig:total}
+% \end{figure}
+
+% \textbf{3.4 Hypothesis Testing}
+
+% Based on the wear depth data obtained, we can perform hypothesis testing.
+
+% \textbf{Null Hypothesis (H0):} The wear depth follows a normal distribution or truncated normal distribution.
+
+% \textbf{Alternative Hypothesis (H1):} The wear depth doesn’t follow a normal distribution or truncated normal distribution.
+
+% We have obtained a set of stair wear depth data representing the wear at various positions \( y \). 
+
+% The Shapiro-Wilk test involves the following steps:
+
+% 1. Calculate the sample mean \( \bar{h} \):
+%   \begin{equation}
+%    \bar{h} = \frac{1}{n} \sum_{i=1}^{n} h_i
+%    \end{equation}
+%    where \( n \) is the sample size and \( h_i \) is the individual wear depth value.
+
+% 2. Sort the data \( h_{(1)}, h_{(2)}, \dots, h_{(n)} \), which means ordering the wear depths in increasing order.
+
+% 3. Calculate the Shapiro-Wilk statistic \( W \):
+%    The statistic \( W \) is calculated using the formula:
+%   \begin{equation}
+%    W = \frac{\left(\sum_{i=1}^{n} a_i h_{(i)} \right)^2}{\sum_{i=1}^{n} (h_i - \bar{h})^2}
+%    \end{equation}
+%    where \( a_i \) is a set of constants calculated based on the sample size \( n \), \( h_{(i)} \) are the ordered data points, and \( \bar{h} \) is the sample mean.
+
+
+% 4. Comparing the Statistic with Critical Values
+
+% For a sample size of \( n = 10 \) and a significance level of \( \alpha = 0.05 \), you can refer to the Shapiro-Wilk critical value table to obtain the critical value \( W_{\text{crit}} \). If the computed \( W \) is greater than the critical value \( W_{\text{crit}} \), you fail to reject the null hypothesis, indicating that the data follows a normal distribution. If \( W \) is smaller than the critical value, you reject the null hypothesis, indicating that the data does not follow a normal distribution.
+
+
+
+
+
+% \textbf{3.5 Interval Estimation}
+
+% If the hypothesis testing results support the normal distribution assumption, we can perform interval estimation for the mean \( \mu \). Using the sample mean \( \bar{y} \) and standard deviation \( s \), we can estimate the confidence interval for \( \mu \) using the following formula:
+% \begin{equation}
+% \mu \in \left[ \bar{y} - t_{\alpha/2} \cdot \frac{s}{\sqrt{n}}, \, \bar{y} + t_{\alpha/2} \cdot \frac{s}{\sqrt{n}} \right]
+% \end{equation}
+% where \( t_{\alpha/2} \) is the critical value from the t-distribution, and \( n \) is the sample size.
+
+
+% \textbf{4. Considering "Edge Effect" in Wear}
+
+% Wear is expected to be more significant at the edges of the stairs than at the center. Therefore, we need to account for this factor in our model. This can be done by adding an adjustment factor \( k_{\text{edge}} \) for the edge region, such that wear is higher near the edges. Specifically, we can modify the wear depth function as follows:
+% \begin{equation}
+% h_{\text{total}}(y) = \left( 1 + k_{\text{edge}} \cdot |y| \right) \cdot \left( \alpha \cdot h_{\text{up}}(y) + (1-\alpha) \cdot h_{\text{down}}(y) \right)
+% \end{equation}
+% where \( k_{\text{edge}} \) is a constant representing the intensity of the edge effect, and \( |y| \) is the absolute distance from the center.
+
+
+% \textbf{5. Analysis on Stair Samples}
+
+% To demonstrate the variation in wear extent along the y-axis, we developed a Python program that bins the y-axis into an appropriate number of equally spaced intervals. The maximum wear depth within each bin was then extracted, and a projection curve of wear depth distribution along the y-axis was plotted. It can be observed that they align with the patterns we previously analyzed, as several typical cases are shown below:
+
+% \begin{figure}[H]
+%     \centering
+%     % 第一张子图
+%     \begin{subfigure}[t]{0.3\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth, height=\linewidth]{台阶2取样点1_y_depth_curve.png}
+%         \subcaption{Both Upstairs and Downstairs}  % 编号 (a) + 文字
+%         \label{fig:sub_a}
+%     \end{subfigure}%
+%     \hfill
+%     % 第二张子图
+%     \begin{subfigure}[t]{0.3\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth, height=\linewidth]{台阶8取样点3_y_depth_curve.png}
+%         \subcaption{Downstairs Primarily}  % 编号 (b) + 文字
+%         \label{fig:sub_b}
+%     \end{subfigure}%
+%     \hfill
+%     % 第三张子图
+%     \begin{subfigure}[t]{0.3\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth, height=\linewidth]{台阶10取样点4_y_depth_curve.png}
+%         \subcaption{Upstairs Primarily}  % 编号 (c) + 文字
+%         \label{fig:sub_c}
+%     \end{subfigure}
+%     \caption{Stair Cases for Problem 2}  % 总标题
+%     \label{fig:three_images}
+% \end{figure}
+
+% \textbf{The solution of Problem 3:}
+
+
+% \textbf{1. Initial Analysis}
+
+
+% Regarding the number of people using the stairs simultaneously and whether they climb side-by-side or in single file, we can extend the concepts discussed in Problem 2.
+
+% When multiple people are involved, the wear distribution changes:
+
+% \textbf{Side-by-side movement} results in a multi-peak distribution of wear, which covers the front edge of the stairs (for upward movement) or the central part of the stairs (for downward movement). The peaks represent the locations where each person steps, and the number of peaks indicates how many people are moving simultaneously.
+
+% \textbf{Single-file movement} produces a single peak at the location of one person’s step, with the intensity of wear varying along the length of the stairs.
+
+% \begin{figure}[H]
+%     \centering
+%     % 左图
+%     \begin{subfigure}[t]{0.45\textwidth}  % 宽度占页面48%
+%         \centering
+%         \includegraphics[width=\linewidth]{Pairs of People Upstairs.png}  % 1:1 正方形
+%         \subcaption{Pairs of People Upstairs}  % 子图标题
+%         \label{fig:sub_a}
+%     \end{subfigure}%
+%     \hfill  % 水平填充间距
+%     % 右图
+%     \begin{subfigure}[t]{0.45\textwidth}  % 宽度占页面48%
+%         \centering
+%         \includegraphics[width=\linewidth]{Pairs of People Downstairs.png}
+%         \subcaption{Pairs of People Downstairs}  % 子图标题
+%         \label{fig:sub_b}
+%     \end{subfigure}
+%     \caption{Typical Wear Patterns for Problem3}  % 总标题
+%     \label{fig:two_images}
+% \end{figure}
+
+% \textbf{2. Mathematical Modeling of Multiple People Moving}
+
+% If people are moving in side-by-side formation, the wear distribution can be represented as the sum of several normal distributions, with each peak corresponding to a person’s position. 
+
+% For upward movement, the wear can be modeled as:
+
+% \begin{equation}
+% h_{\text{side-by-side up}}(y) = \sum_{i=1}^{N} \frac{1}{\sigma_{\text{up}} \sqrt{2\pi}} \exp\left( - \frac{(y - \mu_{\text{up}, i})^2}{2 \sigma_{\text{up}}^2} \right)
+% \end{equation}
+
+% where:
+% \( N \) is the number of people moving side-by-side,
+% \( \mu_{\text{up}, i} \) is the mean position of the \( i \)-the person’s step,
+% \( \sigma_{\text{up}} \) is the standard deviation representing the spread of wear.
+
+% The same applies to downward movement.
+
+% If multiple people are moving both upward and downward simultaneously, the total wear depth distribution will be a \textbf{ multimodal distribution}, representing the superposition of upward and downward movements.
+
+% As in Problem 2, we plotted the projection of wear depth along the x-axis for some staircase samples. In the following, three typical cases are presented.
+
+% \begin{figure}[H]
+%     \centering
+%     % 第一张子图
+%     \begin{subfigure}[t]{0.3\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth, height=\linewidth]{台阶4取样点1_x_depth_curve.png}
+%         \subcaption{Single File}  % 编号 (a) + 文字
+%         \label{fig:sub_a}
+%     \end{subfigure}%
+%     \hfill
+%     % 第二张子图
+%     \begin{subfigure}[t]{0.3\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth, height=\linewidth]{台阶5取样点2_x_depth_curve.png}
+%         \subcaption{Double Files}  % 编号 (b) + 文字
+%         \label{fig:sub_b}
+%     \end{subfigure}%
+%     \hfill
+%     % 第三张子图
+%     \begin{subfigure}[t]{0.3\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth, height=\linewidth]{台阶6取样点2_x_depth_curve.png}
+%         \subcaption{Double Files}  % 编号 (c) + 文字
+%         \label{fig:sub_c}
+%     \end{subfigure}
+%     \caption{Stair Cases for Problem 3}  % 总标题
+%     \label{fig:three_images}
+% \end{figure}
+
+% \textbf{3. Dealing with Two-Way Traffic}
+
+% If the stairs allow for simultaneous upward and downward movement (two-way traffic), two different scenarios arise:
+
+% \textbf{3.1 Automatic two-way traffic:}
+
+% If one side of the stairs is used for upward movement and the other side for downward movement (e.g., left side for up, right side for down), the wear distribution will show two distinct sets of peaks—one representing the upward movement and the other representing the downward movement. 
+
+% The\textbf{ peak locations} for the upward and downward movement will be distinct along the \( y \)-axis, and we can analyze these to determine the direction of movement.
+
+
+% \textbf{3.2 Mixed two-way traffic:} 
+
+% If both upward and downward movements occur in the same region of the stairs, the wear distribution will be a \textbf{multi-modal distribution} (similar to the single-file or side-by-side cases), but with overlapping peaks. The distribution will reflect both upward and downward movement, and by analyzing the relative positioning of the peaks, we can estimate the number of people moving in both directions.
+
+% \begin{figure}[H]
+%     \centering
+%     % 左图
+%     \begin{subfigure}[t]{0.45\textwidth}  % 宽度占页面48%
+%         \centering
+%         \includegraphics[width=\linewidth]{Pairs of People Upstairs and Downstairs.png}  % 1:1 正方形
+%         \subcaption{Pairs of People Upstairs and Downstairs}  % 子图标题
+%         \label{fig:sub_a}
+%     \end{subfigure}%
+%     \hfill  % 水平填充间距
+%     % 右图
+%     \begin{subfigure}[t]{0.45\textwidth}  % 宽度占页面48%
+%         \centering
+%         \includegraphics[width=\linewidth]{Left Downstairs, Right Upstairs.png}
+%         \subcaption{Left Downstairs, Right Upstairs}  % 子图标题
+%         \label{fig:sub_b}
+%     \end{subfigure}
+%     \caption{Composite Wear Patterns}  % 总标题
+%     \label{fig:two_images}
+% \end{figure}
+
+% \textbf{4. Hypothesis Testing and Estimation}
+
+% Using hypothesis testing, we can assess whether the observed wear distribution fits the expected patterns (normal or truncated normal distributions). For the wear data collected, we perform the Shapiro-Wilk test as described in Problem 2 to confirm the distribution type.
+
+
+
+
+
+
+
+
+
+
+\section{Estimate the Age of the Staircase}
+
+% In this part, we will figure out the estimation of the age of the stairs. The reason for dedicating a separate section to it is that the C14 dating method, weathering degree model, and Bayesian inversion method used here have an insightful role in solving the subsequent problems.
+
+% \textbf{For wooden stairs,} the construction year can be inferred using the radiocarbon dating method (Carbon-14 dating). 
+
+% \textbf{For stone stairs, }the construction year can be inferred by analyzing the degree of weathering. By selecting parts of the stairs that are less likely to be directly affected by foot traffic, such as the riser, stringer, or lightly worn areas of the step tread, and examining the degree of weathering, the construction year of the stone stairs can be accurately estimated.
+
+
+% Then, we use \textbf{Bayesian inversion method} to compare observed and theoretical values, and the maximum a posteriori (MAP) estimation method is used to find the most probable age \( t \) given the data.
+
+% With all the methods above, we finally \textbf{assess the reliability} of the age estimate through the calculation of a confidence interval.
+
+% \subsection{Estimate the Age of the Wooden Staircase With C14 Dating Method}
+% % 题目的第二问
+
+% Carbon-14 dating is a method based on the half-life of carbon-14 to estimate the age of an object. By measuring the current carbon-14 content in a wood sample, we can estimate the age of the wood, i.e.,the usage time of the wooden stairs\textsuperscript{\cite{17}}.
+
+% The carbon-14 decay process follows an exponential decay law, represented by the formula:
+
+% \begin{equation}
+% \frac{N}{N_0} = e^{-\frac{t_ \text{w}}{T_0}\ln 2}
+% \end{equation}
+
+% where:
+%  \(N_0\): The initial number of carbon-14 atoms in the wood when it was cut.
+%  \(N\): The current number of carbon-14 atoms in the sample.
+% \(T_0 = 5730 \text{ years}\): The half-life of carbon-14.
+
+% \(t_ \text{w}\): the age of the wood, i.e.,the usage time of the wooden stairs.
+
+% Rearranging the equation, we get:
+
+% \begin{equation}
+% t_ \text{w} = \frac{-T_0 \ln \frac{N}{N_0}}{\ln 2}
+% \end{equation}
+
+% \subsection{Estimate the Age of the Stone Staircase Using Weathering Degree}
+
+% When estimating the age of stone stairs, one effective method is to analyze the degree of weathering, which is influenced by the exposure to environmental factors such as humidity, temperature, and microbial activities.
+% Therefore, we will select parts of the stairs that are rarely touched by feet, such as \textbf{the riser}, \textbf{stringer}, or \textbf{the least worn areas of the step tread}, to examine their weathering level, in order to eliminate the influence of wear on the degree of weathering.
+
+%  It is assumed that the weathering process occurs gradually and affects the surface of the stone in a regular pattern year by year. A common weathering rate model is the exponential decay model.
+
+% \begin{equation}
+% W(t) = W_0 e^{-\lambda t} + \beta
+% \end{equation}
+
+% % where:
+% % \( W(t) \) is the degree of weathering at time \( t \),
+% % \( W_0 \) is the initial weathering rate,
+% % \( \lambda \) is the weathering rate constant，
+% % and \( \beta \) is the persistent effect of microbial communities 
+
+% Due to the inherent variability in the chemical composition of rocks, it is difficult to characterize weathering conditions through changes in a single chemical component. The academic community generally uses \textbf{chemical weathering indices} to represent weathering conditions. Research has shown that the following three chemical weathering indices—WI, PI, and LOI—exhibit clear monotonicity and sensitivity to changes in weathering degree and time\textsuperscript{\cite{20}}. These indices can be used as the primary basis for evaluating the degree of rock weathering and determining weathering depth. Their calculation methods are as follows, in which all chemical formulas represent the amount of substance:
+
+% \begin{table}[h]
+%     \centering
+%     \renewcommand{\arraystretch}{1.5} % 增加表格行高
+%     \begin{tabular}{|>{\bfseries}c|>{\centering\arraybackslash}p{0.7\textwidth}|}
+%         \hline
+%         Chemical Weathering Index & \textbf{Formula} \\
+%         \hline
+%         WI & $I_{Weather}/I_{Fresh}$,
+        
+%         $I=\frac{\text{K}_2\text{O + Na}_2\text{O + CaO - H}_2\text{O}}{\text{SiO}_2\text{ + Al}_2\text{O}_3\text{ + Fe}_2\text{O}_3\text{ + TiO}_2\text{ + CaO + MgO + Na}_2\text{O + K}_2\text{O}} \times 100\%$ \\
+%         \hline
+%         PI & $I_{Weather}/I_{Fresh}$,  $I=\frac{Si_2O}{Si_2O+Ti_2O+Fe_2O_3+Al_2O_3}\times100\%$ \\
+%         \hline
+%         LOI & $I_{Weather}/I_{Fresh}$,  $I=\frac{m(H_2O)}{m}\times 100\%$\\
+%         \hline
+%     \end{tabular}
+%     \caption{Chemical Weathering Indices}
+%     \label{tab:chemical_weathering_indices}
+% \end{table}
+
+% Therefore, we use these three indices to construct a weighted evaluation model for comprehensively assessing the weathering degree \( W(t) \) of the stone, namely:
+% \begin{equation}
+% W(t) = w_1(WT) + w_2(PI) + w_3(LOI)
+% \end{equation}
+
+% $w_1$, $w_2$, $w_3$  represent the weights of the three chemical weathering indices, satisfying $w_1 + w_2 + w_3 = 1$.  The sensitivity of different chemical weathering indices to different types of rocks varies, so the weights can be dynamically adjusted according to the rock type.
+
+% By obtaining the degree of weathering \( W(t_0) \) at a specific time \(t = t_0 \) and the current degree of weathering \( W_{\text{current}} \), we can estimate the construction age:
+
+% \begin{equation}
+% t_0 = \frac{1}{\lambda} \ln \left( \frac{W_0}{W_{\text{current}} - \beta} \right)
+% \end{equation}
+
+
+
+% \subsection{Estimate the Age of the Staircase Using Bayesian Inversion}
+% The posterior distribution of \( t \) is estimated using a uniform prior \( t \sim \mathcal{U}(50, 200) \) and a Gaussian likelihood:
+% \begin{equation}
+% \mathcal{L}(t | V_{\text{obs}}) = \exp\left(-\frac{(V_{\text{obs}} - V_{\text{theory}})^2}{2\sigma^2}\right).
+% \end{equation}
+% The maximum a posteriori (MAP) estimate of \( t \) is obtained by maximizing the posterior distribution.
+
+% \subsection{Verify the Age Estimate through Confidence Interval Estimation}
+
+% To assess the reliability of the estimate, we can calculate a confidence interval for the estimated age using the uncertainty in the measurement of \( W_{\text{current}} \), \( \lambda \), and \( \beta \).
+
+% Using propagation of uncertainty, we can estimate the uncertainty in \( t_0 \). The general propagation formula for a function \( f(x_1, x_2, ..., x_n) \) with independent variables \( x_1, x_2, ..., x_n \) is:
+
+% \begin{equation}
+% \sigma_f = \sqrt{\left( \frac{\partial f}{\partial x_1} \sigma_{x_1} \right)^2 + \left( \frac{\partial f}{\partial x_2} \sigma_{x_2} \right)^2 + ... + \left( \frac{\partial f}{\partial x_n} \sigma_{x_n} \right)^2}
+% \end{equation}
+
+% For the age estimation formula \( t_0 = \frac{1}{\lambda} \ln \left( \frac{W_0}{W_{\text{current}} - \beta} \right) \), we compute partial derivatives with respect to each parameter (such as \( W_{\text{current}} \), \( \lambda \), and \( \beta \)) and then calculate the uncertainty \( \sigma_{t_0} \).
+
+% Once the uncertainty in \( t_0 \) is determined, we use this to construct a confidence interval. With a normal distribution assumption, the 95\% confidence interval for \( t_0 \) is:
+
+% \begin{equation}
+% \left( t_0 - 1.96 \cdot \sigma_{t_0}, t_0 + 1.96 \cdot \sigma_{t_0} \right)
+% \end{equation}
+
+
+\section{Further exploration}
+
+% \subsection{Detection of Repairs or Renovations}
+% To detect whether the stairwell has undergone repairs or renovations, we primarily use the aforementioned estimation of the staircase age with an anomaly detection method applied to the age data. 
+
+% Let \( S \) represent the staircase, and \( P_1, P_2, \dots, P_n \) be the set of distinct sampling points on the staircase. These points are chosen from locations less affected by foot traffic. The set of these points can be expressed as:
+
+% \begin{equation}
+% P = \{ P_1, P_2, \dots, P_n \}
+% \end{equation}
+
+% For each sampling point \( P_i \), the measured value is denoted as \( V_i \). The set of all measurements is then:
+
+% \begin{equation}
+% V = \{ V_1, V_2, \dots, V_n \}
+% \end{equation}
+
+
+% \textbf{Anomaly Detection in Staircase Age Estimation }
+
+% To determine whether a staircase has been renovated or maintained, we can compare the estimated ages with each other to identify whether renovations or repairs have occurred and approximate the year of renovation.
+
+% With Carbon-14 dating, the age of the wood (\( t_w \)) is calculated as:
+   
+%   \begin{equation}
+%    t_w = \frac{-T_0 \ln \left( \frac{N}{N_0} \right)}{\ln 2}
+%   \end{equation}
+  
+% Using weathering degree model, the construction age \( t_0 \) can then be estimated using:
+   
+%    \begin{equation}
+%    t_0 = \frac{1}{\lambda} \ln \left( \frac{W_0}{W_{\text{current}} - \beta} \right)
+%   \end{equation}
+ 
+% We use the Z-score method to identify the sampling points with t significantly different from the local average:
+
+% \begin{equation}
+% z = \frac{d_w - \mu}{\sigma},
+% \end{equation}
+
+% where: \( d_w \) is the wear depth of a step,
+%   \( \mu \) is the mean wear depth,
+%  \( \sigma \) is the standard deviation of wear depths.
+ 
+% Steps with \( |z| > 2.0 \) are flagged as anomalies, indicating potential repairs or renovations.
+
+%   If one or more of the estimated ages from the different methods significantly differ from the others, it could suggest that the staircase was renovated or replaced at some point.
+  
+% The estimated age and the associated uncertainty in the age can help pinpoint the likely time frame when renovations or repairs occurred. 
+
+
+% \begin{figure}[H]
+%     \centering
+%     \begin{subfigure}[t]{0.48\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{repair_1.png}
+%         \subcaption{Repair Conducted}
+%         \label{fig:sub_a}
+%     \end{subfigure}%
+%     \hfill
+%     \begin{subfigure}[t]{0.48\textwidth}
+%         \centering
+%         \includegraphics[width=\linewidth]{repair_2.png}
+%         \subcaption{Repair Not Conducted}
+%         \label{fig:sub_b}
+%     \end{subfigure}
+%     \caption{Anomaly Detection in Surface Year Distribution}
+%     \label{fig:two_images}
+% \end{figure}
+
+% \subsection{Exploring the Consistency Between Wear and Information available}
+
+% Both Problem 4 and 7 explore whether the stair wear is consistent with the available background information. Problem 7 is more specific, as it focuses on whether the wear can be used to verify the source of the materials used.
+
+% \subsubsection{ Daily Foot Traffic}
+% Using Model 1, the daily foot traffic \( n \) of an ancient building can be calculated:
+% \begin{equation}
+% n = \frac{3 \cdot V \cdot H}{K \cdot P \cdot d \cdot t}
+% \end{equation}
+
+% \( n \) can then be compared with the known daily foot traffic of the building. If the calculated foot traffic falls within a certain confidence interval, the result is considered reasonable. The confidence interval can be estimated as:
+% \begin{equation}
+% \left( n_{\text{obs}} - 1.96 \cdot \sigma_n, n_{\text{obs}} + 1.96 \cdot \sigma_n \right)
+% \end{equation}
+
+% \subsubsection{The Construction Year}
+% For wooden and stone stairs, the construction year can be estimated using \textbf{C14 Dating} and \textbf{Weathering Degree Models }respectively.
+
+% the age of the wooden stairs \( t_w \) is:
+
+% \begin{equation}
+% t_w = \frac{-T_0 \ln \frac{N}{N_0}}{\ln 2}
+% \end{equation}
+
+% the age of the stone stairs \( t_w \) is:
+
+% \begin{equation}
+% t_0 = \frac{1}{\lambda} \ln \left( \frac{W_0}{W_{\text{current}} - \beta} \right)
+% \end{equation}
+
+% The reliability of the construction year can be verified through this confidence estimation:
+
+% \begin{equation}
+% \left( t_0 - z \cdot \sigma_{t_0}, t_0 + z \cdot \sigma_{t_0} \right)
+% \end{equation}
+
+% \subsubsection{Verifying Material Source}
+
+% There are two methods to verify the material source:
+
+% \textbf{Wear Coefficient Verification}
+
+% Using the \textbf{Archard Wear Model}, the expression for the wear coefficient \( K \) is:
+
+% \begin{equation}
+% K = \frac{3VH}{PL}
+% \end{equation}
+
+% This formula can be used to calculate the wear coefficient \( K \), as the values for wear volume \( V \), material hardness \( H \), load force \( P \), and friction distance \( L \) are known. 
+
+% We can compare it to the known wear coefficient of the material source. If the measured wear coefficient matches the expected value, the material can be traced back to its original source.
+
+% \textbf{Chemical Analysis Verification}
+
+% The material's chemical composition can be analyzed to determine its source. For wood, the species can be identified, and for stone, mineral composition can be analyzed. By comparing these results with known material properties from a claimed source, the material's origin can be verified.
+
+
+
+% \subsection{Analysis of Usage Patterns}
+
+% If there is a small number of people walking over a long period, it can generally be assumed that people will follow the distribution of single-file walking and occasional walking side by side, which leads to localized deeper wear on the stairs.
+
+% However, if a large number of people use the stairs over a short period, they will have to walk side-by-side, following a distribution pattern for multiple people walking together,which results in a flatter distribution.
+
+% Therefore, we can determine the type of walking pattern and assess the density of foot traffic over a short time based on the distribution.
+
+% The kurtosis of the wear depth distribution is calculated to determine whether the stairwell experienced short-term high-intensity usage or long-term low-intensity usage:
+% \begin{equation}
+% \text{Kurtosis} = \frac{\mu_4}{\sigma^4} - 3,
+% \end{equation}
+
+% where: \( \mu_4 \) is the fourth central moment,
+%    \( \sigma \) is the standard deviation.
+
+% A high kurtosis (\( > 3 \)) indicates long-term low-intensity usage, while a low kurtosis (\( \leq 3 \)) indicates short-term high-intensity usage.
+
+
+\section{Evaluation of Models}
+% % sensitivity analysis or evaluation, discusssion of its strength and weakness.
+% \subsection{Sensitivity of Model I}
+% In the stair wear model, sensitivity is calculated using:
+% \begin{equation}
+% \text{Sensitivity} = \frac{\Delta n / n}{\Delta \theta / \theta},
+% \end{equation}
+% where:\( \Delta n \) is the change in the output, \( \Delta \theta \) is the change in the input parameter.
+
+% The Lord Force (\( P \)) shows high sensitivity. The Material hardness \( H \) and Wear coefficient \( K \) has medium sensitivity while the \textbf{friction distance per step (\( d \))} exhibits low sensitivity.
+
+% As analyzed, the change in variables has little effect on the results, indicating that the model has good generalization ability.
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.35\linewidth]{tu.png}
+%     \caption{The sensitivity analysis of parameters in model I}
+%     \label{The sensitivity analysis of parameters in model I}
+% \end{figure}
+
+% \subsection{Sensitivity of Model II}
+
+% Model II focuses on wear depth based on movement patterns.The sensitivity of the wear depth function depends largely on parameters such as \( \sigma \), \( \mu \) and \( p_{\text{up}} \). 
+
+% As analyzed, our results indicate that the models are robust for typical parameter ranges.
+
+
+% \begin{figure}[H]
+%   \centering
+%   \begin{subfigure}{0.32\textwidth} % 第一个子图
+%      \includegraphics[width=\linewidth]{mu.png}
+%     \caption{Parameter: \( \mu \)}
+%     \label{fig:mu}
+%   \end{subfigure}
+%   \hfill % 填充水平间距
+%   \begin{subfigure}{0.32\textwidth} % 第二个子图
+%     \includegraphics[width=\linewidth]{sigma.png}
+%     \caption{Parameter: \( \sigma \)}
+%     \label{fig:sigma}
+%   \end{subfigure}
+%   \hfill % 填充水平间距
+%   \begin{subfigure}{0.32\textwidth} % 第三个子图
+%     \includegraphics[width=\linewidth]{p.png}
+%     \caption{Parameter: \( p_{\text{up}} \)}
+%     \label{fig:p_up}
+%   \end{subfigure}
+%   \caption{The sensitivity analysis in model II}
+%   \label{fig:total}
+% \end{figure}
+
+% \subsection{Strength and Weakness}
+
+% \subsubsection{Strength}
+
+% \begin{itemize}
+%   \item \textbf{Innovativeness:} Our model fully incorporates physical, chemical, and biological data from the staircase, employing cross-validation with multiple data sources to boost reliability. 
+  
+%     \item \textbf{High Practical Application Value:} We collected a large amount of real and fresh data. By using actual measurements and 3D modeling, we applied the model to real data and tested the effectiveness.
+% \end{itemize}
+
+% \subsubsection{Weakness}
+
+% \begin{itemize}
+%     \item First, some common destructive factors, such as knife marks, acid rain corrosion, etc. may have a certain impact on the results of the model.
+    
+%     \item Secondly, the accuracy of the collected data is limited, and the actual walking trajectories of people may be random.
+
+% \end{itemize}
+% % 参考文献
+% % 参考文献
+% \bibliographystyle{unsrt} % 选择数字引用样式
+% \bibliography{team.bib}
+
+
+
+% \appendix
+% % 隐藏附录的章节标题，并居中，设置字号
+% \begin{center}
+%     \Large \textbf{Report on Use of AI}
+% \end{center}
+
+
+% % 如果你希望这部分不出现在目录中
+% \addcontentsline{toc}{section}{Report on Use of AI}
+
+% \textbf{DeepSeek-R1}
+
+% \textbf{Query1:}
+
+% <Hi, I need assistance writing a Python program to process a GLTF file and generate a 2D depth map from its vertex data. The GLTF file contains a 3D model (specifically a staircase), and I am using depth map estimation methods to analyze the wear depth of the stairs.
+
+% Requirements:
+% Load a GLTF file using a Python library (such as pygltflib or others) and extract the vertex data (particularly the positions of the vertices).
+% Extract the Z-coordinate (depth) values from the vertices, as these represent the height/depth information for each point in the model.
+% Organize these Z-values into a 2D array (depth map), assuming the vertices are distributed in a regular grid or can be mapped to one.
+% The final output should be a 2D NumPy array representing the depth map, where each element corresponds to the depth value at a specific point in the grid.
+
+% Specific Details:
+% The GLTF file may contain multiple meshes, so I need to iterate through the meshes and extract data accordingly.
+% The depth map should have a specified resolution (e.g., 100x100), and if the 3D model doesn't naturally fit this resolution, I need to resample or downscale the vertex data appropriately.
+% I want to focus on extracting depth information from the Z-axis (height) to analyze the wear depth of the stairs.
+% Can you help me write the Python program to accomplish this? Any recommendations on libraries or functions would be great!>
+
+% \textbf{Output1: }
+
+% <Here's a Python solution using \texttt{trimesh} and \texttt{scipy} to generate a depth map from a GLTF file:
+
+% \begin{lstlisting}[language=Python]
+% import numpy as np
+% import trimesh
+% from scipy.stats import binned_statistic_2d
+
+% def load_gltf_vertices(file_path):
+%     """Load GLTF file and extract all vertices."""
+%     scene = trimesh.load(file_path)
+%     mesh = scene.concatenate()  # Combine all meshes and apply transforms
+%     return mesh.vertices
+
+% def create_depth_map(vertices, resolution=(100, 100), statistic='mean'):
+%     """
+%     Create depth map from vertex data.
+    
+%     Args:
+%         vertices: Nx3 array of vertex positions
+%         resolution: Tuple of (width, height) for output depth map
+%         statistic: Statistic to compute for each bin ('mean', 'max', 'min', etc.)
+    
+%     Returns:
+%         2D numpy array of depth values
+%     """
+%     # Extract coordinates (assuming Z is vertical axis)
+%     x = vertices[:, 0]
+%     y = vertices[:, 1]
+%     z = vertices[:, 2]
+
+%     # Calculate bin edges based on data range
+%     x_range = (x.min(), x.max())
+%     y_range = (y.min(), y.max())
+
+%     # Create 2D histogram of depth values
+%     depth_map, x_edges, y_edges, _ = binned_statistic_2d(
+%         x, y, z,
+%         bins=resolution,
+%         statistic=statistic,
+%         range=[x_range, y_range]
+%     )
+
+%     # Replace NaN values with minimum depth
+%     depth_map = np.nan_to_num(depth_map, nan=np.nanmin(z))
+    
+%     return depth_map
+
+% def process_gltf_to_depth_map(gltf_path, output_resolution=(100, 100)):
+%     """Main processing pipeline"""
+%     # Load and combine vertices from all meshes
+%     vertices = load_gltf_vertices(gltf_path)
+    
+%     # Generate depth map
+%     depth_map = create_depth_map(
+%         vertices,
+%         resolution=output_resolution,
+%         statistic='mean'  # Change to 'max' for worst-case wear analysis
+%     )
+    
+%     return depth_map
+
+% # Example usage
+% if __name__ == "__main__":
+%     depth_map = process_gltf_to_depth_map("stairs.gltf", (100, 100))
+    
+%     # Save or process the depth map
+%     np.save("depth_map.npy", depth_map)
+    
+%     # Optional visualization
+%     import matplotlib.pyplot as plt
+%     plt.imshow(depth_map, cmap='viridis')
+%     plt.colorbar(label='Depth')
+%     plt.title('Staircase Depth Map')
+%     plt.show()
+% \end{lstlisting}
+
+% %     \item Uses \texttt{trimesh} to handle GLTF/GLB files.
+% %     \item Combines all meshes and applies scene transforms.
+% %     \item Extracts vertex positions (including handling multiple meshes).
+
+% %     \item Uses \texttt{scipy.stats.binned\_statistic\_2d} for efficient binning.
+% %     \item Handles coordinate ranges automatically.
+% %     \item Supports different statistics (\texttt{mean}, \texttt{max}, \texttt{min}).
+% %     \item Replaces NaN values with minimum depth.
+
+% %     \item Assumes Z-axis is vertical (common in many CAD models).
+% %     \item If your model uses Y-axis for height, modify the coordinate indices.
+
+% %     \item Install required packages:
+% %     \begin{lstlisting}[language=bash]
+% % pip install trimesh scipy numpy matplotlib
+% %     \end{lstlisting}
+% %     \item Adjust the coordinate indices if needed (swap \texttt{[0,1,2]} indices in line 23-25 if your vertical axis is different).
+% %     \item Choose an appropriate statistic:
+% %         \item \texttt{mean}: Average depth in each cell.
+% %         \item \texttt{max}: Maximum wear depth.
+% %         \item \texttt{min}: Minimum depth.
+% %         \item \texttt{median}: Median depth.
+% %     \item For wear analysis, you might want to:
+% %         \item Use \texttt{min} statistic to find maximum wear (deepest points).
+% %         \item Compare with \texttt{mean} or \texttt{max} of a reference model.
+% %         \item Calculate depth differences between worn and reference models.
+% %     \item The output is a 2D numpy array that can be:
+% %         \item Saved as a numpy file (\texttt{.npy}).
+% %         \item Exported as an image.
+% %         \item Used for further analysis (e.g., wear depth quantification).
+
+% \textbf{Query2:}
+
+% <A photo of a single step was taken vertically, and a GLTF file was obtained through the depth map estimation model. Please write a Python program to read the wear depth at various positions of the single step from this GLTF file, store it in an appropriate data structure, and return a suitable image.>
+
+% \textbf{Output2:}
+
+% <This Python script demonstrates how to:
+
+% 1. Read mesh data from a glTF file (assuming the mesh contains step depth information)
+% 2. Calculate "wear depth"
+% 3. Store results in appropriate data structures (e.g., 2D array)
+% 4. Visualize results using pseudocolor images
+
+% Required libraries:
+% \begin{itemize}
+%     \item \texttt{trimesh}: For loading and manipulating 3D meshes
+%     \item \texttt{numpy}: For numerical operations
+%     \item \texttt{matplotlib}: For visualization
+%     \item \texttt{scipy} (optional): For scatter-to-grid interpolation
+% \end{itemize}
+
+% \begin{lstlisting}[language=Python,caption=Python Implementation]
+% import trimesh
+% import numpy as np
+% import matplotlib.pyplot as plt
+
+% # Optional scipy import for interpolation
+% try:
+%     from scipy.interpolate import griddata
+%     HAS_SCIPY = True
+% except ImportError:
+%     HAS_SCIPY = False
+
+% def read_wear_depth_from_gltf(gltf_path):
+%     """
+%     Read glTF file and extract wear depth at step positions.
+%     Assumes Z-axis as vertical direction:
+%     wear_depth = z_max - current_z
+    
+%     Parameters:
+%         gltf_path (str): Path to glTF file
+    
+%     Returns:
+%         points (np.ndarray): (N,2) array of (x,y) coordinates
+%         depth_values (np.ndarray): (N,) array of wear depths
+%     """
+%     mesh = trimesh.load(gltf_path)
+%     vertices = mesh.vertices
+%     z_vals = vertices[:, 2]
+%     depth_values = np.max(z_vals) - z_vals
+%     return vertices[:, :2], depth_values
+
+% def visualize_depth_scatter(points, depths, save_path='scatter.png'):
+%     """Method A: Direct scatter plot visualization"""
+%     plt.figure(figsize=(6, 5))
+%     sc = plt.scatter(points[:,0], points[:,1], c=depths, 
+%                     cmap='jet', s=5)
+%     plt.colorbar(sc, label='Wear Depth')
+%     plt.title('Wear Depth Scatter Plot')
+%     plt.xlabel('X'), plt.ylabel('Y')
+%     plt.tight_layout()
+%     plt.savefig(save_path, dpi=300)
+%     plt.show()
+
+% def visualize_depth_image(points, depths, 
+%                          save_path='grid.png', 
+%                          resolution=256):
+%     """Method B: Grid interpolation visualization"""
+%     if not HAS_SCIPY:
+%         print("Scipy required for interpolation")
+%         return
+    
+%     x_min, y_min = np.min(points, axis=0)
+%     x_max, y_max = np.max(points, axis=0)
+%     grid_x, grid_y = np.mgrid[x_min:x_max:complex(resolution), 
+%                              y_min:y_max:complex(resolution)]
+%     grid_z = griddata(points, depths, (grid_x, grid_y), 
+%                      method='linear', fill_value=0)
+    
+%     plt.figure(figsize=(6, 5))
+%     plt.imshow(grid_z.T, origin='lower', 
+%               extent=(x_min, x_max, y_min, y_max),
+%               cmap='jet', aspect='auto')
+%     plt.colorbar(label='Wear Depth')
+%     plt.title('Interpolated Wear Depth Map')
+%     plt.xlabel('X'), plt.ylabel('Y')
+%     plt.tight_layout()
+%     plt.savefig(save_path, dpi=300)
+%     plt.show()
+
+% if __name__ == '__main__':
+%     points, depths = read_wear_depth_from_gltf('step.gltf')
+%     visualize_depth_scatter(points, depths)
+%     visualize_depth_image(points, depths)
+% \end{lstlisting}
+
+% \textbf{Implementation Notes:}
+
+% \begin{itemize}
+% \item The \texttt{read\_wear\_depth\_from\_gltf} function:
+% \begin{itemize}
+%     \item Loads mesh data using \texttt{trimesh}
+%     \item Calculates wear depth as $z_{\text{max}} - z$
+%     \item Returns 2D coordinates and corresponding depth values
+% \end{itemize}
+
+% \item Visualization methods:
+% \begin{itemize}
+%     \item Scatter plot: Direct visualization of raw data points
+%     \item Grid interpolation: Creates smooth depth map using \texttt{scipy}
+% \end{itemize}
+
+% \item Data storage options:
+% \begin{itemize}
+%     \item Raw data: \texttt{np.save('points.npy', points)}
+%     \item Depth values: \texttt{np.save('depths.npy', depths)}
+%     \item Grid data: \texttt{np.save('grid.npy', grid\_z)}
+% \end{itemize}
+
+% \item Coordinate considerations:
+% \begin{itemize}
+%     \item Default Z-axis assumption can be modified
+%     \item For different axis orientations, modify coordinate indices
+% \end{itemize}
+% \end{itemize}
+
+% \textbf{Execution Requirements:}
+% \begin{lstlisting}[language=bash]
+% pip install trimesh numpy matplotlib scipy
+% \end{lstlisting}
+
+
+
+\end{document}  % 结束
+
