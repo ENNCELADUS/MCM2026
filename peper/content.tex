@@ -190,9 +190,13 @@ The transport process involves a two-step delivery: from Earth to the apex ancho
 
 To meet the 100 million metric ton requirement, we assume that lunar regolith and water ice can be successfully extracted and processed into bulk building materials and chemical propellants. This allows for a "system bootstrapping" effect where early infrastructure enables the local production of materials, significantly reducing the total mass that must be transported from Earth's deep gravity well.
 
-\textbf{Assumption 5: [To be determined]}
+\textbf{Assumption 5: Spatial Aggregation of Earth Nodes.}
 
-[This space is reserved for further constraints as the model details are refined.]
+To reduce computational complexity without losing strategic fidelity, we treat the three equatorial Galactic Harbours as a single super-node, the "Aggregate Galactic Harbour," with a unified capacity sum. Similarly, all global rocket launch sites are modeled as a single "Aggregate Earth Launch Site." This abstraction is valid because the transit time and cost differences between Earth surface locations are negligible compared to the magnitude of interplanetary logistics.
+
+\textbf{Assumption 6: Temporal Discretization.}
+
+The 50-year planning horizon is discretized into monthly intervals ($\Delta t = 1$ month). We assume that material flows, production rates, and resource consumption remain constant within each time step, allowing us to approximate continuous dynamics with a discrete-time difference equation model.
 
 To continue the development of our mathematical framework, we define the operational dynamics of the two primary transportation systems and establish a strategic classification for the materials required for lunar colonization.
 
@@ -284,143 +288,101 @@ where $C_{start}=\$50$, $C_{min}=\$5$, and $\lambda \approx 0.06$ (annual decay)
 \subsection{Multi-Objective Evaluation Framework}
 To rigorously assess the performance of various transportation scenarios, we define a Comprehensive Performance Index ($Z$) as our primary evaluation criterion. This framework balances temporal urgency against economic feasibility:
 \begin{equation}
-\min Z = w_T \cdot T_{end} + w_C \cdot \sum_{t \in \mathcal{T}} \sum_{a \in \mathcal{A}} C_{total}(a, t)
+\min J = w_C \sum_{t \in \mathcal{T}} \sum_{a \in \mathcal{A}} C_{total}(a, t) - w_T \sum_{t \in \mathcal{T}} \text{CumulativeCityMass}(t)
 \end{equation}
-In this expression, $w_T$ and $w_C$ represent the non-negative weight coefficients assigned to time and cost, respectively. $T_{end}$ denotes the total completion year, while $\sum C_{total}$ encompasses the total cumulative expenditure (CAPEX and OPEX) for both rocket and elevator systems. This allows the MCM Agency to calibrate the mission priority: a higher $w_T$ prioritizes rapid habitation, whereas a higher $w_C$ favors fiscal sustainability.
+In this expression, $w_T$ and $w_C$ represent the non-negative weight coefficients assigned to time (represented by city mass accumulation) and cost, respectively. This allows the MCM Agency to calibrate the mission priority: a higher $w_T$ prioritizes rapid habitation, whereas a higher $w_C$ favors fiscal sustainability.
 
 
+\section{Model I: Integrated Hierarchical Logistics Optimization}
 
-% \section{Model I}
-% \subsection{The Hierarchical Hybrid Framework}
+\subsection{Optimization Architecture}
 
-% To address the divergent temporal scales and logistical logic of this mission, we propose a **Bi-Level Coupled Optimization Framework**. This architecture distinguishes between macro-level strategic transport and micro-level tactical construction, ensuring that the global flow of materials is synchronized with the localized capabilities of the lunar workforce.
-
-% \textbf{Layer 1: Strategic Transport Planner (Macro).} This layer operates as a high-level logistics orchestrator. It manages the spatio-temporal distribution of resources—determining when, via which vehicle, and in what quantity materials should be moved from Earth to the Moon.
-
-% \textbf{Layer 2: Tactical Construction Scheduler (Micro).} This layer functions as an on-site project manager. It dictates the task-level execution sequence (e.g., prioritizing power grids over habitation modules) and manages the "bootstrapping" of lunar production capacity.
-
-% The synergy between these layers is governed by a continuous feedback loop. Layer 1 provides Layer 2 with \textit{Supply Constraints}, defining the upper bounds of available inventory. Conversely, Layer 2 provides Layer 1 with \textit{Upward Feedback}, including current handling capacity () and production capacity (), which serve as dynamic bottlenecks for the macro-level flow.
-
-
-% \subsection{Layer 1: Strategic Transport Planner (Macro-Level)}
-
-% The macro-level layer is modeled as a Time-Dependent Multi-Commodity Network Flow problem. This formulation is designed to balance the evolving technical capabilities of transport vehicles against the stringent cost and timeline requirements of the MCM Agency.
-
-% \subsubsection{Objective Function}
-% Our primary objective is the minimization of the completion timeline and mission cost, as governed by the Comprehensive Performance Index $Z$ defined in Eq. (???). This ensures that the global flow of materials is optimized across both economic and temporal dimensions.
-
-
-% \subsubsection{Capacity Expansion Models}
-% Consistent with the principles of aerospace maturation, the annual capacity of the rocket fleet follows the logistic growth model $L_{cap}(t)$ as specified in Eq. (???). This capacity functions as a dynamic bottleneck in the macro-level flow, dictating the volume of "seeding" materials available for the initial stages of lunar industrialization.
-
-% \subsubsection{Macro Logistical Constraints}
-
-% The model is subject to flow conservation and capacity constraints:
-% \begin{itemize}
-% \item \textbf{Flow Balance:} The change in inventory at the lunar node must equal the sum of inflows (Rockets and Elevators) plus local production $P_r(t)$ minus consumption.
-% \item \textbf{Dynamic Bottlenecks:} Total rocket throughput is limited by $L_{cap}(t)$. For the Space Elevator, the annual throughput is strictly capped by the total system capacity $C_E$ defined in Section 2.3.2.
-% \end{itemize}
-
-% \subsection{Layer 2: Tactical Construction Scheduler (Micro-Level)}
-
-% The micro-level layer is formulated as a Discrete Multi-Mode Resource-Constrained Project Scheduling Problem. It incorporates the "Robot-First" logic, where robots manufacture further infrastructure and additional labor units.
-
-% \subsubsection{Task Execution and State Evolution}
-
-% The global state of lunar capability, , evolves as tasks are completed. Each completed project (such as a nuclear power plant) provides a permanent increment to the system's capacity:
-
-% \begin{equation}
-% \mathbf{S}*t = \mathbf{S}*0 + \sum*{\tau=0}^{t-d} \sum*{i \in \mathcal{I}} \mathbf{\Delta S}*i \cdot u^{done}*{i,\tau}
-% \end{equation}
-
-% where  is the capacity gain from task  and  represents the operational delay for commissioning.
-
-% \subsubsection{Resource Localization Strategy}
-
-% In the micro-level simulation, the Localization Rate $k_i(t)$ acts as a dynamic decision variable. The scheduler determines the optimal $k_i(t)$ for each task by comparing the current lunar production $P_r(t)$ against the remaining transport capacity $L_{cap}(t)$ and $C_E$. If $P_r(t)$ is sufficient, the model prioritizes ISRU to minimize the transport burden on Tier 3 materials, effectively reserving the Space Elevator's capacity for high-complexity Tier 1 and Tier 2 goods.
-
-% \subsubsection{Construction Dynamics}
-
-% To prevent unphysical results, construction progress  is strictly limited by both the available construction capacity  and the actual presence of materials at the site:
-
-% \begin{equation}
-% v_{i,t} \le \min \left( V_t \cdot \text{alloc}*{i,t}, \quad \text{MaterialAvailability}*{i,t} \right)
-% \end{equation}
-
-% This coupling ensures that construction only proceeds when both "labor" (robotic capacity) and "material" (transported or produced) are simultaneously available.
-
-% \subsection{Analysis of Results}
-
-% \subsubsection{Multi-Scenario Performance Comparison}
-
-% To validate the superiority of the hybrid strategy, we compared the results of three scenarios: the Pure Rocket strategy, the Pure Elevator strategy, and our Optimal Hybrid model. The simulation results indicate that while the Pure Rocket scenario offers a fast initial deployment, its cumulative cost grows exponentially due to the massive fuel requirements for transporting bulk Tier 3 materials, exceeding  billion USD. Conversely, the Pure Elevator scenario, despite its low operational cost, suffers from a "slow start" bottleneck, with completion times extending toward 200 years because it lacks the rapid initial "seeding" capability of rockets. The Optimal Hybrid scenario effectively navigates this Pareto frontier, utilizing rockets for the initial 2.92 million metric tons of high-priority industrial equipment and then transitioning bulk transport to the Space Elevator. This synergistic approach reduces the total construction duration to approximately 45.9 years, significantly outperforming the 58-year timeline of a fully mobilization-based rocket strategy while maintaining fiscal sustainability.
-
-% 【Figure: Comparative Performance Bar Chart — A dual-axis chart comparing Completion Time () and Total Cost () across the three scenarios, highlighting the Hybrid model as the Pareto-optimal solution.】
-
-% \subsubsection{Mass Sourcing Evolution and ISRU Efficiency}
-
-% The viability of the 100-million-ton colony relies fundamentally on the transition from Earth-dependence to lunar self-sufficiency. Our analysis of mass sourcing reveals a stark composition at the project's conclusion: approximately 92.46 million metric tons—over 90\% of the total mass—are sourced via lunar In-Situ Resource Utilization. This massive local output is triggered by the initial 7.64 million metric tons transported from Earth (comprising 2.92 million via rockets and 4.72 million via the Space Elevator). The results demonstrate a clear "bootstrapping" trajectory: early high-complexity Tier 1 and Tier 2 imports establish the industrial infrastructure necessary to process regolith and ice, allowing the growth rate of the colony's mass to decouple from Earth-based launch capacity. This mass sourcing distribution validates our material classification strategy and proves that the "seed-and-grow" logic is the key to achieving such unprecedented scales.
-
-% 【Figure: Material Composition River Plot — A stacked area chart (river plot) showing the temporal evolution of mass sourcing. The area for ISRU-produced mass expands dramatically following the initial "seeding" phase, while Earth-sourced mass remains a small, high-value fraction of the total.】
-
-% \subsubsection{Strategic Milestone and Schedule Analysis}
-
-% The generated optimal construction schedule exhibits a compact three-phase progression. Phase 1 (2050–2055) focuses on the rapid installation of energy grids and regolith sintering plants, where the high frequency of rocket launches is critical. Phase 2 (2055–2078) is characterized by high levels of parallel task execution; as local production capacity matures, multiple industrial modules are constructed simultaneously using materials delivered by the Space Elevator. Finally, Phase 3 (2075–2096) involves the large-scale expansion of habitation zones and the Gaia biosphere. Critical path analysis identifies the completion of high-volume industrial refineries (Tier 2 infrastructure) as the primary bottleneck; once these are operational, the construction of habitation quarters accelerates, leading to the project's completion in 2096. This timeline confirms that the hierarchical framework successfully coordinates macro-level logistics with micro-level task dependencies to maximize the construction rate.
-
-% [Figure: Optimal Construction Schedule Gantt Chart — A detailed timeline showing the dependencies between infrastructure milestones (T01–T11), highlighting the transition from industrial preparation to large-scale urban development and habitation.]
-
-
-
-
-
-\section{Model I: Hierarchical Scheduling and Optimization}
-
-\subsection{Bi-Level Coupled Optimization Architecture}
-
-To bridge the gap between continuous interplanetary logistics and discrete lunar construction tasks, we propose a \textbf{Bi-Level Coupled Optimization Framework}. This architecture ensures that long-term transport planning is dynamically responsive to the real-time industrial maturity of the colony.
-
-\textcolor{red}{Figure}: Bi-Level Coupled Optimization Architecture — A block diagram showing the interaction between Layer 1 (Strategic MILP) and Layer 2 (Tactical RCPSP), highlighting the "Material Supply" and "Capability Feedback" exchange.
+To address the coupling between interplanetary transport limits and lunar industrial bootstrapping, we propose an \textbf{Integrated Hierarchical MILP Framework}. Unlike traditional decoupled approaches, this model simultaneously optimizes the macro-level material flow (Earth-to-Moon) and the micro-level industrial capacity expansion within a single global solver.
 
 \begin{itemize}
-    \item \textbf{Layer 1: Strategic Transport Planner (Macro).} Guided by the $J$ index (Eq. ???), this layer optimizes the multi-modal flow of materials ($x_{a,r,t}$) from Earth to Moon, subject to the non-linear capacity evolution of rockets and the steady throughput of the Space Elevator.
-    \item \textbf{Layer 2: Tactical Construction Scheduler (Micro).} This layer governs the "system bootstrapping" logic. It receives inventory constraints from Layer 1 and feedback current production $P_t$ and handling $H_t$ as dynamic bottlenecks to the macro layer.
+    \item \textbf{Layer 1: Strategic Transport (Macro).} Optimizes the multi-modal flow of materials ($x_{a,r,t}$) across the Earth-Moon network, subject to the evolving capacities of the Space Elevator ($C_E(t)$) and Rocket fleet ($L(t)$).
+    \item \textbf{Layer 2: Endogenous Industrial Growth (Micro).} Models the colony as a self-replicating system where "seeds" ($P_t$) and raw materials are transformed into new production capacity, governed by an Input-Output capital accumulation logic defined in Eq. \ref{eq:growth}.
 \end{itemize}
 
-\subsection{Layer 1: Strategic Transport Optimization}
+\subsection{Logistics Graph Definitions}
 
-The macro layer is formulated as a \textbf{Time-Dependent Multi-Commodity Network Flow (TDMCNF)} problem. It determines the optimal utilization of the three Galactic Harbours and global rocket sites.
+We define the Earth-Moon logistics interface as a directed graph $G = (\mathcal{N}, \mathcal{A})$, where the node set $\mathcal{N}$ represents the critical physical locations and $\mathcal{A}$ represents the transport arcs.
 
-\subsubsection{Mathematical Constraints}
+\textbf{Nodes ($\mathcal{N}$):}
+Based on Assumption 5, the network consists of three primary nodes:
+\begin{itemize}
+    \item \textbf{Aggregate Earth Launch Site ($N_{launch}$):} Represents the collective capacity of all traditional rocket launch complexes (e.g., Kennedy Space Center, Wenchang, Baikonur).
+    \item \textbf{Aggregate Galactic Harbour ($N_{port}$):} Represents the unified throughput of the three geostationary space elevator terminals.
+    \item \textbf{Lunar Surface ($N_{moon}$):} The destination node where resources are stockpiled and consumed.
+\end{itemize}
 
-The optimization is subject to flow conservation and technological capacity limits:
+\textbf{Arcs ($\mathcal{A}$):}
+The transport edges connect these nodes with specific attributes:
+\begin{itemize}
+    \item \textbf{Rocket Arc ($a_{rock}$):} Direct path from $N_{launch} \to N_{moon}$. Characterized by high cost, high speed (transit time $\approx 5$ days), and capacity $L_{cap}(t)$.
+    \item \textbf{Elevator Arc ($a_{elev}$):} Path from $N_{port} \to N_{moon}$. Characterized by low cost, lower speed (transit time $\approx 7$ days incl. transfer), and capacity $C_E(t)$.
+\end{itemize}
+
+\subsection{Layer 1: Strategic Transport Constraints}
+
+The transport layer serves as the "Strategic Transport Planner" (Layer 1), formulated as a Time-Dependent Multi-Commodity Network Flow (TDMCNF) problem. It governs the movement of material utilization $x_{a,r,t}$ across the graph $G$.
+
+\subsubsection{Flow Conservation}
+The lunar inventory state evolves based on inflows, local production, and consumption:
 \begin{equation}
-I_{Moon,r,t} = I_{Moon,r,t-1} + \sum_{a \in \mathcal{A}} x_{a,r,t-\tau_a} + P_r(t) - D_{r,t}
+I_{Moon,r,t} = I_{Moon,r,t-1} + \sum_{a \in \mathcal{A}_{arr}} x_{a,r,t-\tau_a} + Q_{r,t} - \text{Cons}_{r,t}
 \end{equation}
-where $I$ is the inventory, $P_r(t)$ is the local ISRU output, and $D_{r,t}$ is the construction demand. The throughput for each transport arc $a$ is bounded by:
+where $x_{a,r,t}$ represents material mass flow on arc $a$, $\tau_a$ is transit delay, $Q_{r,t}$ is local production, and $\text{Cons}_{r,t}$ is total consumption for growth and city building.
+
+\subsubsection{Transport Capacity Limits}
+Traffic on the network is strictly bounded by infrastructure maturity. For rockets, we define $y_{a,t}$ as the integer number of launches, linked to mass flow by payload capacity $m_{load}^{rock}$.
 \begin{equation}
-\sum_{r \in \mathcal{R}} x_{rocket,r,t} \le L_{cap}(t), \quad \sum_{r \in \mathcal{R}} x_{elevator,r,t} \le C_E
+\sum_{r} x_{a_{rock},r,t} \le y_{t} \cdot m_{load}^{rock}, \quad y_{t} \le L_{cap}(t)
 \end{equation}
-The integration of the S-curve capacity model ($L_{cap}(t)$) ensures the transport schedule aligns with 2050-era technological maturation.
-
-\subsection{Layer 2: Tactical Construction Scheduling}
-
-The micro layer manages the transformation of "mass into capability" using a Resource-Constrained Project Scheduling (RCPSP) approach.
-
-\subsubsection{Capability Evolution and Localization}
-
-The colony's state $\mathbf{S}_t$ evolves as infrastructure tasks (Tier 1/2) provide permanent capacity increments $\Delta \mathbf{S}_i$. A critical decision variable is the \textbf{Localization Rate} $k_i(t)$, which determines the reliance on ISRU:
+For the Space Elevator, defined by the "Aggregate Galactic Harbour," the constraint is directly on mass throughput:
 \begin{equation}
-v_{i,t} \le \min \left( V_t \cdot \text{alloc}_{i,t}, \quad \text{Inventory}_{i,t}(k_i) \right)
+\sum_{r} x_{a_{elev},r,t} \le C_E(t)
 \end{equation}
-This "Leibig’s Law" constraint ensures construction only proceeds when both robotic labor ($V_t$) and required materials are simultaneously available.
+The rocket limit $L_{cap}(t)$ follows the logistic saturation curve derived in Section 3.1, while the elevator capacity $C_E(t)$ represents the unified throughput of the Galactic Harbour system.
+
+\subsection{Layer 2: Endogenous Industrial Growth Model}
+
+Coupling with the transport layer, we employ a continuous \textbf{Endogenous Growth Model} for the "Tactical Construction Scheduler" (Layer 2). The colony's industrial base $P(t)$ is fueled by the arrival of specific Tier 1 "seed" materials from Layer 1.
+
+\begin{equation} \label{eq:growth}
+P(t) \le (1 - \delta)P(t-1) + \beta \cdot \sum_{a \in \mathcal{A}_{arr}} x_{a, Tier1, t-\tau_a} + \alpha \cdot \Delta_{Growth}(t)
+\end{equation}
+where:
+\begin{itemize}
+    \item $\delta$: Depreciation rate of lunar machinery (wear and tear).
+    \item $\beta$: Capital effectiveness of imported high-tech equipment (Tier 1) in establishing new capacity ("Seeding").
+    \item $\alpha$: Efficiency of utilizing local ISRU materials ($\Delta_{Growth}$) to replicate existing infrastructure ("Self-Replication").
+\end{itemize}
+
+Local production is constrained by this capacity:
+\begin{equation}
+\sum_{r \in \mathcal{R}} Q_{r,t} \le P(t)
+\end{equation}
+
+And material reinvestment is limited by available inventory:
+\begin{equation}
+\Delta_{Growth}(t) \le I_{Moon, Structure, t}
+\end{equation}
+
+\subsection{Objective Function}
+The global objective minimizes total mission cost while maximizing the early accumulation of city mass (proxy for completion speed):
+\begin{equation}
+\min J = w_C \sum_{t} \text{Cost}(t) - w_T \sum_{t} \text{CumulativeCityMass}(t)
+\end{equation}
+Maximizing the integral of city mass mathematically drives the solver to achieve the target population capacity as early as possible.
 
 \subsection{Simulation Results and Interpretation}
 
 \subsubsection{Scenario Dominance and Trade-offs}
 
-Simulation results demonstrate that \textbf{Scenario C (Hybrid Model)} offers the optimal balance between project duration and robustness, achieving completion in \textbf{25.5 years} (Project Year 2075.5). While Scenario A (Elevator-only) technically meets the 50-year deadline (37.3 years), Scenario C accelerates the critical path by approximately 12 years through the strategic deployment of high-thrust chemical optimization.
+Simulation results (Figure \ref{fig:scenario_comparison}) demonstrate that \textbf{Scenario C (Hybrid Model)} offers the optimal balance between project duration and robustness, achieving completion in \textbf{25.5 years} (Project Year 2075.5). While Scenario A (Elevator-only) technically meets the 50-year deadline (37.3 years), Scenario C accelerates the critical path by approximately 12 years through the strategic deployment of high-thrust chemical optimization.
 
-\begin{figure}[htbp]
+\begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/scenario_comparison.png}
     \caption{Comparative Performance Bar Chart --- A dual-axis visualization of duration and cost. Scenario C (Hybrid) minimizes duration (25.5 years) at a cost of \$1.03B, effectively balancing the fiscal efficiency of the Elevator with the rapid deployment capability of rockets.}
@@ -433,7 +395,7 @@ The hybrid model explicitly resolves the ``Cold Start'' constraint: heavy-lift r
 
 The model validates the \textbf{System Bootstrapping Effect} as a critical success factor. Upon project completion, \textbf{80.0\%} of the 100-million-ton cumulative mass requirement is satisfied via lunar In-Situ Resource Utilization (ISRU), minimizing Earth-to-Moon transport dependancy.
 
-\begin{figure}[htbp]
+\begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/material_river.png}
     \caption{Material Composition River Plot --- A stacked area chart illustrating the decoupled growth trajectory. The system transitions from 100\% Earth-dependence in 2050 to a steady-state 80\% lunar self-sufficiency, constrained only by the specific high-tech component requirements defined in the resource tiers.}
@@ -446,14 +408,14 @@ The ``River Plot'' (Figure \ref{fig:material_river}) delineates the decoupling o
 
 The optimization algorithm identifies a distinct, compressed critical path for construction, characterized by three sequential phases: (1) \textbf{Industrial Seeding} (2050.0--2050.2), (2) \textbf{Capacity Self-Replication} (2050.2--2052.8), and (3) \textbf{Urban Habitation Expansion} (2052.8--2075.4).
 
-\begin{figure}[htbp]
+\begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/construction_gantt.png}
     \caption{Optimal Construction Schedule Gantt Chart --- The timeline reveals a rapid 2-month seeding phase followed by a 2.6-year self-replication period, culminating in a sustained 23-year urban expansion phase that completes well within the 200-month contingency buffer.}
     \label{fig:construction_gantt}
 \end{figure}
 
-The explicit delineation of the self-replication phase confirms that the system prioritizes a brief but intense period of exponential capacity growth ($P(t)$) before committing resources to linear habitat construction ($H(t)$). This sequential staging minimizes the overall project duration by maximizing the production base early in the lifecycle.
+The explicit delineation of the self-replication phase, as shown in the Gantt chart (Figure \ref{fig:construction_gantt}), confirms that the system prioritizes a brief but intense period of exponential capacity growth ($P(t)$) before committing resources to linear habitat construction ($H(t)$). This sequential staging minimizes the overall project duration by maximizing the production base early in the lifecycle.
 
 
 
