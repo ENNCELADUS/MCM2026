@@ -443,6 +443,14 @@ class MoonLogisticsModel:
         output_path = Path(output_path)
         output_path.mkdir(parents=True, exist_ok=True)
 
+        try:
+            from reporting import export_solution_report
+        except ModuleNotFoundError:
+            export_solution_report = None
+
+        if export_solution_report is not None:
+            export_solution_report(self, output_path)
+
         print(f"Results exported to {output_path}")
 
 

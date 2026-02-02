@@ -15,6 +15,7 @@ Author: [Your Name]
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from datetime import datetime
@@ -108,6 +109,11 @@ Examples:
         type=str,
         default=None,
         help="Path to constants.yaml file (default: config/constants.yaml)",
+    )
+    parser.add_argument(
+        "--compare-scenarios",
+        action="store_true",
+        help="Run all three scenarios and export a comparison report (slower)",
     )
 
     return parser.parse_args()
@@ -317,6 +323,39 @@ def main() -> int:
     )
 
     try:
+        if args.compare_scenarios:
+            from dataclasses import replace
+
+            from reporting import export_comparison_report
+
+            base_output = settings.output_dir
+            scenario_reports: dict[str, dict] = {}
+            for scenario in (ScenarioType.E_ONLY, ScenarioType.R_ONLY, ScenarioType.MIX):
+                scenario_dir = base_output / scenario.value
+                scenario_settings = replace(
+                    settings, scenario=scenario, output_dir=scenario_dir
+                )
+                result = run_pipeline(
+                    settings=scenario_settings,
+                    constants_path=constants_path,
+                    dry_run=args.dry_run,
+                    verbose=args.verbose,
+                    sanity_check=args.sanity_check,
+                )
+                report_path = scenario_dir / "solution_report.json"
+                if report_path.exists():
+                    scenario_reports[scenario.value] = json.loads(
+                        report_path.read_text()
+                    )
+                else:
+                    scenario_reports[scenario.value] = {
+                        "scenario": scenario.value,
+                        "status": result.get("status"),
+                    }
+
+            export_comparison_report(scenario_reports, base_output)
+            return 0
+
         result = run_pipeline(
             settings=settings,
             constants_path=constants_path,
@@ -327,9 +366,8 @@ def main() -> int:
 
         if result["status"] in ("OPTIMAL", "FEASIBLE", "DRY_RUN"):
             return 0
-        else:
-            print(f"Solver returned status: {result['status']}", file=sys.stderr)
-            return 1
+        print(f"Solver returned status: {result['status']}", file=sys.stderr)
+        return 1
 
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)

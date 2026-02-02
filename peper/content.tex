@@ -418,25 +418,44 @@ This "Leibig’s Law" constraint ensures construction only proceeds when both ro
 
 \subsubsection{Scenario Dominance and Trade-offs}
 
-Simulation results confirm that \textbf{Scenario C (Hybrid Model)} is the only strategy capable of meeting the MCM Agency’s target within a half-century.
+Simulation results demonstrate that \textbf{Scenario C (Hybrid Model)} offers the optimal balance between project duration and robustness, achieving completion in \textbf{25.5 years} (Project Year 2075.5). While Scenario A (Elevator-only) technically meets the 50-year deadline (37.3 years), Scenario C accelerates the critical path by approximately 12 years through the strategic deployment of high-thrust chemical optimization.
 
-\textcolor{red}{Figure}: Comparative Performance Bar Chart — A dual-axis visualization of duration and cost for the three scenarios, emphasizing Scenario C’s 45.9-year completion.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/scenario_comparison.png}
+    \caption{Comparative Performance Bar Chart --- A dual-axis visualization of duration and cost. Scenario C (Hybrid) minimizes duration (25.5 years) at a cost of \$1.03B, effectively balancing the fiscal efficiency of the Elevator with the rapid deployment capability of rockets.}
+    \label{fig:scenario_comparison}
+\end{figure}
 
-The hybrid model optimizes the "Cold Start" problem: rockets are utilized for the initial 2.92 million tons of "technological seeds" (high-complexity robotics and energy modules), while the Space Elevator assumes the role of a bulk carrier for Tier 2 expansion. This prevents the "Slow Start" of a pure elevator system (completion $>150$ years) and the "Fiscal Explosion" of a pure rocket system.
+The hybrid model explicitly resolves the ``Cold Start'' constraint: heavy-lift rockets deliver the initial \textbf{0.036 million tons} of high-complexity robotics and energy modules (``technological seeds''), while the Space Elevator provides bulk throughput for subsequent Tier 2 expansion (transporting \textbf{0.134 million tons}). This dual-modal approach prevents the launch-rate bottlenecks inherent to specific resource classes, enabling an annualized capacity growth rate of $\alpha \approx 0.35$.
 
 \subsubsection{Bootstrapping and Mass Sourcing Evolution}
 
-The model validates the \textbf{System Bootstrapping Effect}. By the end of the project, over 90\% of the 100-million-ton requirement is satisfied by lunar ISRU.
+The model validates the \textbf{System Bootstrapping Effect} as a critical success factor. Upon project completion, \textbf{80.0\%} of the 100-million-ton cumulative mass requirement is satisfied via lunar In-Situ Resource Utilization (ISRU), minimizing Earth-to-Moon transport dependancy.
 
-\textcolor{red}{Figure}: Material Composition River Plot — A stacked area chart showing the transition from 100\% Earth-dependence to 90\%+ lunar self-sufficiency as $P_r(t)$ matures.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/material_river.png}
+    \caption{Material Composition River Plot --- A stacked area chart illustrating the decoupled growth trajectory. The system transitions from 100\% Earth-dependence in 2050 to a steady-state 80\% lunar self-sufficiency, constrained only by the specific high-tech component requirements defined in the resource tiers.}
+    \label{fig:material_river}
+\end{figure}
 
-The "River Plot" demonstrates that the initial Earth-sourced "seeds" serve as industrial catalysts. This decoupling of colony growth from Earth’s transport capacity is what allows the total mass to scale to $10^8$ tons without overwhelming global launch infrastructure.
+The ``River Plot'' (Figure \ref{fig:material_river}) delineates the decoupling of colony mass $M(t)$ from Earth launch capacity $L(t)$. The initial 0.17 million tons of Earth-sourced inputs act as an industrial multiplier, enabling the exponential replication of production capacity $P(t)$ required to scale the final 80 million tons of local structure.
 
 \subsubsection{Optimal Construction Timeline}
 
-The resulting Gantt chart reveals three distinct phases: (1) Industrial Seeding (2050–2055), (2) Capacity Self-Replication (2055–2078), and (3) Urban Habitation Expansion (2075–2096).
+The optimization algorithm identifies a distinct, compressed critical path for construction, characterized by three sequential phases: (1) \textbf{Industrial Seeding} (2050.0--2050.2), (2) \textbf{Capacity Self-Replication} (2050.2--2052.8), and (3) \textbf{Urban Habitation Expansion} (2052.8--2075.4).
 
-\textcolor{red}{Figure}: Optimal Construction Schedule Gantt Chart — Highlighting the critical path from energy grid completion to the finalized Gaia-biosphere habitation modules.
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=\linewidth]{figures/construction_gantt.png}
+    \caption{Optimal Construction Schedule Gantt Chart --- The timeline reveals a rapid 2-month seeding phase followed by a 2.6-year self-replication period, culminating in a sustained 23-year urban expansion phase that completes well within the 200-month contingency buffer.}
+    \label{fig:construction_gantt}
+\end{figure}
+
+The explicit delineation of the self-replication phase confirms that the system prioritizes a brief but intense period of exponential capacity growth ($P(t)$) before committing resources to linear habitat construction ($H(t)$). This sequential staging minimizes the overall project duration by maximizing the production base early in the lifecycle.
+
+
 
 
 \section{Model II: System Robustness and Risk Assessment}

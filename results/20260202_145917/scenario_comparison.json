@@ -1,0 +1,152 @@
+{
+  "bar_chart": [
+    {
+      "scenario": "E-only",
+      "duration_years": 37.25,
+      "total_cost_usd": 460543090.2571082,
+      "seed_rocket_tons": 0.0,
+      "seed_elevator_tons": 134250.0,
+      "isru_share_end": 0.7999999999999999
+    },
+    {
+      "scenario": "R-only",
+      "duration_years": 61.5,
+      "total_cost_usd": 2012759847.1981206,
+      "seed_rocket_tons": 36445.553805438314,
+      "seed_elevator_tons": 0.0,
+      "isru_share_end": 0.8
+    },
+    {
+      "scenario": "Mix",
+      "duration_years": 25.5,
+      "total_cost_usd": 1029524407.7853519,
+      "seed_rocket_tons": 36445.55380543831,
+      "seed_elevator_tons": 134250.0,
+      "isru_share_end": 0.8
+    }
+  ],
+  "within_half_century": [
+    "E-only",
+    "Mix"
+  ],
+  "dominant_scenario": null,
+  "hybrid_duration_years": 25.5,
+  "hybrid_seed_rocket_tons": 36445.55380543831,
+  "hybrid_seed_elevator_tons": 134250.0,
+  "scenarios": {
+    "E-only": {
+      "scenario": "E-only",
+      "objective_value": -117236201643.23819,
+      "total_cost_usd": 460543090.2571082,
+      "duration_months": 447,
+      "duration_years": 37.25,
+      "completion_year": 2087.25,
+      "target_mass_tons": 100000000.0,
+      "earth_arrivals_total_tons": 20000000.0,
+      "rocket_arrivals_total_tons": 0.0,
+      "elevator_arrivals_total_tons": 20000000.0,
+      "rocket_trips_total": 0,
+      "isru_production_total_tons": 79999999.99999999,
+      "isru_share_end": 0.7999999999999999,
+      "seed_mass_tons": 89500.0,
+      "seed_rocket_tons": 0.0,
+      "seed_elevator_tons": 134250.0,
+      "bootstrap_transition_year": 2050.1666666666665,
+      "replication_end_year": null,
+      "urban_start_year": 2053.6666666666665,
+      "phases": [
+        {
+          "phase": "Industrial Seeding",
+          "start_year": 2050.0,
+          "end_year": 2050.1666666666665
+        },
+        {
+          "phase": "Capacity Self-Replication",
+          "start_year": 2050.1666666666665,
+          "end_year": 2053.6666666666665
+        },
+        {
+          "phase": "Urban Habitation Expansion",
+          "start_year": 2053.6666666666665,
+          "end_year": 2087.1666666666665
+        }
+      ]
+    },
+    "R-only": {
+      "scenario": "R-only",
+      "objective_value": -97679605426.14767,
+      "total_cost_usd": 2012759847.1981206,
+      "duration_months": 738,
+      "duration_years": 61.5,
+      "completion_year": 2111.5,
+      "target_mass_tons": 100000000.0,
+      "earth_arrivals_total_tons": 20000000.000000037,
+      "rocket_arrivals_total_tons": 20000000.000000037,
+      "elevator_arrivals_total_tons": 0.0,
+      "rocket_trips_total": 85138.0,
+      "isru_production_total_tons": 80000000.00000015,
+      "isru_share_end": 0.8,
+      "seed_mass_tons": 24445.55380543831,
+      "seed_rocket_tons": 36445.553805438314,
+      "seed_elevator_tons": 0.0,
+      "bootstrap_transition_year": 2050.1666666666665,
+      "replication_end_year": null,
+      "urban_start_year": 2059.8333333333335,
+      "phases": [
+        {
+          "phase": "Industrial Seeding",
+          "start_year": 2050.0,
+          "end_year": 2050.1666666666665
+        },
+        {
+          "phase": "Capacity Self-Replication",
+          "start_year": 2050.1666666666665,
+          "end_year": 2059.8333333333335
+        },
+        {
+          "phase": "Urban Habitation Expansion",
+          "start_year": 2059.8333333333335,
+          "end_year": 2111.4166666666665
+        }
+      ]
+    },
+    "Mix": {
+      "scenario": "Mix",
+      "objective_value": -123435138838.05208,
+      "total_cost_usd": 1029524407.7853519,
+      "duration_months": 306,
+      "duration_years": 25.5,
+      "completion_year": 2075.5,
+      "target_mass_tons": 100000000.0,
+      "earth_arrivals_total_tons": 19999999.999999996,
+      "rocket_arrivals_total_tons": 6325908.350758794,
+      "elevator_arrivals_total_tons": 13674091.649241218,
+      "rocket_trips_total": 32047.0,
+      "isru_production_total_tons": 80000000.00000001,
+      "isru_share_end": 0.8,
+      "seed_mass_tons": 113945.5538054383,
+      "seed_rocket_tons": 36445.55380543831,
+      "seed_elevator_tons": 134250.0,
+      "bootstrap_transition_year": 2050.1666666666665,
+      "replication_end_year": null,
+      "urban_start_year": 2052.8333333333335,
+      "phases": [
+        {
+          "phase": "Industrial Seeding",
+          "start_year": 2050.0,
+          "end_year": 2050.1666666666665
+        },
+        {
+          "phase": "Capacity Self-Replication",
+          "start_year": 2050.1666666666665,
+          "end_year": 2052.8333333333335
+        },
+        {
+          "phase": "Urban Habitation Expansion",
+          "start_year": 2052.8333333333335,
+          "end_year": 2075.4166666666665
+        }
+      ]
+    }
+  }
+}
