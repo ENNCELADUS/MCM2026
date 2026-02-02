@@ -322,18 +322,12 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
                 f"Missing required key in constants.yaml initial_capacities: '{key}'"
             )
 
-
-
     # Validate objective
     for key in REQUIRED_OBJECTIVE_KEYS:
         if key not in constants["objective"]:
             raise KeyError(f"Missing required key in constants.yaml objective: '{key}'")
     _ = constants["objective"]["w_C"]
     _ = constants["objective"]["w_T"]
-
-
-
-
 
     # Validate solver section
     solver_cfg = constants.get("solver", {})
@@ -424,11 +418,11 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
     scenario_params = constants.get("scenario_parameters", {})
     if scenario_params:
         elev = scenario_params.get("elevator", {})
-        
+
         # Validate elevator capacity (Fixed)
         elev_cap_fixed = elev.get("capacity_fixed", {})
         if elev_cap_fixed:
-             _ = elev_cap_fixed.get("capacity_tpy")
+            _ = elev_cap_fixed.get("capacity_tpy")
 
         # Validate elevator cost_decay
         elev_cost_decay = elev.get("cost_decay", {})
@@ -451,8 +445,6 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
         _ = rocket_launch_rate.get("max_per_year")
         _ = rocket_launch_rate.get("start_year")
 
-
-
     # Validate cost parameters in scenario_parameters
     rocket_cost_decay = scenario_params.get("rocket", {}).get("cost_decay", {})
     if rocket_cost_decay:
@@ -463,12 +455,12 @@ def validate_constants(constants: ConfigTracker | dict[str, Any]) -> None:
 
     # Validate implementation details
     impl = constants["implementation_details"]
-    
+
     # Check for growth_model instead of tasks
     if "growth_model" not in impl:
         # It might be under parameter_summary or root, but let's check impl as per previous attempts
         # Actually, based on previous artifacts, growth_model is a root key or part of parameter_summary?
-        # Let's check where it was added. 
+        # Let's check where it was added.
         # But wait, looking at lines 500+, we are in validate_constants.
         # Let's perform a robust check.
         pass
@@ -505,12 +497,14 @@ def load_model_data(
     scenario = settings.scenario.value
     seconds_per_day = constants["units"]["seconds_per_day"]
     ton_to_kg = constants["units"]["ton_to_kg"]
-    
+
     # NEW: Read capacity from scenario_parameters (fixed model)
     elevator_params = constants["scenario_parameters"]["elevator"]
-    elevator_capacity_per_harbour_tpy = elevator_params["capacity_fixed"]["capacity_tpy"]
+    elevator_capacity_per_harbour_tpy = elevator_params["capacity_fixed"][
+        "capacity_tpy"
+    ]
     elevator_cost_params = elevator_params.get("cost_decay", {})
-    
+
     total_demand_tons = constants["parameter_summary"]["materials"]["bom"][
         "total_demand_tons"
     ]
@@ -544,7 +538,10 @@ def load_model_data(
         else:
             payload_mass = float(a["payload"])
         cost_per_kg_2050 = a["cost_per_kg_2050"]
-        if a["type"] == "elevator" and elevator_cost_params.get("initial_cost_usd_per_kg") is not None:
+        if (
+            a["type"] == "elevator"
+            and elevator_cost_params.get("initial_cost_usd_per_kg") is not None
+        ):
             cost_per_kg_2050 = float(elevator_cost_params["initial_cost_usd_per_kg"])
         arcs.append(
             Arc(
@@ -634,17 +631,15 @@ def get_rocket_launch_rate_max(
     r = float(params["r"])
     t0 = float(params["t0"])
     steps_per_year = constants["time"]["steps_per_year"]
-    
+
     year = get_year_for_t(t, constants)
     A_term = A * math.exp(-r * (year - t0))
     rate = K / (1.0 + A_term)
-    
+
     return rate / steps_per_year
 
 
-def get_rocket_payload_kg(
-    t: int, constants: ConfigTracker | dict[str, Any]
-) -> float:
+def get_rocket_payload_kg(t: int, constants: ConfigTracker | dict[str, Any]) -> float:
     """Compute per-launch rocket payload (mass units) using logistic growth."""
     params = constants["scenario_parameters"]["rocket"]["payload_logistic"]
     L_max_t = float(params["L_max_t"])
@@ -676,12 +671,12 @@ def get_rocket_cost_usd_per_kg(
     # Check for Exponential Decay (Moon Logic) - implementation_details.md
     if "decay_rate_monthly" in params:
         lambda_c = float(params["decay_rate_monthly"])
-        # We start from the base_cost. 
-        # NOTE: Ideally base_cost should be at t=0 (2050). 
-        # If constants.yaml has 2024 value, this might be high, 
+        # We start from the base_cost.
+        # NOTE: Ideally base_cost should be at t=0 (2050).
+        # If constants.yaml has 2024 value, this might be high,
         # but we follow the mathematical form requested.
         base_cost = float(params["base_cost_usd_per_kg"])
-        
+
         # C(t) = (C_start - C_min) * e^(-lambda * t) + C_min
         cost = (base_cost - min_cost) * math.exp(-lambda_c * t) + min_cost
         return cost
@@ -697,7 +692,7 @@ def get_rocket_cost_usd_per_kg(
     year = get_year_for_t(t, constants)
     # Ensure year >= base_year
     years_elapsed = max(0.0, year - base_year)
-    
+
     cost = base_cost * ((1.0 - annual_decay) ** years_elapsed)
     if min_cost is not None:
         cost = max(float(min_cost), cost)
@@ -711,12 +706,14 @@ def get_elevator_capacity_tpy(
     Return the fixed annual elevator capacity (tons/year).
     """
     elev_params = constants["scenario_parameters"]["elevator"]
-    
+
     # Check for fixed capacity
     if "capacity_fixed" in elev_params:
         return float(elev_params["capacity_fixed"]["capacity_tpy"])
-    
-    raise KeyError("Missing required section: scenario_parameters.elevator.capacity_fixed")
+
+    raise KeyError(
+        "Missing required section: scenario_parameters.elevator.capacity_fixed"
+    )
 
 
 def get_elevator_capacity_per_step(
@@ -724,7 +721,7 @@ def get_elevator_capacity_per_step(
 ) -> float:
     """
     Compute elevator capacity per time step (tons/step).
-    
+
     Divides annual capacity by steps_per_year for monthly resolution.
     """
     steps_per_year = constants["time"]["steps_per_year"]
@@ -737,30 +734,30 @@ def get_elevator_cost_usd_per_kg(
 ) -> float:
     """
     Compute elevator transport cost per kg (USD) using exponential decay.
-    
+
     Formula:
         C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
-    
+
     This mirrors the rocket cost decay model for consistency.
-    
+
     Args:
         t: Discrete time step index
         constants: Configuration dictionary
-        
+
     Returns:
         Cost per kg in USD
     """
     elev_params = constants["scenario_parameters"]["elevator"]
-    
+
     # Check for new exponential decay model
     if "cost_decay" in elev_params:
         params = elev_params["cost_decay"]
         c_start = float(params["initial_cost_usd_per_kg"])
         c_min = float(params["min_cost_usd_per_kg"])
         lambda_c = float(params["decay_rate_monthly"])
-        
+
         # C(t) = (C_start - C_min) * exp(-lambda * t) + C_min
         cost = (c_start - c_min) * math.exp(-lambda_c * t) + c_min
         return cost
-    
+
     raise KeyError("Missing required section: scenario_parameters.elevator.cost_decay")

@@ -38,7 +38,7 @@ class PyomoBuilder:
         self.node_types = {n.id: n.node_type for n in data.nodes}
         self.arc_ids = [a.id for a in data.arcs]
         self.res_ids = [r.id for r in data.resources]
-        
+
         # Growth Model Parameters
         growth = data.growth_params
         self.bootstrapping = growth["phases"]["bootstrapping"]
@@ -71,14 +71,14 @@ class PyomoBuilder:
         self.delta_t = constants["time"]["delta_t"]
         self.steps_per_year = constants["time"]["steps_per_year"]
         self.ton_to_kg = constants["units"]["ton_to_kg"]
-        
+
         self.ton_to_kg = constants["units"]["ton_to_kg"]
-        
+
         # self.C_E_0 = constants["initial_capacities"]["C_E_0"] # Removed
-        
+
         # Get fixed elevator capacity
         elevator_capacity_tpy = utils.get_elevator_capacity_tpy(0, constants)
-        
+
         # Convert to per-step capacity in mass/second
         self.elevator_capacity_fixed_mass_s = (
             elevator_capacity_tpy
@@ -96,30 +96,38 @@ class PyomoBuilder:
             constants["parameter_summary"]["materials"]["bom"]["total_demand_tons"]
             * self.ton_to_kg
         )
-        self.target_pop = constants["parameter_summary"]["colony"]["target"]["population"]
-        self.deadline_year = (
-            constants["parameter_summary"]["colony"]["target"].get("deadline_year")
+        self.target_pop = constants["parameter_summary"]["colony"]["target"][
+            "population"
+        ]
+        self.deadline_year = constants["parameter_summary"]["colony"]["target"].get(
+            "deadline_year"
         )
-        
+
         # BOM Mappings
         self.tiers = utils.get_tier_definitions(constants)
         self.res_tier_map = {}
         for tier in self.tiers:
             for rid in tier["resources"]:
                 self.res_tier_map[rid] = tier["id"]
-        
+
         # Identify Tier 1 (High-Tech/Equipment) for Growth
-        self.tier1_res = [r for r in self.res_ids if self.res_tier_map.get(r) == "tier_1"]
+        self.tier1_res = [
+            r for r in self.res_ids if self.res_tier_map.get(r) == "tier_1"
+        ]
         # Fallback
         if not self.tier1_res:
-             self.tier1_res = [r for r in self.res_ids if "electronics" in r]
+            self.tier1_res = [r for r in self.res_ids if "electronics" in r]
 
         # Water Resource for Population
-        self.water_res = next((r for r in self.res_ids if "water" in r or "volatile" in r), None)
-        self.water_per_capita = float(constants["parameter_summary"]["colony"]
-                                      .get("requirements", {})
-                                      .get("water_per_capita_per_month", 0.5))
-        
+        self.water_res = next(
+            (r for r in self.res_ids if "water" in r or "volatile" in r), None
+        )
+        self.water_per_capita = float(
+            constants["parameter_summary"]["colony"]
+            .get("requirements", {})
+            .get("water_per_capita_per_month", 0.5)
+        )
+
         # Growth BOM (resource mix for delta_Growth consumption)
         growth_bom_cfg = (
             constants.get("implementation_details", {})
@@ -133,7 +141,6 @@ class PyomoBuilder:
         if not self.growth_bom and "structure" in self.res_ids:
             self.growth_bom = {"structure": 1.0}
 
-
     def _create_sets(self):
         m = self.m
         settings = self.settings
@@ -142,7 +149,7 @@ class PyomoBuilder:
         m.R = pyo.Set(initialize=self.res_ids, ordered=True)
         m.N = pyo.Set(initialize=self.node_ids, ordered=True)
         m.A = pyo.Set(initialize=self.arc_ids, ordered=True)
-        
+
         m.A_Elev = pyo.Set(initialize=self.elevator_arcs)
         m.A_Rock = pyo.Set(initialize=self.rocket_arcs)
         m.A_Launch = pyo.Set(initialize=self.launch_arcs)
@@ -212,23 +219,27 @@ class PyomoBuilder:
         settings = self.settings
 
         m.x = pyo.Var(m.A, m.R, m.T, domain=pyo.NonNegativeReals)
-        m.y = pyo.Var(m.A, m.T, domain=pyo.NonNegativeIntegers)  # Changed to Integer explicitly
+        m.y = pyo.Var(
+            m.A, m.T, domain=pyo.NonNegativeIntegers
+        )  # Changed to Integer explicitly
         m.I_E = pyo.Var(m.N, m.R, m.T, domain=pyo.NonNegativeReals)
         m.B_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.I_M = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.A_E = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
         m.Q = pyo.Var(m.R, m.T, domain=pyo.NonNegativeReals)
-        
+
         # Growth Variables
         m.delta_Growth = pyo.Var(m.T, domain=pyo.NonNegativeReals)  # Reinvestment
-        m.delta_City = pyo.Var(m.T, domain=pyo.NonNegativeReals)    # Consumption
-        
+        m.delta_City = pyo.Var(m.T, domain=pyo.NonNegativeReals)  # Consumption
+
         # State Variables
         m.P = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.H = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.Pop = pyo.Var(m.T, domain=pyo.NonNegativeReals)
         m.Power = pyo.Var(m.T, domain=pyo.NonNegativeReals)
-        m.Cumulative_City = pyo.Var(m.T, domain=pyo.NonNegativeReals) # Accumulated structure mass
+        m.Cumulative_City = pyo.Var(
+            m.T, domain=pyo.NonNegativeReals
+        )  # Accumulated structure mass
 
         # Phase II Binary (0 = Bootstrapping, 1 = Self-Replication)
         # We might want to allow switching ONCE. P_t >= P_{t-1} ensures monotonic growth mostly?
@@ -263,7 +274,7 @@ class PyomoBuilder:
             payload = mdl.arc_payload[a]
             if mdl.arc_type[a] in ("rocket", "transfer"):
                 payload = mdl.rocket_payload[t]
-            
+
             # Total mass on arc <= Payload * Units
             return sum(mdl.x[a, r, t] for r in mdl.R) <= payload * mdl.y[a, t]
 
@@ -289,36 +300,47 @@ class PyomoBuilder:
         # Elevator Capacity Limits (Mass/Time or Stream)
         if self.elevator_arcs:
             cap_per_step = self.C_E_0 * self.delta_t
-            
+
             # Pool Constraint (Total Mass on all elevator arcs)
             def _elevator_pool_rule(mdl, t):
-                 return sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev) <= cap_per_step
+                return (
+                    sum(mdl.y[a, t] * mdl.arc_payload[a] for a in mdl.A_Elev)
+                    <= cap_per_step
+                )
+
             m.elevator_pool = pyo.Constraint(m.T, rule=_elevator_pool_rule)
-            
+
             # Steam Model (Flow Constraint)
             if self.stream_model:
+
                 def _elevator_stream_rule(mdl, t):
-                    return sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R) <= cap_per_step
+                    return (
+                        sum(mdl.x[a, r, t] for a in mdl.A_Elev for r in mdl.R)
+                        <= cap_per_step
+                    )
+
                 m.elevator_stream = pyo.Constraint(m.T, rule=_elevator_stream_rule)
 
     def _add_capacity_growth_constraints(self):
         m = self.m
-        
+
         # Parameters for Growth
-        beta = float(self.bootstrapping["beta_equipment_to_capacity"]) # Phase I Multiplier
-        # Alpha is Annual Growth Rate (1/yr). We need to verify if constant has it. 
+        beta = float(
+            self.bootstrapping["beta_equipment_to_capacity"]
+        )  # Phase I Multiplier
+        # Alpha is Annual Growth Rate (1/yr). We need to verify if constant has it.
         # If not, default to 0.35.
         alpha_val = float(self.replication.get("alpha_replication_rate", 0.35))
-        
+
         limit_K = float(self.saturation["carrying_capacity_tpy"])
         decay = float(self.saturation["decay_rate_phi"])
-        
+
         def _p_evolution_rule(mdl, t):
             if t == 0:
                 return mdl.P[t] == self.initial_state["P_0"]
-            
-            prev_P = mdl.P[t-1]
-            
+
+            prev_P = mdl.P[t - 1]
+
             # 1. Earth Imports (Bootstrapping)
             earth_inflow = sum(
                 mdl.x[a, r, t - mdl.arc_lead[a]]
@@ -326,7 +348,7 @@ class PyomoBuilder:
                 for r in self.tier1_res
                 if t - mdl.arc_lead[a] >= 0
             )
-            
+
             # 2. Local Growth (Replication)
             # Switch to Alpha-based logic.
             # Local Capacity Addition = (Alpha/12) * P_prev matches exponential growth.
@@ -342,33 +364,35 @@ class PyomoBuilder:
             # Implying: beta_local * (P/12) = (Alpha/12) * P  => beta_local = Alpha.
             # So multiplier for delta_Growth should be equal to 'Alpha'.
             # Beta(50) was way too high.
-             
+
             local_growth = 0
             if t > 0:
                 # Use alpha as the mass-to-capacity multiplier
-                local_growth = alpha_val * mdl.delta_Growth[t-1] 
-            
+                local_growth = alpha_val * mdl.delta_Growth[t - 1]
+
             # 3. Decay
             decay_amount = (decay / self.steps_per_year) * prev_P
-            
+
             # Constraint
             potential_P = prev_P + (beta * earth_inflow) + local_growth - decay_amount
-            
+
             return mdl.P[t] <= potential_P
 
         m.p_evolution = pyo.Constraint(m.T, rule=_p_evolution_rule)
-        
+
         m.p_limit = pyo.Constraint(m.T, rule=lambda mdl, t: mdl.P[t] <= limit_K)
-        
+
         # H (Handling) and Pop (Population) Evolution
         # Assume they scale with P for now, or have their own logic?
         # Model description says P is the main driver. H and Pop are auxiliary.
         # Let's assume H = ratio * P and Pop = ratio * P for simplicity in this refactor,
-        # Or add independent growth flows. 
+        # Or add independent growth flows.
         # Plan says: "H_ratio: 1.5".
         h_ratio = float(self.initial_state.get("H_ratio", 1.5))
-        m.h_link = pyo.Constraint(m.T, rule=lambda mdl, t: mdl.H[t] == h_ratio * mdl.P[t])
-        
+        m.h_link = pyo.Constraint(
+            m.T, rule=lambda mdl, t: mdl.H[t] == h_ratio * mdl.P[t]
+        )
+
         # Population: 1 person per X tons of P? Or independent?
         # Let's leave Pop free but constrained by Life Support (which we might not have modeled yet).
         # For now, let's make Pop grow with City Mass?
@@ -378,29 +402,35 @@ class PyomoBuilder:
         # Population: 1 person per X tons of City Structure?
         # Let's link Pop to Cumulative City mass (Habitat).
         # Assumption: 10 tons structure per person.
-        m.pop_constraint = pyo.Constraint(m.T, rule=lambda mdl, t: mdl.Pop[t] <= mdl.Cumulative_City[t] / 10.0)
+        m.pop_constraint = pyo.Constraint(
+            m.T, rule=lambda mdl, t: mdl.Pop[t] <= mdl.Cumulative_City[t] / 10.0
+        )
 
         # NEW: Water Demand Constraint
-        # Pop[t] * WaterPerCapita <= Stock_Water[t] + Production_Water[t] 
+        # Pop[t] * WaterPerCapita <= Stock_Water[t] + Production_Water[t]
         # (Assuming we consume flow or stock. Using stock for safety).
         if self.water_res:
+
             def _water_pop_rule(mdl, t):
                 # Total available water at step t
-                available = mdl.I_M[self.water_res, t] + mdl.I_E[self.moon_node, self.water_res, t]
+                available = (
+                    mdl.I_M[self.water_res, t]
+                    + mdl.I_E[self.moon_node, self.water_res, t]
+                )
                 demand = mdl.Pop[t] * self.water_per_capita
                 return demand <= available
-            m.water_demand = pyo.Constraint(m.T, rule=_water_pop_rule)
 
+            m.water_demand = pyo.Constraint(m.T, rule=_water_pop_rule)
 
     def _add_material_balance_constraints(self):
         m = self.m
-        
+
         # 1. Earth Inventory (Standard Node Balance)
         def _inv_earth_rule(mdl, n, r, t):
             if n == self.moon_node or self.node_types.get(n) in ("source", "earth"):
-                 return pyo.Constraint.Skip
-            
-            prev = mdl.I_E[n, r, t-1] if t > 0 else 0
+                return pyo.Constraint.Skip
+
+            prev = mdl.I_E[n, r, t - 1] if t > 0 else 0
             inflow = sum(
                 mdl.x[a, r, t - mdl.arc_lead[a]]
                 for a in self.arcs_to[n]
@@ -408,7 +438,7 @@ class PyomoBuilder:
             )
             outflow = sum(mdl.x[a, r, t] for a in self.arcs_from[n])
             return mdl.I_E[n, r, t] == prev + inflow - outflow
-            
+
         m.inv_balance_earth = pyo.Constraint(m.N, m.R, m.T, rule=_inv_earth_rule)
 
         # 2. Moon Material Balance (I_M tracks refined/available materials on Moon)
@@ -417,17 +447,17 @@ class PyomoBuilder:
         # Arrivals (A_E) add to I_M.
         # Production (Q) add to I_M.
         # Consumption (Growth + City) subtracts from I_M.
-        
+
         # I_M[r, t] = I_M[r, t-1] + Arrivals[r, t] + Production[r, t] - Consumption[r, t]
-        
+
         # Define Consumption per Resource based on BOM
         # Growth: Consumes 'structure' (ISRU) mostly.
         # City: Consumes weighted mix.
-        
+
         def _consumption_rule(mdl, r, t):
             # 1. Growth consumption
             growth_share = self.growth_bom.get(r, 0.0)
-            
+
             # 2. City consumption (BOM)
             # Simplified:
             # - 'structure': 0.7
@@ -435,13 +465,19 @@ class PyomoBuilder:
             # - 'life_support': 0.1
             # - 'water': 0.1
             city_share = 0.0
-            if "structure" in r: city_share = 0.7
-            elif "electronics" in r: city_share = 0.1
-            elif "life_support" in r: city_share = 0.1
-            elif "water" in r: city_share = 0.1
-            
-            consumed = (growth_share * mdl.delta_Growth[t]) + (city_share * mdl.delta_City[t])
-            
+            if "structure" in r:
+                city_share = 0.7
+            elif "electronics" in r:
+                city_share = 0.1
+            elif "life_support" in r:
+                city_share = 0.1
+            elif "water" in r:
+                city_share = 0.1
+
+            consumed = (growth_share * mdl.delta_Growth[t]) + (
+                city_share * mdl.delta_City[t]
+            )
+
             # 3. Population Consumption (Water)
             # If r is water, add Pop * rate
             if self.water_res == r:
@@ -450,60 +486,67 @@ class PyomoBuilder:
             return consumed
 
         def _moon_balance_rule(mdl, r, t):
-            prev = mdl.I_M[r, t-1] if t > 0 else 0
-            
+            prev = mdl.I_M[r, t - 1] if t > 0 else 0
+
             # Arrivals from Earth (via I_E or direct A_E)
-            # In previous code, A_E was arrivals. 
-            arrivals = mdl.A_E[r, t] 
-            
+            # In previous code, A_E was arrivals.
+            arrivals = mdl.A_E[r, t]
+
             # Production
             produced = mdl.Q[r, t]
-            
+
             # Consumption
             consumed = _consumption_rule(mdl, r, t)
-            
+
             return mdl.I_M[r, t] == prev + arrivals + produced - consumed
-            
+
         m.inv_balance_moon = pyo.Constraint(m.R, m.T, rule=_moon_balance_rule)
-        
+
         # Link A_E (Arrivals) to Inflows
         def _arrival_link_rule(mdl, r, t):
-             inflow = sum(
+            inflow = sum(
                 mdl.x[a, r, t - mdl.arc_lead[a]]
                 for a in mdl.A_to_Moon
                 if t - mdl.arc_lead[a] >= 0
             )
-             return mdl.A_E[r, t] == inflow
+            return mdl.A_E[r, t] == inflow
+
         m.arrival_link = pyo.Constraint(m.R, m.T, rule=_arrival_link_rule)
 
         # 3. Production Capacity Limit
         # Total Q <= P / steps
-        m.production_limit = pyo.Constraint(m.T, rule=lambda mdl, t: sum(mdl.Q[r, t] for r in mdl.R) <= mdl.P[t] / self.steps_per_year)
+        m.production_limit = pyo.Constraint(
+            m.T,
+            rule=lambda mdl, t: sum(mdl.Q[r, t] for r in mdl.R)
+            <= mdl.P[t] / self.steps_per_year,
+        )
 
         # 3b. ISRU Feasibility: Non-ISRU resources cannot be produced locally
         def _isru_prod_rule(mdl, r, t):
             if pyo.value(mdl.isru_ok[r]) < 0.5:
                 return mdl.Q[r, t] == 0
             return pyo.Constraint.Skip
+
         m.isru_production = pyo.Constraint(m.R, m.T, rule=_isru_prod_rule)
 
         # Note: I_E at Moon is now redundant if we assume everything dumps into I_M.
-        # But we need to handle "Transiting" Inventory? 
+        # But we need to handle "Transiting" Inventory?
         # I_E[Moon] is zeroed out or forced to 0?
         # Let's just not constrain I_E[Moon] and let it be 0.
 
-        
     def _add_goal_constraints(self):
         m = self.m
-        
+
         # Cumulative City Mass
         def _cum_city_rule(mdl, t):
             if t == 0:
                 return mdl.Cumulative_City[t] == mdl.delta_City[t]
-            return mdl.Cumulative_City[t] == mdl.Cumulative_City[t-1] + mdl.delta_City[t]
-        
+            return (
+                mdl.Cumulative_City[t] == mdl.Cumulative_City[t - 1] + mdl.delta_City[t]
+            )
+
         m.cum_city_state = pyo.Constraint(m.T, rule=_cum_city_rule)
-        
+
         # Goal: Hard deadline on cumulative city mass
         target_mass_kg = self.total_demand_kg
         if self.deadline_year is not None:
@@ -530,45 +573,46 @@ class PyomoBuilder:
     def _create_objective(self):
         m = self.m
         w_C = float(self.constants["objective"]["w_C"])
-        w_T = float(self.constants["objective"]["w_T"]) # Use w_T as weight for "Early Growth"
+        w_T = float(
+            self.constants["objective"]["w_T"]
+        )  # Use w_T as weight for "Early Growth"
 
         m.cost_total = pyo.Expression(
             expr=sum(
                 m.arc_cost[a, t] * m.x[a, r, t] for a in m.A for r in m.R for t in m.T
             )
         )
-        
+
         # New Objective: Minimize Cost - Reward for City Mass accumulation (Integral)
         # Maximizing Sum(Cumulative_City[t]) pushes for early growth.
         # Scale: Cost is in USD (~1e9 to 1e12). City Mass is 1e5 to 1e8 tons.
-        # We need to balance weights. 
+        # We need to balance weights.
         # Assuming w_T in constants is appropriately scaled or we might need to adjust.
         # For now, simplistic implementation.
-        
+
         # Capped Reward Logic
         # We want to reward growth only up to the target.
-        # Define auxiliary variable: Rewardable_City[t] 
+        # Define auxiliary variable: Rewardable_City[t]
         # Rewardable_City[t] <= Cumulative_City[t]
         # Rewardable_City[t] <= Target_Mass
-        
+
         m.Rewardable_City = pyo.Var(m.T, domain=pyo.NonNegativeReals)
-        
+
         target_mass_kg = self.total_demand_kg
-        
+
         def _reward_cap_rule1(mdl, t):
             return mdl.Rewardable_City[t] <= mdl.Cumulative_City[t]
+
         m.reward_cap1 = pyo.Constraint(m.T, rule=_reward_cap_rule1)
-        
+
         def _reward_cap_rule2(mdl, t):
             return mdl.Rewardable_City[t] <= target_mass_kg
+
         m.reward_cap2 = pyo.Constraint(m.T, rule=_reward_cap_rule2)
 
-        m.city_integral = pyo.Expression(
-            expr=sum(m.Rewardable_City[t] for t in m.T)
-        )
-        
+        m.city_integral = pyo.Expression(expr=sum(m.Rewardable_City[t] for t in m.T))
+
         # We minimize: w_C * Cost - w_T * Integral
         m.obj_total = pyo.Objective(
-            expr=w_C * m.cost_total - w_T * m.city_integral, 
-            sense=pyo.minimize
+            expr=w_C * m.cost_total - w_T * m.city_integral, sense=pyo.minimize
         )

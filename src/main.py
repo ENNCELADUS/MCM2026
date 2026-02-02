@@ -115,6 +115,23 @@ Examples:
         action="store_true",
         help="Run all three scenarios and export a comparison report (slower)",
     )
+    parser.add_argument(
+        "--risk",
+        action="store_true",
+        help="Run stochastic risk simulation (Task 2) after optimization",
+    )
+    parser.add_argument(
+        "--baseline",
+        type=str,
+        default=None,
+        help="Path to baseline results directory for --risk mode (skip optimization)",
+    )
+    parser.add_argument(
+        "--risk-runs",
+        type=int,
+        default=None,
+        help="Number of Monte Carlo runs for risk analysis (default: from config)",
+    )
 
     return parser.parse_args()
 
@@ -313,7 +330,6 @@ def run_pipeline(
 def main() -> int:
     """Main entry point."""
     args = parse_args()
-    settings = create_settings(args)
 
     # Determine constants path
     constants_path = (
@@ -323,6 +339,36 @@ def main() -> int:
     )
 
     try:
+        # ------------------------------------------------------------------
+        # Risk-only mode: skip optimization, run simulation on existing baseline
+        # ------------------------------------------------------------------
+        if args.risk and args.baseline:
+            import yaml
+            from risk import run_risk_analysis
+
+            if args.verbose:
+                print("[Mode] Risk analysis only (using existing baseline)")
+
+            with open(constants_path) as f:
+                constants = yaml.safe_load(f)
+
+            baseline_dir = Path(args.baseline)
+            output_dir = baseline_dir / "risk"
+
+            run_risk_analysis(
+                baseline_dir=baseline_dir,
+                constants=constants,
+                output_dir=output_dir,
+                n_runs=args.risk_runs,
+                verbose=args.verbose,
+            )
+            return 0
+
+        # ------------------------------------------------------------------
+        # Standard pipeline
+        # ------------------------------------------------------------------
+        settings = create_settings(args)
+
         if args.compare_scenarios:
             from dataclasses import replace
 
@@ -330,7 +376,11 @@ def main() -> int:
 
             base_output = settings.output_dir
             scenario_reports: dict[str, dict] = {}
-            for scenario in (ScenarioType.E_ONLY, ScenarioType.R_ONLY, ScenarioType.MIX):
+            for scenario in (
+                ScenarioType.E_ONLY,
+                ScenarioType.R_ONLY,
+                ScenarioType.MIX,
+            ):
                 scenario_dir = base_output / scenario.value
                 scenario_settings = replace(
                     settings, scenario=scenario, output_dir=scenario_dir
@@ -363,6 +413,27 @@ def main() -> int:
             verbose=args.verbose,
             sanity_check=args.sanity_check,
         )
+
+        # ------------------------------------------------------------------
+        # Risk analysis after optimization (if --risk flag)
+        # ------------------------------------------------------------------
+        if args.risk and result["status"] in ("OPTIMAL", "FEASIBLE"):
+            import yaml
+            from risk import run_risk_analysis
+
+            if args.verbose:
+                print("\n[Mode] Running risk analysis on optimized baseline...")
+
+            with open(constants_path) as f:
+                constants = yaml.safe_load(f)
+
+            run_risk_analysis(
+                baseline_dir=settings.output_dir,
+                constants=constants,
+                output_dir=settings.output_dir / "risk",
+                n_runs=args.risk_runs,
+                verbose=args.verbose,
+            )
 
         if result["status"] in ("OPTIMAL", "FEASIBLE", "DRY_RUN"):
             return 0

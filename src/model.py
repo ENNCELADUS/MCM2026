@@ -206,16 +206,16 @@ class MoonLogisticsModel:
             model = self._model
 
             result = solver.solve(model, tee=True, load_solutions=False)
-            
+
             term = result.solver.termination_condition
             status_str = str(result.solver.status)
-            
+
             is_ok = False
             if term == TerminationCondition.optimal:
                 is_ok = True
             elif term == TerminationCondition.feasible:
                 is_ok = True
-            
+
             if not is_ok:
                 return (
                     {
@@ -372,19 +372,19 @@ class MoonLogisticsModel:
             self.constants["parameter_summary"]["materials"]["bom"]["total_demand_tons"]
             * self.constants["units"]["ton_to_kg"]
         )
-        total_mass = sum(
-            pyo.value(m.A_E[r, t] + m.Q[r, t]) for r in m.R for t in m.T
-        )
-        target_pop = self.constants["parameter_summary"]["colony"]["target"]["population"]
-        
+        total_mass = sum(pyo.value(m.A_E[r, t] + m.Q[r, t]) for r in m.R for t in m.T)
+        target_pop = self.constants["parameter_summary"]["colony"]["target"][
+            "population"
+        ]
+
         t_end = len(m.T) - 1
         population_at_end = pyo.value(m.Pop[t_end])
-        
+
         # New Metric: Cumulative City Mass
         if hasattr(m, "Cumulative_City"):
-             cum_city_at_end = pyo.value(m.Cumulative_City[t_end])
+            cum_city_at_end = pyo.value(m.Cumulative_City[t_end])
         else:
-             cum_city_at_end = 0.0
+            cum_city_at_end = 0.0
 
         rocket_trips = 0.0
         if hasattr(m, "A_Rock") and len(m.A_Rock) > 0:

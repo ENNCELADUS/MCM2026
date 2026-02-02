@@ -44,19 +44,20 @@ class ModelSettings:
     solver_timeout: int = 3600
     mip_gap: float = 0.01
     output_dir: Path = field(default_factory=lambda: Path("results"))
-    
+
     def __post_init__(self):
         # Strict type and value validation
         _validate_required(self, "scenario", self.scenario, ScenarioType)
         _validate_required(self, "T_horizon", self.T_horizon, int)
         _validate_positive(self, "T_horizon", self.T_horizon)
-        _validate_required(self, "enable_learning_curve", self.enable_learning_curve, bool)
+        _validate_required(
+            self, "enable_learning_curve", self.enable_learning_curve, bool
+        )
         _validate_required(self, "enable_preposition", self.enable_preposition, bool)
-        
+
         # Coerce output_dir to Path if string
         if isinstance(self.output_dir, str):
             self.output_dir = Path(self.output_dir)
-
 
 
 def _validate_required(
@@ -101,7 +102,6 @@ def _validate_range(
 
 
 # Task Network definitions have been removed in favor of Continuous Growth Model.
-
 
 
 # =============================================================================

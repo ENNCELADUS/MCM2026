@@ -89,7 +89,9 @@ def _build_solution_report(
     urban_start_fraction = float(reporting_cfg.get("urban_start_fraction", 0.1))
 
     isru_resources = {
-        r for r in m.R if _safe_value(m.isru_ok[r]) >= 0.5  # type: ignore[index]
+        r
+        for r in m.R
+        if _safe_value(m.isru_ok[r]) >= 0.5  # type: ignore[index]
     }
 
     timeseries_rows: list[dict[str, Any]] = []
@@ -106,16 +108,12 @@ def _build_solution_report(
         year = utils.get_year_for_t(int(t), constants)
         arrivals_kg = sum(_safe_value(m.A_E[r, t]) for r in m.R)
         isru_kg = sum(_safe_value(m.Q[r, t]) for r in isru_resources)
-        tier1_kg = sum(
-            _safe_value(m.A_E[r, t]) for r in m.R if r in tier1_resources
-        )
+        tier1_kg = sum(_safe_value(m.A_E[r, t]) for r in m.R if r in tier1_resources)
         city_kg = _safe_value(m.Cumulative_City[t])
         p_tpy = _safe_value(m.P[t])
 
         # Transport mode breakdown
-        rocket_kg_t = sum(
-            _safe_value(m.x[a, r, t]) for a in rocket_arcs for r in m.R
-        )
+        rocket_kg_t = sum(_safe_value(m.x[a, r, t]) for a in rocket_arcs for r in m.R)
         elevator_kg_t = sum(
             _safe_value(m.x[a, r, t]) for a in elevator_arcs for r in m.R
         )
@@ -242,9 +240,7 @@ def _build_solution_report(
         "replication_end_year": _year_for_step(
             replication_end_t, start_year, steps_per_year
         ),
-        "urban_start_year": _year_for_step(
-            urban_start_t, start_year, steps_per_year
-        ),
+        "urban_start_year": _year_for_step(urban_start_t, start_year, steps_per_year),
         "phases": phases,
     }
 
@@ -290,7 +286,6 @@ def _build_comparison_report(
     }
 
 
-
 def _write_timeseries_csv(path: Path, rows: Iterable[dict[str, Any]]) -> None:
     fieldnames = [
         "t",
@@ -323,7 +318,7 @@ def _write_solution_tex(path: Path, report: dict[str, Any]) -> None:
     scenario = report.get("scenario", "Mix")
     duration_years = _fmt_or_na(report.get("duration_years"), 1)
     completion_year = _fmt_or_na(report.get("completion_year"), 0)
-    
+
     # Seed mass breakdown
     seed_mass_mtons = (
         report.get("seed_mass_tons") / 1_000_000
@@ -331,21 +326,21 @@ def _write_solution_tex(path: Path, report: dict[str, Any]) -> None:
         else None
     )
     seed_mass = _fmt_or_na(seed_mass_mtons, 2)
-    
+
     seed_rocket_mtons = (
         report.get("seed_rocket_tons") / 1_000_000
         if report.get("seed_rocket_tons") is not None
         else None
     )
     seed_rocket = _fmt_or_na(seed_rocket_mtons, 2)
-    
+
     seed_elevator_mtons = (
         report.get("seed_elevator_tons") / 1_000_000
         if report.get("seed_elevator_tons") is not None
         else None
     )
     seed_elevator = _fmt_or_na(seed_elevator_mtons, 2)
-    
+
     isru_share = _fmt_or_na(
         report.get("isru_share_end") * 100
         if report.get("isru_share_end") is not None
@@ -365,7 +360,7 @@ def _write_solution_tex(path: Path, report: dict[str, Any]) -> None:
             phase_lines.append(f"{phase['phase']} ({start}--{end})")
 
     phases_text = ", ".join(phase_lines) if phase_lines else "N/A"
-    
+
     # Transport mode text
     if seed_rocket != "N/A" and seed_elevator != "N/A":
         seed_breakdown = f"(\\textbf{{{seed_rocket} million tons}} via rockets, \\textbf{{{seed_elevator} million tons}} via Space Elevator)"
@@ -394,12 +389,12 @@ def _write_solution_tex(path: Path, report: dict[str, Any]) -> None:
 def _write_comparison_tex(path: Path, comparison: dict[str, Any]) -> None:
     dominant = comparison.get("dominant_scenario")
     within = comparison.get("within_half_century", [])
-    
+
     # Hybrid scenario details for specific numbers
     hybrid_duration = comparison.get("hybrid_duration_years")
     hybrid_seed_rocket = comparison.get("hybrid_seed_rocket_tons")
     hybrid_seed_elevator = comparison.get("hybrid_seed_elevator_tons")
-    
+
     # Format hybrid duration
     duration_str = _fmt_or_na(hybrid_duration, 1) if hybrid_duration else "N/A"
 
@@ -424,16 +419,18 @@ def _write_comparison_tex(path: Path, comparison: dict[str, Any]) -> None:
             + "."
         )
     else:
-        lead_line = (
-            r"Simulation results confirm that none of the scenarios meet the target within a half-century."
-        )
-    
+        lead_line = r"Simulation results confirm that none of the scenarios meet the target within a half-century."
+
     # Hybrid model explanation with seed mass breakdown
     seed_rocket_mtons = hybrid_seed_rocket / 1_000_000 if hybrid_seed_rocket else None
-    seed_elevator_mtons = hybrid_seed_elevator / 1_000_000 if hybrid_seed_elevator else None
+    seed_elevator_mtons = (
+        hybrid_seed_elevator / 1_000_000 if hybrid_seed_elevator else None
+    )
     seed_rocket_str = _fmt_or_na(seed_rocket_mtons, 2) if seed_rocket_mtons else "N/A"
-    seed_elevator_str = _fmt_or_na(seed_elevator_mtons, 2) if seed_elevator_mtons else "N/A"
-    
+    seed_elevator_str = (
+        _fmt_or_na(seed_elevator_mtons, 2) if seed_elevator_mtons else "N/A"
+    )
+
     if seed_rocket_str != "N/A":
         hybrid_explanation = (
             rf"The hybrid model optimizes the ``Cold Start'' problem: rockets are utilized for the initial "
@@ -459,7 +456,6 @@ def _write_comparison_tex(path: Path, comparison: dict[str, Any]) -> None:
     )
 
     path.write_text(text)
-
 
 
 def _tier1_resources(tiers: list[dict[str, Any]]) -> set[str]:
@@ -528,16 +524,16 @@ def _build_phase_rows(
     if bootstrap_t is not None:
         # End of seeding is start of replication
         rep_start = bootstrap_t
-        
+
         # End of replication is either when capacity saturates OR when urban build starts
         # If replication_end_t is None (didn't saturate), use urban_start_t
         rep_end = replication_end_t
         if rep_end is None and urban_start_t is not None:
             rep_end = urban_start_t
-        
+
         # Only add if we have a valid end and it's after start
         if rep_end is not None and rep_end > rep_start:
-             phases.append(
+            phases.append(
                 {
                     "phase": "Capacity Self-Replication",
                     "start_year": _year_for_step(rep_start, start_year, steps_per_year),
@@ -548,12 +544,8 @@ def _build_phase_rows(
         phases.append(
             {
                 "phase": "Urban Habitation Expansion",
-                "start_year": _year_for_step(
-                    urban_start_t, start_year, steps_per_year
-                ),
-                "end_year": _year_for_step(
-                    completion_t, start_year, steps_per_year
-                ),
+                "start_year": _year_for_step(urban_start_t, start_year, steps_per_year),
+                "end_year": _year_for_step(completion_t, start_year, steps_per_year),
             }
         )
     return phases

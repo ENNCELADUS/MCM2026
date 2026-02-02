@@ -123,10 +123,12 @@ class DecisionVariables:
 
     # Capacity Growth Flows (System Dynamics)
     delta_Growth: np.ndarray = field(default=None)  # (T,) Reinvestment into P (kg/year)
-    delta_City: np.ndarray = field(default=None)    # (T,) Consumption for City (kg/year)
-    
+    delta_City: np.ndarray = field(default=None)  # (T,) Consumption for City (kg/year)
+
     # Phase control
-    z_PhaseII: np.ndarray = field(default=None)     # (T,) Binary: 1 if in Phase II (Replication)
+    z_PhaseII: np.ndarray = field(
+        default=None
+    )  # (T,) Binary: 1 if in Phase II (Replication)
 
     def __post_init__(self):
         """Initialize arrays if not provided."""
