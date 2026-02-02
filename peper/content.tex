@@ -237,33 +237,49 @@ where $\alpha$ is the self-replication efficiency and $\beta$ is the input facto
 The evaluation of the Earth-Moon supply chain requires a rigorous definition of how transport capacity evolves and how operational costs fluctuate over the fifty-year construction horizon. We model the two competing systems—chemical rockets and the space elevator—using distinct mathematical approaches that reflect their unique physical and economic constraints.
 
 \subsubsection{Rocket System Modeling}
-The capacity of traditional chemical rocket systems is fundamentally constrained by the energy density of propellants and the structural integrity of reusable launch vehicles. We model the annual payload capacity $L_{cap}(t)$ using a \textbf{Logistic Growth Model}:
+The capacity evolution of chemical rocket systems is modeled not by astrodynamics constraints, but by rigorous ground infrastructure analysis. We employ a \textbf{Logistic Growth Model} for the annual launch capacity $L_{cap}(t)$:
 \begin{equation}
-L_{cap}(t) = \frac{L_{max}}{1 + A \cdot e^{-k(t - t_0)}}
+L_{cap}(t) = \frac{L_{max}}{1 + A \cdot e^{-r(t - t_0)}}
 \end{equation}
-where $L_{max}$ represents the ultimate physical limit of annual throughput, $k$ is the technological iteration rate, and $t_0$ is the inflection point of the technology explosion. This reflects the maturation from current heavy-lift vehicles to ultra-heavy reusable platforms, approaching a saturation point dictated by global launch site constraints.
+where $L_{max}$ defines the infrastructure saturation ceiling. Unlike theoretical orbital limits, this cap is dictated by range operations, pad turnaround times, and safety protocols. Empirical data shows global orbital attempts reaching a peak of 329 in 2025~\cite{mcdowell2024}. The United States Space Force (USSF) has demonstrated high-cadence feasibility with 93 launches from the Eastern Range and 51 from Vandenberg in 2024, executing 28 instances of "2 launches in 24 hours" since 2022~\cite{mcdowell2024}. However, GAO reports flag significant range strain, indicating that while cadence can surge, it cannot scale indefinitely. Consequently, we set a conservative infrastructure ceiling of $L_{max} \approx 1500$ launches/year, assuming a handful of major global spaceports each sustaining operations of 200-300 launches annually.
 
-
-Parallel to capacity growth, the unit cost of rocket transport is expected to decrease significantly due to the maturity of reusable technologies and economies of scale. Following the principles of \textbf{Wright’s Law} and the \textbf{Transcost 7.0} coupling model, we define the cost evolution function  as:
+Parallel to capacity, the unit cost of rocket transport follows a \textbf{Floor-Constrained Exponential Decay Model}, fitted to historical market rates from 2005 to 2024 (dropping from $\sim\$25,000/$kg to $\sim\$1,500/$kg)~\cite{csis2024}:
 \begin{equation}
-Cost_R(t) = Cost_{2050} \cdot (1 - r)^{t - t_0}
+Cost_R(t) = (C_{start} - C_{min}) \cdot e^{-\lambda (t - t_{start})} + C_{min}
 \end{equation}
-where  is the annual cost decay rate (historically observed at approximately ) and  is the projected entry-level cost per kilogram for lunar delivery. This decay reflects the "learning curve" effect where doubling the cumulative number of launches reduces marginal costs toward a theoretical floor determined by propellant and maintenance expenses.
+Our regression analysis yields a decay rate $\lambda \approx 0.17$, with a projected floor $C_{min} = \$100/$kg. This non-zero floor is critical, representing the irreducible physical costs of propellant, refurbishment, and range operations that persist even with fully reusable architectures.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
     \includegraphics[width=1\linewidth]{rocket_model.png}
-    \caption{Multi-dimensional Evolution Modeling of Space Transportation Systems: Historical Validation and 21st Century Projections}
+    \caption{Projected Evolution of Rocket Systems (2000-2100). (Left) Launch frequency saturation governed by infrastructure limits ($L_{max}=1500$). (Right) Cost reduction curve stabilizing at the \$100/kg operational floor.}
     \label{fig:rocket_model}
 \end{figure}
 
 \subsubsection{Space Elevator System Modeling}
 
-In contrast to the variable dynamics of rocket systems, the Space Elevator System, comprising three Galactic Harbours, offers a steady-state, high-throughput corridor. Based on the technical specifications provided by the MCM Agency, each Galactic Harbour is capable of lifting 179,000 metric tons annually. Therefore, the total system capacity  is treated as a constant:
+In contrast to the variable dynamics of rocket systems, the Space Elevator System is modeled as an evolving infrastructure rather than a static pipeline. We model its transport capacity evolution $C_E(t)$ using a \textbf{Logistic Growth Model}, starting from the MCM Agency's baseline of 537,000 t/y in 2050:
 \begin{equation}
-C_E = 3 \times 179,000 = 537,000 \text{ metric tons/year}
+C_E(t) = \frac{C_{E,max}}{1 + A \cdot e^{-k_E (t - t_0)}}
 \end{equation}
-From an economic perspective, the space elevator represents a \textbf{High-CAPEX, Low-OPEX} infrastructure. We assume the massive initial construction costs (estimated at 10 billion USD per harbour) have been amortized by 2050, allowing the system to operate at a marginal cost significantly lower than chemical rockets. The primary cost component for the elevator is the electricity required for the climbers and the maintenance of the 100,000 km graphene tethers.
+The physical saturation limit $C_{E,max}$ is rigorously derived from the operational constraints of the "Aggregated Galactic Harbour" (3 harbours, 2 tethers each). Assuming a climber payload $m_{load}=100$ tons, an average ascent velocity $v_{climber}=200$ km/h ($55.6$ m/s), and a safety spacing $D_{safe}=1000$ km to resolve Coriolis forces, the theoretical maximum throughput is:
+\begin{equation}
+C_{E,max} = N_{tethers} \cdot \frac{m_{load} \cdot v_{climber}}{D_{safe}} \cdot T_{year} \cdot \eta
+\end{equation}
+Substituting $N_{tethers}=6$, $\eta=0.95$ (availability), and $T_{year}=3.15 \times 10^7$ s, we obtain a physical ceiling of $C_{E,max} \approx 1,000,000$ metric tons/year.
+
+Economically, the elevator follows a \textbf{Floor-Constrained Exponential Decay Model}, benefiting from low marginal costs driven by electricity and maintenance efficiencies. We model the unit cost dropping from an initial \$50/kg to a mature floor of \$5/kg:
+\begin{equation}
+Cost_E(t) = (C_{start} - C_{min}) \cdot e^{-\lambda (t - t_{start})} + C_{min}
+\end{equation}
+where $C_{start}=\$50$, $C_{min}=\$5$, and $\lambda \approx 0.06$ (annual decay), reflecting the amortization of the massive initial infrastructure investment.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{elevator_model.png}
+    \caption{Projected Evolution of Space Elevator Systems (2050-2100). (Left) Capacity growth approaching the 1 Mt/y physical ceiling. (Right) Unit cost reduction driven by economies of scale and amortized infrastructure.}
+    \label{fig:elevator_model}
+\end{figure}
 
 \subsection{Multi-Objective Evaluation Framework}
 To rigorously assess the performance of various transportation scenarios, we define a Comprehensive Performance Index ($Z$) as our primary evaluation criterion. This framework balances temporal urgency against economic feasibility:
@@ -456,13 +472,13 @@ where $X_j \sim \text{Bernoulli}(P_s)$ denotes the success of mission $j$, and $
 By integrating these stochastic variables into our Monte Carlo simulation, we quantify the sensitivity of the 2096 completion target to system instabilities.
 
 \textbf{1. The Long-Tail Effect on Project Duration.}
-【Insert Figure: Probability Distribution Histograms (Time & Cost) — Showing the right-skewed distribution of completion dates due to cumulative delays.】
+Insert Figure: Probability Distribution Histograms (Time \& Cost) — Showing the right-skewed distribution of completion dates due to cumulative delays.
 
 \textbf{2. Global Sensitivity Analysis: Identifying the Primary Constraint.}
-【Insert Figure: Tornado Diagram — Ranking risk factors from highest to lowest impact on total mission cost and time.】
+Insert Figure: Tornado Diagram — Ranking risk factors from highest to lowest impact on total mission cost and time.
 
 \textbf{3. Identifying the "Failure Cliff" via 3D Landscape Analysis.}
-【Insert Figure: 3D Risk Landscape Surface — Visualizing the relationship between system failure rates and project viability to identify critical instability thresholds.】
+Insert Figure: 3D Risk Landscape Surface — Visualizing the relationship between system failure rates and project viability to identify critical instability thresholds.
 
 Following the rigorous modeling of failure modes in the previous section, we present the results of our stochastic analysis to quantify the impact of operational uncertainty on the lunar colony's construction.
 
@@ -1305,8 +1321,8 @@ Based on the risk landscapes identified, we propose adaptive strategies to safeg
 % \end{itemize}
 % % 参考文献
 % % 参考文献
-% \bibliographystyle{unsrt} % 选择数字引用样式
-% \bibliography{team.bib}
+\bibliographystyle{unsrt} % 选择数字引用样式
+\bibliography{team}
 
 
 

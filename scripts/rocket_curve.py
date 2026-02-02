@@ -214,4 +214,7 @@ for ax in axs.flat:
     ax.set_xlabel('Year')
 
 plt.tight_layout(pad=4.0)
+output_path = "../peper/rocket_model.png"
+plt.savefig(output_path, dpi=300)
+print(f"Plot saved to {output_path}")
 plt.show()
