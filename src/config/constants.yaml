@@ -261,3 +261,37 @@ water:
     enabled: true
     q_L_capacity_tpy: 50000           # Lunar polar ice extraction rate (tons/year)
     F_ISRU_usd: 2.0e10                 # Fixed ISRU deployment cost ($20 Billion)
+
+# -----------------------------------------------------------------------------
+# Environmental Impact Parameters (Model IV / Task 4)
+# -----------------------------------------------------------------------------
+environment:
+  # Emission intensity vector for rockets (kg pollutant per ton payload)
+  rocket_emissions:
+    e_CO2: 3100.0      # kg CO2 per ton payload (kerosene-LOX, ~3 kg/kg propellant)
+    e_BC: 0.6          # kg black carbon per ton payload (stratospheric soot)
+    e_Al2O3: 15.0      # kg alumina per ton payload (solid boosters)
+    e_NOx: 2.5         # kg NOx per ton payload
+
+  # Stratospheric sensitivity weights ($ per kg of pollutant)
+  stratospheric_weights:
+    w_CO2: 0.05        # $/kg CO2e (low, surface equivalent)
+    w_BC: 500.0        # $/kg BC (high stratospheric impact, ozone forcing)
+    w_Al2O3: 100.0     # $/kg alumina (albedo effects)
+    w_NOx: 50.0        # $/kg NOx (ozone catalytic cycle)
+
+  # Elevator emissions (near-zero operational, grid-dependent)
+  elevator_emissions:
+    CI_grid_kg_CO2_per_kWh: 0.05   # Grid carbon intensity (renewable-heavy future)
+    energy_per_ton_kWh: 500.0      # Energy to lift 1 ton to GEO
+
+  # Lunar disturbance coefficients (environmental shadow price)
+  moon_disturbance:
+    epsilon_reg: 0.5        # $/ton (baseline regolith disturbance)
+    epsilon_sens: 10.0      # $/ton (sensitive zone penalty, PSR, heritage sites)
+    sens_fraction: 0.05     # 5% of ISRU in sensitive zones
+
+  # Conservative baseline parameters (for counterfactual comparison)
+  conservative_baseline:
+    bootstrap_delay_years: 5.0    # Delay before ISRU bootstrap without rockets
+    capacity_growth_penalty: 0.5  # 50% slower growth rate

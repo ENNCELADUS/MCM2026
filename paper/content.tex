@@ -574,6 +574,69 @@ The categorization of payloads in Figure \ref{fig:water_impact}(b) confirms the 
 
 The financial analysis yields an \textbf{Additional Cost of \$89.1 Billion} over the project lifecycle. This significant expenditure is driven by two factors: the increased capital requirement for high-capacity ISRU infrastructure ($F_{ISRU} = \$20.0\text{B}$) and the substantial logistic burden of maintaining a hydrological inventory against higher agricultural demands ($w_{ag} = 100 \text{ kg/cap/day}$) and conservative recycling efficiencies ($\eta_{bio} = 0.96$). Sensitivity analysis confirms that without pre-emptive ISRU extraction, the recurring annual replenishment of 175,200 tons would be economically prohibitive. Thus, the \$89.1B investment represents a critical foundational cost for ensuring biological viability.
 
+\section{Model IV: Environmental Sustainability and Ecological Assessment}
+
+\subsection{The Integrated Component-Equivalent Framework}
+
+\subsubsection{Objective Reformulation and Shadow Pricing}
+To rigorously internalize ecological externalities, we extend the Comprehensive Performance Index (CPI) into a multi-objective \textbf{Environmental Integrated Cost (EIC)} framework. Unlike traditional logistics models that treat environmental impact as a secondary constraint, we define it as a dynamic "shadow price" governing the strategic allocation of transport modes. The global objective function is reformulated to minimize the aggregate weighted cost, combining temporal latency, fiscal expenditure, and the cumulative environmental debt of both Earth and the Moon:
+
+\begin{equation}
+\min J = w_T \cdot T_{end} + w_C \cdot \sum_{t=t_0}^{T_{end}} C_{total}(t) + \underbrace{\lambda_E \cdot \mathcal{D}_{E} + \lambda_M \cdot \mathcal{D}_{M}}_{\text{Planetary Environmental Debt}}
+\end{equation}
+
+In this framework, $\mathcal{D}_E$ and $\mathcal{D}_M$ represent the comprehensive environmental equivalent debt for Earth and the Moon, respectively, normalized to a unified economic metric (USD-equivalent). This formulation forces the optimization solver to navigate the trade-off between the immediate "pollution cost" of chemical propulsion and the long-term "sustainability benefits" of accelerated lunar industrialization.
+
+\subsection{Quantification of Planetary Debt Dynamics}
+
+\subsubsection{Terrestrial Stratospheric Burden ($\mathcal{D}_E$)}
+The terrestrial environmental debt is dominated by the cumulative radiative forcing caused by high-altitude rocket emissions. Unlike surface transport, chemical launch vehicles inject particulates directly into the stratosphere, where residence times exceed 2-3 years. We quantify the Earth-side debt as the time-integral of the mass flow rate adjusted for stratospheric sensitivity vectors:
+
+\begin{equation}
+\mathcal{D}_{E} = \int_{t_0}^{T_{end}} \sum_{m \in \{Rocket, Elev\}} \sum_{k} x_{m,k}(t) \cdot (\mathbf{w}_E^\top \mathbf{e}_{m}) dt
+\end{equation}
+
+Here, $x_{m,k}(t)$ denotes the mass flow of cargo type $k$ via mode $m$. The emission intensity vector $\mathbf{e}_m = [e_{CO_2}, e_{BC}, e_{Al_2O_3}, e_{NO_x}]^\top$ captures the specific pollutants per ton of payload. The weighting vector $\mathbf{w}_E$ amplifies the impact of black carbon ($BC$) and alumina ($Al_2O_3$) due to their high Ozone Depletion Potential (ODP) and radiative forcing indices in the upper atmosphere. Crucially, while the Space Elevator ($m=Elev$) operates with near-zero direct emissions ($\mathbf{e}_{Elev} \approx \mathbf{0}$), the chemical rocket fleet imposes a heavy "front-loaded" debt, necessitating a strategic throttling of launch cadence once the elevator capacity comes online.
+
+\subsubsection{Lunar Surface Disturbance Intensity ($\mathcal{D}_M$)}
+On the lunar surface, the concept of "pollution" is redefined as the irreversible disruption of the regolith environment and the contamination of pristine volatile traps. We model the lunar debt not as thermodynamic entropy, but as a function of \textbf{Industrial Disturbance Intensity}:
+
+\begin{equation}
+\mathcal{D}_{M} = \int_{t_0}^{T_{end}} \left[ \epsilon_{reg} \cdot q_{ISRU}(t) + \epsilon_{sens} \cdot q_{ISRU}(t) \cdot \mathbb{I}_{sens}(t) \right] dt
+\end{equation}
+
+where $q_{ISRU}(t)$ is the extraction throughput. The coefficient $\epsilon_{reg}$ quantifies the baseline physical disruption (mechanized regolith turnover), while $\epsilon_{sens}$ imposes a severe penalty for operations within sensitive zones, such as Permanently Shadowed Regions (PSRs) or designated heritage sites. The indicator function $\mathbb{I}_{sens}(t) \in [0,1]$ represents the proportion of extraction occurring in these high-value scientific zones, incentivizing the solver to restrict ISRU activities to low-sensitivity equatorial maria.
+
+\subsection{The Environmental Investment Tipping Point}
+
+\subsubsection{Coupled Seeding-Growth Dynamics}
+The minimization of $\mathcal{D}_E$ is not achieved by simply eliminating rocket launches, but by leveraging them to accelerate the "Decoupling Point." We model the lunar industrial capacity $P(t)$ as a saturation-limited growth function driven by specific Tier-1 technological inputs:
+
+\begin{equation}
+\frac{dP(t)}{dt} = \alpha P(t) \left( 1 - \frac{P(t)}{P_{max}} \right) + \beta \cdot \Phi_{R, Tier1}(t - \tau)
+\end{equation}
+
+where $\Phi_{R, Tier1}$ represents the influx of high-complexity "seed" machinery delivered exclusively by rockets. This differential coupling reveals a counter-intuitive \textbf{Environmental Investment Logic}: an aggressive initial deployment of dirty rockets maximizes the term $\beta \cdot \Phi_{R, Tier1}$, rapidly elevating $P(t)$. This accelerated industrialization allows for an earlier transition to high ISRU localization ($k_i \to 1$), thereby drastically reducing the total Earth-to-Moon mass requirement ($\int x_{m,k} dt$) over the project lifecycle.
+
+\subsubsection{Inter-Planetary Liability Exchange}
+The optimal solution exhibits a phenomenon we define as \textbf{Inter-Planetary Liability Exchange}. The mission strategically accumulates terrestrial debt $\mathcal{D}_E$ during the "Seeding Phase" (2050-2053) to establish a self-sufficient lunar industrial base. This "investment" yields a net positive return by preventing the much larger cumulative emissions that would result from a prolonged, low-efficiency dependency on Earth-based supply chains. The simulation identifies a \textbf{Green Pareto Frontier}, where the marginal environmental cost of limiting early rocket launches results in a disproportionate increase in total project duration and long-term transport volume.
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}{0.48\textwidth}
+\centering
+\fbox{\parbox[c][5cm]{0.9\linewidth}{\centering \textbf{PLACEHOLDER: Environmental Debt Crossover Plot} \\
+\emph{Description:} Dual-line graph with Time (X) vs. Cumulative Emissions (Y). Show "Aggressive Bootstrapping" (Blue) with high initial slope but early plateau, and "Conservative" (Red) with lower initial slope but constant rise. Highlight the "Environmental Crossover Point".}}
+\end{minipage}
+\hfill
+\begin{minipage}{0.48\textwidth}
+\centering
+\fbox{\parbox[c][5cm]{0.9\linewidth}{\centering \textbf{PLACEHOLDER: Green Pareto Flow} \\
+\emph{Description:} Stacked area chart showing Earth Debt (Positive Y) decreasing over time and Moon Debt (Negative Y) increasing. Illustrates the "Inter-Planetary Liability Exchange" - shifting burden from Earth atmosphere to Moon surface.}}
+\end{minipage}
+\caption{Strategic Environmental Dynamics. (Left) The crossover point confirms that high initial investment leads to lower long-term debt. (Right) The exchange of liabilities protects the terrestrial stratosphere at the cost of localized lunar disturbance.}
+\label{fig:env_dynamics}
+\end{figure}
 
 
 % % 参考文献
