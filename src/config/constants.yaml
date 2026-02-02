@@ -86,13 +86,11 @@ scenarios:
 # -----------------------------------------------------------------------------
 scenario_parameters:
   elevator:
-    # Capacity: Logistic S-curve growth with physical ceiling
-    # Formula: C_E(t) = C_E_max / (1 + A * exp(-k_E * (year - t0)))
-    # where A is solved so that C_E(t0) = C_E_ref (537,000 t/y at 2050)
+    # Capacity: Fixed capacity
     capacity_logistic:
-      C_E_max_tpy: 1000000  # Physical ceiling (~1 Mt/y, see implementation_details.md)
+      C_E_max_tpy: 537000   # Fixed capacity
       C_E_ref_tpy: 537000   # Initial capacity at 2050 (179k × 3 harbours)
-      k_E: 0.10             # Growth rate parameter
+      k_E: 0.0              # No growth (fixed capacity)
       t0_year: 2050         # Reference year (model start)
       
     # Cost: Exponential decay model

@@ -262,15 +262,15 @@ Our regression analysis yields a decay rate $\lambda \approx 0.17$, with a proje
 
 \subsubsection{Space Elevator System Modeling}
 
-In contrast to the variable dynamics of rocket systems, the Space Elevator System is modeled as an evolving infrastructure rather than a static pipeline. We model its transport capacity evolution $C_E(t)$ using a \textbf{Logistic Growth Model}, starting from the MCM Agency's baseline of 537,000 t/y in 2050:
+In contrast to the variable dynamics of rocket systems, the Space Elevator System is modeled as a steady-state infrastructure providing continuous throughput. We define its transport capacity $C_E(t)$ as a fixed parameter, anchored to the MCM Agency's baseline specification:
 \begin{equation}
-C_E(t) = \frac{C_{E,max}}{1 + A \cdot e^{-k_E (t - t_0)}}
+C_E(t) = C_{E,ref} \quad \forall t \ge t_0
 \end{equation}
-The physical saturation limit $C_{E,max}$ is rigorously derived from the operational constraints of the "Aggregated Galactic Harbour" (3 harbours, 2 tethers each). Assuming a climber payload $m_{load}=100$ tons, an average ascent velocity $v_{climber}=200$ km/h ($55.6$ m/s), and a safety spacing $D_{safe}=1000$ km to resolve Coriolis forces, the theoretical maximum throughput is:
+Substituting the design parameters for the ``Aggregated Galactic Harbour'' (3 harbours, 2 tethers each), we adopt the constant service rate:
 \begin{equation}
-C_{E,max} = N_{tethers} \cdot \frac{m_{load} \cdot v_{climber}}{D_{safe}} \cdot T_{year} \cdot \eta
+C_E(t) = 537,000 \text{ metric tons/year}
 \end{equation}
-Substituting $N_{tethers}=6$, $\eta=0.95$ (availability), and $T_{year}=3.15 \times 10^7$ s, we obtain a physical ceiling of $C_{E,max} \approx 1,000,000$ metric tons/year.
+This formulation assumes that the initial deployment phase (2040--2050) has completed, allowing the system to operate at its nominal capacity from the start of the simulation ($t_0=2050$). The capacity is strictly constrained by the tether material strength and climber velocity ($v \approx 200$ km/h), ensuring physical plausibility without assuming speculative upgrades during the project horizon.
 
 Economically, the elevator follows a \textbf{Floor-Constrained Exponential Decay Model}, benefiting from low marginal costs driven by electricity and maintenance efficiencies. We model the unit cost dropping from an initial \$50/kg to a mature floor of \$5/kg:
 \begin{equation}
@@ -380,42 +380,42 @@ Maximizing the integral of city mass mathematically drives the solver to achieve
 
 \subsubsection{Scenario Dominance and Trade-offs}
 
-Simulation results (Figure \ref{fig:scenario_comparison}) demonstrate that \textbf{Scenario C (Hybrid Model)} offers the optimal balance between project duration and robustness, achieving completion in \textbf{25.5 years} (Project Year 2075.5). While Scenario A (Elevator-only) technically meets the 50-year deadline (37.3 years), Scenario C accelerates the critical path by approximately 12 years through the strategic deployment of high-thrust chemical optimization.
+Simulation results (Figure \ref{fig:scenario_comparison}) demonstrate that \textbf{Scenario C (Hybrid Model)} offers the optimal balance between project duration and cost efficiency, achieving completion in \textbf{25.5 years} (Project Year 2076). While Scenario A (Elevator-only) also meets the 50-year deadline (completing in 37.3 years), it lacks the rapid responsiveness of the hybrid approach. Scenario B (Rocket-only) fails to meet the target, requiring over 60 years due to the prohibitive logistic growth constraints on launch cadence.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/scenario_comparison.png}
-    \caption{Comparative Performance Bar Chart --- A dual-axis visualization of duration and cost. Scenario C (Hybrid) minimizes duration (25.5 years) at a cost of \$1.03B, effectively balancing the fiscal efficiency of the Elevator with the rapid deployment capability of rockets.}
+    \caption{Comparative Performance Bar Chart --- Scenario C (Hybrid) minimizes duration (25.5 years) at a cost of \$1.03B. Scenario A (Elevator-only) is viable but coarser (37.3 years), while Scenario B (Rocket) is non-compliant ($>$60 years).}
     \label{fig:scenario_comparison}
 \end{figure}
 
-The hybrid model explicitly resolves the ``Cold Start'' constraint: heavy-lift rockets deliver the initial \textbf{0.036 million tons} of high-complexity robotics and energy modules (``technological seeds''), while the Space Elevator provides bulk throughput for subsequent Tier 2 expansion (transporting \textbf{0.134 million tons}). This dual-modal approach prevents the launch-rate bottlenecks inherent to specific resource classes, enabling an annualized capacity growth rate of $\alpha \approx 0.35$.
+The hybrid model optimizes the ``Cold Start'' problem: heavy-lift rockets are utilized for the initial \textbf{0.04 million tons} of high-complexity ``technological seeds'' (Tier 1 electronics and precision machinery), while the Space Elevator assumes the role of a heavy-lift bulk carrier, transporting \textbf{0.13 million tons} of equipment during the critical bootstrapping phase. This dual-modal approach prevents bottlenecking the limited elevator throughput with high-priority, low-mass items that require immediate delivery.
 
 \subsubsection{Bootstrapping and Mass Sourcing Evolution}
 
-The model validates the \textbf{System Bootstrapping Effect} as a critical success factor. Upon project completion, \textbf{80.0\%} of the 100-million-ton cumulative mass requirement is satisfied via lunar In-Situ Resource Utilization (ISRU), minimizing Earth-to-Moon transport dependancy.
+The model validates the \textbf{System Bootstrapping Effect} as a critical success factor. Upon project completion, \textbf{80.0\%} of the 100-million-ton cumulative mass requirement is satisfied via lunar In-Situ Resource Utilization (ISRU), dramatically reducing Earth-to-Moon transport dependancy.
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/material_river.png}
-    \caption{Material Composition River Plot --- A stacked area chart illustrating the decoupled growth trajectory. The system transitions from 100\% Earth-dependence in 2050 to a steady-state 80\% lunar self-sufficiency, constrained only by the specific high-tech component requirements defined in the resource tiers.}
+    \caption{Material Composition River Plot --- The system transitions from 100\% Earth-dependence in 2050 to a steady-state 80\% lunar self-sufficiency. The initial injection of Earth-sourced capital stock ($P_0$) triggers the exponential growth of local production capabilities.}
     \label{fig:material_river}
 \end{figure}
 
-The ``River Plot'' (Figure \ref{fig:material_river}) delineates the decoupling of colony mass $M(t)$ from Earth launch capacity $L(t)$. The initial 0.17 million tons of Earth-sourced inputs act as an industrial multiplier, enabling the exponential replication of production capacity $P(t)$ required to scale the final 80 million tons of local structure.
+The ``River Plot'' (Figure \ref{fig:material_river}) delineates the decoupling of colony mass $M(t)$ from Earth launch capacity $L(t)$. The initial \textbf{0.17 million tons} of Earth-sourced inputs (combined Rocket and Elevator) act as an industrial multiplier, enabling the exponential replication of production capacity $P(t)$ required to sustain the later phases of heavy construction.
 
 \subsubsection{Optimal Construction Timeline}
 
-The optimization algorithm identifies a distinct, compressed critical path for construction, characterized by three sequential phases: (1) \textbf{Industrial Seeding} (2050.0--2050.2), (2) \textbf{Capacity Self-Replication} (2050.2--2052.8), and (3) \textbf{Urban Habitation Expansion} (2052.8--2075.4).
+The optimization algorithm identifies a distinct, compressed critical path for construction, characterized by three sequential phases: (1) \textbf{Industrial Seeding} (2050.0--2050.2), (2) \textbf{Capacity Self-Replication} (2050.2--2053.0), and (3) \textbf{Urban Habitation Expansion} (2053.0--2075.5).
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=\linewidth]{figures/construction_gantt.png}
-    \caption{Optimal Construction Schedule Gantt Chart --- The timeline reveals a rapid 2-month seeding phase followed by a 2.6-year self-replication period, culminating in a sustained 23-year urban expansion phase that completes well within the 200-month contingency buffer.}
+    \caption{Optimal Construction Schedule Gantt Chart --- The timeline reveals a rapid seeding phase ($<3$ months) followed by a $\sim$3-year self-replication period. The majority of the project duration (2053--2076) is dedicated to the linear expansion of urban infrastructure, fully leveraging the installed ISRU capacity.}
     \label{fig:construction_gantt}
 \end{figure}
 
-The explicit delineation of the self-replication phase, as shown in the Gantt chart (Figure \ref{fig:construction_gantt}), confirms that the system prioritizes a brief but intense period of exponential capacity growth ($P(t)$) before committing resources to linear habitat construction ($H(t)$). This sequential staging minimizes the overall project duration by maximizing the production base early in the lifecycle.
+The explicit delineation of the self-replication phase confirms that the system prioritizes a brief but intense period of exponential capacity growth before committing resources to linear habitat construction. This sequential staging serves to minimize the overall project duration by establishing a robust industrial base ($P(t) \gg 0$) early in the lifecycle.
 
 \section{Model II: System Robustness and Risk Assessment}
 

@@ -744,8 +744,8 @@ def get_elevator_capacity_tpy(
         # At t0: C_E_ref = C_E_max / (1 + A) => A = (C_E_max / C_E_ref) - 1
         if C_E_ref <= 0:
             raise ValueError("elevator capacity_logistic.C_E_ref_tpy must be positive")
-        if C_E_max <= C_E_ref:
-            raise ValueError("elevator capacity_logistic.C_E_max_tpy must exceed C_E_ref_tpy")
+        if C_E_max < C_E_ref:
+            raise ValueError("elevator capacity_logistic.C_E_max_tpy must be >= C_E_ref_tpy")
         
         A = (C_E_max / C_E_ref) - 1.0
         
